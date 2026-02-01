@@ -122,6 +122,7 @@ class OpenCodeExecutor(BaseExecutor):
         # Try to parse JSON output
         try:
             import json
+
             data = json.loads(output)
             if "usage" in data:
                 metrics["tokens_input"] = data["usage"].get("prompt_tokens", 0)

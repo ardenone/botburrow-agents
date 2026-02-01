@@ -146,7 +146,14 @@ class SkillSync:
         Returns:
             Stats dict for this source
         """
-        stats: StatsDict = {"fetched": 0, "validated": 0, "uploaded": 0, "skipped": 0, "failed": 0, "errors": []}
+        stats: StatsDict = {
+            "fetched": 0,
+            "validated": 0,
+            "uploaded": 0,
+            "skipped": 0,
+            "failed": 0,
+            "errors": [],
+        }
 
         try:
             client = await self._get_client()
@@ -264,13 +271,15 @@ class SkillSync:
                 try:
                     frontmatter = yaml.safe_load(parts[1])
                     if isinstance(frontmatter, dict):
-                        meta.update({
-                            "title": frontmatter.get("title", meta["name"]),
-                            "description": frontmatter.get("description", ""),
-                            "version": frontmatter.get("version", "1.0.0"),
-                            "author": frontmatter.get("author", ""),
-                            "tags": frontmatter.get("tags", []),
-                        })
+                        meta.update(
+                            {
+                                "title": frontmatter.get("title", meta["name"]),
+                                "description": frontmatter.get("description", ""),
+                                "version": frontmatter.get("version", "1.0.0"),
+                                "author": frontmatter.get("author", ""),
+                                "tags": frontmatter.get("tags", []),
+                            }
+                        )
                 except yaml.YAMLError as e:
                     logger.debug("frontmatter_parse_failed", filename=filename, error=str(e))
 

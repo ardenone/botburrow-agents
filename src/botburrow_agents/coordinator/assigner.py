@@ -43,9 +43,7 @@ class Assigner:
         self.redis = redis
         self.settings = settings or get_settings()
 
-    async def try_claim(
-        self, assignment: Assignment, runner_id: str
-    ) -> bool:
+    async def try_claim(self, assignment: Assignment, runner_id: str) -> bool:
         """Try to claim an agent for a runner.
 
         Args:
@@ -172,11 +170,13 @@ class Assigner:
             status: Runner status (active, busy, idle)
         """
         key = f"runner:heartbeat:{runner_id}"
-        value = json.dumps({
-            "runner_id": runner_id,
-            "status": status,
-            "timestamp": datetime.now(UTC).isoformat(),
-        })
+        value = json.dumps(
+            {
+                "runner_id": runner_id,
+                "status": status,
+                "timestamp": datetime.now(UTC).isoformat(),
+            }
+        )
         # Heartbeats expire after 2x poll interval
         await self.redis.set(key, value, ex=self.settings.poll_interval * 2)
 
@@ -188,9 +188,7 @@ class Assigner:
         runners = []
         cursor = 0
         while True:
-            cursor, keys = await r.scan(
-                cursor, match="runner:heartbeat:*", count=100
-            )
+            cursor, keys = await r.scan(cursor, match="runner:heartbeat:*", count=100)
             for key in keys:
                 value = await r.get(key)
                 if value:
@@ -212,28 +210,30 @@ class Assigner:
                 agent_id = key.split(":", 1)[1]
                 owner = await r.get(key)
                 ttl = await r.ttl(key)
-                locked.append({
-                    "agent_id": agent_id,
-                    "owner": owner,
-                    "ttl_seconds": ttl,
-                })
+                locked.append(
+                    {
+                        "agent_id": agent_id,
+                        "owner": owner,
+                        "ttl_seconds": ttl,
+                    }
+                )
             if cursor == 0:
                 break
 
         return locked
 
-    async def _track_assignment(
-        self, assignment: Assignment, runner_id: str
-    ) -> None:
+    async def _track_assignment(self, assignment: Assignment, runner_id: str) -> None:
         """Track assignment metadata."""
         key = f"agent:activation:{assignment.agent_id}"
-        value = json.dumps({
-            "agent_id": assignment.agent_id,
-            "agent_name": assignment.agent_name,
-            "runner_id": runner_id,
-            "task_type": assignment.task_type.value,
-            "started_at": datetime.now(UTC).isoformat(),
-        })
+        value = json.dumps(
+            {
+                "agent_id": assignment.agent_id,
+                "agent_name": assignment.agent_name,
+                "runner_id": runner_id,
+                "task_type": assignment.task_type.value,
+                "started_at": datetime.now(UTC).isoformat(),
+            }
+        )
         await self.redis.set(key, value, ex=self.settings.activation_timeout)
 
     async def _cleanup_assignment(self, agent_id: str) -> None:
@@ -245,18 +245,20 @@ class Assigner:
         """Record activation result for metrics."""
         # Store in a list for recent history
         key = "activation:results"
-        value = json.dumps({
-            "agent_id": result.agent_id,
-            "agent_name": result.agent_name,
-            "success": result.success,
-            "posts_created": result.posts_created,
-            "comments_created": result.comments_created,
-            "notifications_processed": result.notifications_processed,
-            "tokens_used": result.tokens_used,
-            "duration_seconds": result.duration_seconds,
-            "error": result.error,
-            "timestamp": datetime.now(UTC).isoformat(),
-        })
+        value = json.dumps(
+            {
+                "agent_id": result.agent_id,
+                "agent_name": result.agent_name,
+                "success": result.success,
+                "posts_created": result.posts_created,
+                "comments_created": result.comments_created,
+                "notifications_processed": result.notifications_processed,
+                "tokens_used": result.tokens_used,
+                "duration_seconds": result.duration_seconds,
+                "error": result.error,
+                "timestamp": datetime.now(UTC).isoformat(),
+            }
+        )
         r = await self.redis._ensure_connected()
         await r.lpush(key, value)
         # Keep only last 1000 results

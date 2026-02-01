@@ -29,9 +29,7 @@ class TestR2ClientBasicOperations:
     """Tests for basic R2 operations."""
 
     @pytest.mark.asyncio
-    async def test_get_object(
-        self, r2_client: R2Client, mock_s3_client: MagicMock
-    ) -> None:
+    async def test_get_object(self, r2_client: R2Client, mock_s3_client: MagicMock) -> None:
         """Test getting an object from R2."""
         mock_body = MagicMock()
         mock_body.read.return_value = b"test content"
@@ -41,9 +39,7 @@ class TestR2ClientBasicOperations:
             result = await r2_client.get_object("test/key.txt")
 
         assert result == b"test content"
-        mock_s3_client.get_object.assert_called_once_with(
-            Bucket="test-bucket", Key="test/key.txt"
-        )
+        mock_s3_client.get_object.assert_called_once_with(Bucket="test-bucket", Key="test/key.txt")
 
     @pytest.mark.asyncio
     async def test_get_object_not_found(
@@ -51,19 +47,16 @@ class TestR2ClientBasicOperations:
     ) -> None:
         """Test getting a nonexistent object."""
         error_response = {"Error": {"Code": "NoSuchKey", "Message": "Not found"}}
-        mock_s3_client.get_object.side_effect = ClientError(
-            error_response, "GetObject"
-        )
+        mock_s3_client.get_object.side_effect = ClientError(error_response, "GetObject")
 
-        with patch.object(
-            r2_client, "_get_client", return_value=mock_s3_client
-        ), pytest.raises(FileNotFoundError):
+        with (
+            patch.object(r2_client, "_get_client", return_value=mock_s3_client),
+            pytest.raises(FileNotFoundError),
+        ):
             await r2_client.get_object("nonexistent/key.txt")
 
     @pytest.mark.asyncio
-    async def test_get_text(
-        self, r2_client: R2Client, mock_s3_client: MagicMock
-    ) -> None:
+    async def test_get_text(self, r2_client: R2Client, mock_s3_client: MagicMock) -> None:
         """Test getting text content."""
         mock_body = MagicMock()
         mock_body.read.return_value = b"Hello, World!"
@@ -75,9 +68,7 @@ class TestR2ClientBasicOperations:
         assert result == "Hello, World!"
 
     @pytest.mark.asyncio
-    async def test_get_yaml(
-        self, r2_client: R2Client, mock_s3_client: MagicMock
-    ) -> None:
+    async def test_get_yaml(self, r2_client: R2Client, mock_s3_client: MagicMock) -> None:
         """Test getting and parsing YAML content."""
         yaml_content = """
 name: test-agent
@@ -97,9 +88,7 @@ brain:
         assert result["brain"]["model"] == "claude-sonnet-4-20250514"
 
     @pytest.mark.asyncio
-    async def test_put_object_bytes(
-        self, r2_client: R2Client, mock_s3_client: MagicMock
-    ) -> None:
+    async def test_put_object_bytes(self, r2_client: R2Client, mock_s3_client: MagicMock) -> None:
         """Test putting bytes object."""
         with patch.object(r2_client, "_get_client", return_value=mock_s3_client):
             await r2_client.put_object("test/data.bin", b"binary data")
@@ -109,9 +98,7 @@ brain:
         )
 
     @pytest.mark.asyncio
-    async def test_put_object_string(
-        self, r2_client: R2Client, mock_s3_client: MagicMock
-    ) -> None:
+    async def test_put_object_string(self, r2_client: R2Client, mock_s3_client: MagicMock) -> None:
         """Test putting string object (converted to bytes)."""
         with patch.object(r2_client, "_get_client", return_value=mock_s3_client):
             await r2_client.put_object("test/text.txt", "string content")
@@ -121,9 +108,7 @@ brain:
         )
 
     @pytest.mark.asyncio
-    async def test_list_objects(
-        self, r2_client: R2Client, mock_s3_client: MagicMock
-    ) -> None:
+    async def test_list_objects(self, r2_client: R2Client, mock_s3_client: MagicMock) -> None:
         """Test listing objects with prefix."""
         mock_s3_client.list_objects_v2.return_value = {
             "Contents": [
@@ -142,9 +127,7 @@ brain:
         )
 
     @pytest.mark.asyncio
-    async def test_list_objects_empty(
-        self, r2_client: R2Client, mock_s3_client: MagicMock
-    ) -> None:
+    async def test_list_objects_empty(self, r2_client: R2Client, mock_s3_client: MagicMock) -> None:
         """Test listing with no results."""
         mock_s3_client.list_objects_v2.return_value = {}
 
@@ -154,9 +137,7 @@ brain:
         assert result == []
 
     @pytest.mark.asyncio
-    async def test_object_exists_true(
-        self, r2_client: R2Client, mock_s3_client: MagicMock
-    ) -> None:
+    async def test_object_exists_true(self, r2_client: R2Client, mock_s3_client: MagicMock) -> None:
         """Test checking existing object."""
         mock_s3_client.head_object.return_value = {"ContentLength": 100}
 
@@ -171,9 +152,7 @@ brain:
     ) -> None:
         """Test checking nonexistent object."""
         error_response = {"Error": {"Code": "404", "Message": "Not found"}}
-        mock_s3_client.head_object.side_effect = ClientError(
-            error_response, "HeadObject"
-        )
+        mock_s3_client.head_object.side_effect = ClientError(error_response, "HeadObject")
 
         with patch.object(r2_client, "_get_client", return_value=mock_s3_client):
             result = await r2_client.object_exists("missing/key.txt")
@@ -185,9 +164,7 @@ class TestR2ClientAgentConfig:
     """Tests for agent configuration loading."""
 
     @pytest.mark.asyncio
-    async def test_load_agent_config(
-        self, r2_client: R2Client, mock_s3_client: MagicMock
-    ) -> None:
+    async def test_load_agent_config(self, r2_client: R2Client, mock_s3_client: MagicMock) -> None:
         """Test loading complete agent configuration."""
         config_yaml = """
 name: test-agent
@@ -262,9 +239,7 @@ class TestR2ClientSkills:
     """Tests for skill loading."""
 
     @pytest.mark.asyncio
-    async def test_load_skill(
-        self, r2_client: R2Client, mock_s3_client: MagicMock
-    ) -> None:
+    async def test_load_skill(self, r2_client: R2Client, mock_s3_client: MagicMock) -> None:
         """Test loading a skill."""
         skill_content = "# Hub Post Skill\n\nInstructions here..."
         mock_body = MagicMock()
@@ -280,9 +255,7 @@ class TestR2ClientSkills:
         )
 
     @pytest.mark.asyncio
-    async def test_list_skills(
-        self, r2_client: R2Client, mock_s3_client: MagicMock
-    ) -> None:
+    async def test_list_skills(self, r2_client: R2Client, mock_s3_client: MagicMock) -> None:
         """Test listing available skills."""
         mock_s3_client.list_objects_v2.return_value = {
             "Contents": [
@@ -300,9 +273,7 @@ class TestR2ClientSkills:
         assert "github-pr" in result
 
     @pytest.mark.asyncio
-    async def test_list_agents(
-        self, r2_client: R2Client, mock_s3_client: MagicMock
-    ) -> None:
+    async def test_list_agents(self, r2_client: R2Client, mock_s3_client: MagicMock) -> None:
         """Test listing available agents."""
         mock_s3_client.list_objects_v2.return_value = {
             "Contents": [

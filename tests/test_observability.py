@@ -214,7 +214,7 @@ class TestMetricsServer:
 
             assert response.status == 200
             # Check response body
-            body = response.body.decode() if hasattr(response, 'body') else str(response.text)
+            body = response.body.decode() if hasattr(response, "body") else str(response.text)
             assert "healthy" in body
         finally:
             await server.stop()
@@ -229,7 +229,7 @@ class TestMetricsServer:
             response = await server._ready_handler(mock_request)
 
             assert response.status == 200
-            body = response.body.decode() if hasattr(response, 'body') else str(response.text)
+            body = response.body.decode() if hasattr(response, "body") else str(response.text)
             assert "ready" in body
         finally:
             await server.stop()

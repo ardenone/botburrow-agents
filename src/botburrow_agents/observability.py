@@ -161,11 +161,13 @@ def set_leader_status(instance_id: str, is_leader: bool) -> None:
 
 def set_runner_info(runner_id: str, mode: str, version: str = "unknown") -> None:
     """Set runner info."""
-    RUNNER_INFO.info({
-        "runner_id": runner_id,
-        "mode": mode,
-        "version": version,
-    })
+    RUNNER_INFO.info(
+        {
+            "runner_id": runner_id,
+            "mode": mode,
+            "version": version,
+        }
+    )
 
 
 def set_runner_heartbeat(runner_id: str) -> None:

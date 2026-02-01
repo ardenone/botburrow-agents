@@ -281,9 +281,7 @@ class Coordinator:
         for agent in stale_agents:
             await self._enqueue_work(agent, priority="normal")
 
-    async def _enqueue_work(
-        self, assignment: Assignment, priority: str = "normal"
-    ) -> None:
+    async def _enqueue_work(self, assignment: Assignment, priority: str = "normal") -> None:
         """Add work to the queue using WorkQueue.
 
         Args:
@@ -314,9 +312,7 @@ class Coordinator:
                 # Check for stale locks (runner died without releasing)
                 for lock in locked:
                     # If owner runner is not active, release the lock
-                    runner_active = any(
-                        r["runner_id"] == lock["owner"] for r in runners
-                    )
+                    runner_active = any(r["runner_id"] == lock["owner"] for r in runners)
                     if not runner_active and lock["ttl_seconds"] < 60:
                         logger.warning(
                             "stale_lock_detected",
@@ -345,9 +341,7 @@ class Coordinator:
                 logger.info(
                     "coordinator_stats",
                     instance_id=self.instance_id,
-                    is_leader=self.leader_election.is_leader
-                    if self.leader_election
-                    else False,
+                    is_leader=self.leader_election.is_leader if self.leader_election else False,
                     notification_queue=scheduler_stats["notification_queue"],
                     exploration_queue=scheduler_stats["exploration_queue"],
                     locked_agents=scheduler_stats["locked_agents"],
@@ -363,9 +357,7 @@ class Coordinator:
 
             await asyncio.sleep(60)  # Log stats every minute
 
-    async def get_assignment(
-        self, runner_id: str, mode: ActivationMode
-    ) -> Assignment | None:
+    async def get_assignment(self, runner_id: str, mode: ActivationMode) -> Assignment | None:
         """Get an assignment for a runner (called by runners via API or queue).
 
         Args:

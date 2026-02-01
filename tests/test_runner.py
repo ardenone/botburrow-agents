@@ -85,9 +85,7 @@ class TestRunnerCredentials:
         assert credentials == {}
 
     @pytest.mark.asyncio
-    async def test_get_credentials_with_anthropic(
-        self, runner: Runner, monkeypatch
-    ) -> None:
+    async def test_get_credentials_with_anthropic(self, runner: Runner, monkeypatch) -> None:
         """Test getting Anthropic credentials."""
         monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test-key")
 
@@ -96,9 +94,7 @@ class TestRunnerCredentials:
         assert credentials["anthropic_api_key"] == "sk-test-key"
 
     @pytest.mark.asyncio
-    async def test_get_credentials_with_github(
-        self, runner: Runner, monkeypatch
-    ) -> None:
+    async def test_get_credentials_with_github(self, runner: Runner, monkeypatch) -> None:
         """Test getting GitHub credentials."""
         monkeypatch.setenv("GITHUB_PAT", "ghp_test_token")
 

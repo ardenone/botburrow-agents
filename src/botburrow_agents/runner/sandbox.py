@@ -179,9 +179,7 @@ class LocalSandbox(BaseSandbox):
         logger.debug("mcp_call", server=server_name, method=method_name)
 
         # For MVP, return placeholder
-        return ToolResult(
-            output=f"MCP call to {server_name}.{method_name} with args: {args}"
-        )
+        return ToolResult(output=f"MCP call to {server_name}.{method_name} with args: {args}")
 
     async def _read(self, args: dict[str, Any]) -> ToolResult:
         """Read file contents."""
@@ -365,9 +363,7 @@ class LocalSandbox(BaseSandbox):
             r">\s*/var/",
         ]
 
-        return any(
-            re.search(pattern, command, re.IGNORECASE) for pattern in blocked_patterns
-        )
+        return any(re.search(pattern, command, re.IGNORECASE) for pattern in blocked_patterns)
 
     def _get_safe_env(self) -> dict[str, str]:
         """Get safe environment variables for subprocess."""
@@ -415,9 +411,7 @@ class DockerSandbox(BaseSandbox):
             return
 
         # Create host workspace directory
-        self._host_workspace = Path(
-            tempfile.mkdtemp(prefix=f"sandbox-{self.agent.name}-")
-        )
+        self._host_workspace = Path(tempfile.mkdtemp(prefix=f"sandbox-{self.agent.name}-"))
         self._workspace = Path("/workspace")
 
         # Generate unique container name
@@ -470,7 +464,11 @@ class DockerSandbox(BaseSandbox):
         # Stop container with timeout
         try:
             process = await asyncio.create_subprocess_exec(
-                "docker", "stop", "-t", "10", self._container_id,
+                "docker",
+                "stop",
+                "-t",
+                "10",
+                self._container_id,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
@@ -481,7 +479,10 @@ class DockerSandbox(BaseSandbox):
         # Remove container
         try:
             process = await asyncio.create_subprocess_exec(
-                "docker", "rm", "-f", self._container_id,
+                "docker",
+                "rm",
+                "-f",
+                self._container_id,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
@@ -518,29 +519,43 @@ class DockerSandbox(BaseSandbox):
     def _build_docker_run_command(self) -> list[str]:
         """Build docker run command with security options."""
         cmd = [
-            "docker", "run",
+            "docker",
+            "run",
             "--detach",
-            "--name", self._container_name or "",
+            "--name",
+            self._container_name or "",
             # Resource limits
-            "--memory", self.settings.sandbox_memory,
-            "--cpus", self.settings.sandbox_cpu,
+            "--memory",
+            self.settings.sandbox_memory,
+            "--cpus",
+            self.settings.sandbox_cpu,
             # Security options
-            "--security-opt", "no-new-privileges:true",
-            "--cap-drop", "ALL",
-            "--cap-add", "CHOWN",
-            "--cap-add", "SETUID",
-            "--cap-add", "SETGID",
+            "--security-opt",
+            "no-new-privileges:true",
+            "--cap-drop",
+            "ALL",
+            "--cap-add",
+            "CHOWN",
+            "--cap-add",
+            "SETUID",
+            "--cap-add",
+            "SETGID",
             # Network: isolate by default, can be overridden per agent
-            "--network", "none" if not self.agent.network.enabled else "bridge",
+            "--network",
+            "none" if not self.agent.network.enabled else "bridge",
             # Workspace volume
-            "-v", f"{self._host_workspace}:/workspace:rw",
+            "-v",
+            f"{self._host_workspace}:/workspace:rw",
             # Read-only root filesystem (workspace is writable)
             "--read-only",
-            "--tmpfs", "/tmp:rw,noexec,nosuid,size=256m",
+            "--tmpfs",
+            "/tmp:rw,noexec,nosuid,size=256m",
             # Working directory
-            "-w", "/workspace",
+            "-w",
+            "/workspace",
             # User (run as non-root)
-            "--user", "agent",
+            "--user",
+            "agent",
         ]
 
         # Add environment variables for credentials
@@ -548,11 +563,16 @@ class DockerSandbox(BaseSandbox):
             cmd.extend(["-e", f"{key}={value}"])
 
         # Add standard env vars
-        cmd.extend([
-            "-e", "HOME=/workspace",
-            "-e", "TERM=xterm-256color",
-            "-e", "PYTHONUNBUFFERED=1",
-        ])
+        cmd.extend(
+            [
+                "-e",
+                "HOME=/workspace",
+                "-e",
+                "TERM=xterm-256color",
+                "-e",
+                "PYTHONUNBUFFERED=1",
+            ]
+        )
 
         # Image
         cmd.append(self.settings.sandbox_image)
@@ -610,9 +630,7 @@ class DockerSandbox(BaseSandbox):
 
         return await self._docker_exec(mcp_cmd, timeout=self.settings.mcp_timeout)
 
-    def _build_mcp_command(
-        self, server: str, method: str, args: dict[str, Any]
-    ) -> str:
+    def _build_mcp_command(self, server: str, method: str, args: dict[str, Any]) -> str:
         """Build command to invoke MCP server tool."""
         # Encode args as JSON for the MCP call
         args_json = json.dumps(args)
@@ -627,15 +645,21 @@ class DockerSandbox(BaseSandbox):
     ) -> ToolResult:
         """Execute command inside Docker container."""
         exec_cmd = [
-            "docker", "exec",
-            "-w", workdir or "/workspace",
+            "docker",
+            "exec",
+            "-w",
+            workdir or "/workspace",
         ]
 
         # Run command via bash
-        exec_cmd.extend([
-            self._container_id or "",
-            "/bin/bash", "-c", command,
-        ])
+        exec_cmd.extend(
+            [
+                self._container_id or "",
+                "/bin/bash",
+                "-c",
+                command,
+            ]
+        )
 
         try:
             process = await asyncio.create_subprocess_exec(
@@ -683,6 +707,7 @@ class DockerSandbox(BaseSandbox):
         # Create parent directories and write file
         # Using base64 to safely handle content with special characters
         import base64
+
         encoded = base64.b64encode(content.encode()).decode()
 
         cmd = f"mkdir -p $(dirname '{safe_path}') && echo '{encoded}' | base64 -d > '{safe_path}'"
@@ -712,10 +737,12 @@ class DockerSandbox(BaseSandbox):
 
         # Replace and write back
         new_content = content.replace(old_text, new_text, 1)
-        write_result = await self._docker_write({
-            "file_path": file_path,
-            "content": new_content,
-        })
+        write_result = await self._docker_write(
+            {
+                "file_path": file_path,
+                "content": new_content,
+            }
+        )
 
         if write_result.error:
             return write_result
@@ -784,9 +811,7 @@ class DockerSandbox(BaseSandbox):
             r"mount\s+",
         ]
 
-        return any(
-            re.search(pattern, command, re.IGNORECASE) for pattern in blocked_patterns
-        )
+        return any(re.search(pattern, command, re.IGNORECASE) for pattern in blocked_patterns)
 
 
 # Backwards compatibility alias

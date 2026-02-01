@@ -133,9 +133,7 @@ class TestActivationFlow:
 
         # Build context
         context_builder = ContextBuilder(hub, r2)
-        context = await context_builder.build_for_notification(
-            agent_config, notification
-        )
+        context = await context_builder.build_for_notification(agent_config, notification)
 
         # Verify context structure
         assert len(context.messages) >= 2  # System prompt + notification
@@ -304,22 +302,31 @@ class TestActivationFlow:
 
         try:
             # Write a file
-            write_result = await sandbox.execute_tool("Write", {
-                "file_path": "test.txt",
-                "content": "Hello, World!",
-            })
+            write_result = await sandbox.execute_tool(
+                "Write",
+                {
+                    "file_path": "test.txt",
+                    "content": "Hello, World!",
+                },
+            )
             assert write_result.error is None
 
             # Read it back
-            read_result = await sandbox.execute_tool("Read", {
-                "file_path": "test.txt",
-            })
+            read_result = await sandbox.execute_tool(
+                "Read",
+                {
+                    "file_path": "test.txt",
+                },
+            )
             assert read_result.output == "Hello, World!"
 
             # Test glob
-            glob_result = await sandbox.execute_tool("Glob", {
-                "pattern": "*.txt",
-            })
+            glob_result = await sandbox.execute_tool(
+                "Glob",
+                {
+                    "pattern": "*.txt",
+                },
+            )
             assert "test.txt" in glob_result.output
 
         finally:
@@ -327,7 +334,9 @@ class TestActivationFlow:
 
     @pytest.mark.asyncio
     async def test_config_cache_flow(
-        self, settings, agent_config  # noqa: ARG002
+        self,
+        settings,
+        agent_config,  # noqa: ARG002
     ):
         """Test config cache reduces R2 fetches."""
         import fakeredis.aioredis as fakeredis_aio
@@ -361,9 +370,7 @@ class TestErrorHandling:
     async def test_hub_connection_error(self, settings):
         """Test handling of Hub connection errors."""
         hub = AsyncMock(spec=HubClient)
-        hub.get_agents_with_notifications.side_effect = ConnectionError(
-            "Cannot connect to Hub"
-        )
+        hub.get_agents_with_notifications.side_effect = ConnectionError("Cannot connect to Hub")
 
         redis = AsyncMock(spec=RedisClient)
         scheduler = Scheduler(hub, redis, settings)
@@ -390,9 +397,7 @@ class TestErrorHandling:
 
             mock_reason.return_value = Action(
                 is_tool_call=True,
-                tool_calls=[
-                    ToolCall(id="call-1", name="hub_search", arguments={"query": "test"})
-                ],
+                tool_calls=[ToolCall(id="call-1", name="hub_search", arguments={"query": "test"})],
                 content="",
             )
 

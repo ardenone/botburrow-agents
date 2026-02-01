@@ -68,6 +68,7 @@ class TestRunnerSetupLogging:
     def test_setup_logging_does_not_raise(self) -> None:
         """Test that setup_logging completes without errors."""
         from botburrow_agents.runner.main import setup_logging
+
         setup_logging()  # Should not raise
 
 
@@ -142,9 +143,7 @@ class TestHeartbeatLoop:
 
         # Run one heartbeat
         await runner.assigner.heartbeat(runner.runner_id, "idle")
-        runner.assigner.heartbeat.assert_called_once_with(
-            runner.runner_id, "idle"
-        )
+        runner.assigner.heartbeat.assert_called_once_with(runner.runner_id, "idle")
 
 
 class TestLoadAgentConfig:
@@ -178,9 +177,7 @@ class TestLoadAgentConfig:
         runner.config_cache.get.assert_called_once_with("test-agent")
 
     @pytest.mark.asyncio
-    async def test_load_agent_config_from_r2(
-        self, runner: Runner, mock_agent: AgentConfig
-    ) -> None:
+    async def test_load_agent_config_from_r2(self, runner: Runner, mock_agent: AgentConfig) -> None:
         """Test loading agent config from Git when cache miss."""
         runner.config_cache = AsyncMock()
         runner.config_cache.get = AsyncMock(return_value=None)
@@ -224,9 +221,7 @@ class TestActivateAgent:
         self, runner: Runner, assignment: Assignment
     ) -> None:
         """Test activation fails when budget check fails."""
-        runner.budget_checker.check_budget = AsyncMock(
-            return_value=(False, "Budget exceeded")
-        )
+        runner.budget_checker.check_budget = AsyncMock(return_value=(False, "Budget exceeded"))
 
         result = await runner._activate_agent(assignment)
 
@@ -261,9 +256,7 @@ class TestActivateAgent:
         self, runner: Runner, assignment: Assignment
     ) -> None:
         """Test activation handles exceptions gracefully."""
-        runner.budget_checker.check_budget = AsyncMock(
-            side_effect=Exception("Test error")
-        )
+        runner.budget_checker.check_budget = AsyncMock(side_effect=Exception("Test error"))
         runner.hub.close = AsyncMock()
         runner.redis.close = AsyncMock()
 
@@ -298,9 +291,7 @@ class TestProcessInbox:
         )
 
     @pytest.mark.asyncio
-    async def test_process_inbox_no_notifications(
-        self, runner: Runner, agent: AgentConfig
-    ) -> None:
+    async def test_process_inbox_no_notifications(self, runner: Runner, agent: AgentConfig) -> None:
         """Test processing inbox with no notifications."""
         runner.hub.get_notifications = AsyncMock(return_value=[])
         sandbox = AsyncMock()
@@ -335,17 +326,13 @@ class TestRunExploration:
         )
 
     @pytest.mark.asyncio
-    async def test_run_exploration_with_executor(
-        self, runner: Runner, agent: AgentConfig
-    ) -> None:
+    async def test_run_exploration_with_executor(self, runner: Runner, agent: AgentConfig) -> None:
         """Test exploration with executor-based agent."""
         agent.type = "claude-code"
         sandbox = AsyncMock()
 
         # Mock the executor method
-        runner._run_exploration_with_executor = AsyncMock(
-            return_value={"tokens_used": 100}
-        )
+        runner._run_exploration_with_executor = AsyncMock(return_value={"tokens_used": 100})
 
         result = await runner._run_exploration(agent, sandbox)
 
@@ -359,4 +346,5 @@ class TestMain:
     def test_main_command_exists(self) -> None:
         """Test that main command is callable."""
         from botburrow_agents.runner.main import main
+
         assert callable(main)

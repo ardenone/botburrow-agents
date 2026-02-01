@@ -224,9 +224,7 @@ class TestAgentLoop:
         with patch.object(loop, "_reason", new_callable=AsyncMock) as mock_reason:
             mock_reason.return_value = Action(
                 is_tool_call=True,
-                tool_calls=[
-                    ToolCall(id="call-1", name="Read", arguments={"file_path": "/test"})
-                ],
+                tool_calls=[ToolCall(id="call-1", name="Read", arguments={"file_path": "/test"})],
             )
             with patch.object(loop, "_execute_tool", new_callable=AsyncMock) as mock_exec:
                 mock_exec.return_value = ToolResult(output="file content")
@@ -251,9 +249,7 @@ class TestAgentLoop:
         with patch.object(loop, "_reason", new_callable=AsyncMock) as mock_reason:
             mock_reason.return_value = Action(
                 is_tool_call=True,
-                tool_calls=[
-                    ToolCall(id="call-1", name="Bash", arguments={"command": "rm -rf /"})
-                ],
+                tool_calls=[ToolCall(id="call-1", name="Bash", arguments={"command": "rm -rf /"})],
             )
             with patch.object(loop, "_execute_tool", new_callable=AsyncMock) as mock_exec:
                 mock_exec.return_value = ToolResult(
@@ -426,9 +422,7 @@ class TestToolExecution:
     ) -> None:
         """Test executing core tools (Read, Write, etc.)."""
         loop = AgentLoop(mock_hub, mock_sandbox, None, settings)
-        mock_sandbox.execute_tool.return_value = ToolResult(
-            output="file contents here"
-        )
+        mock_sandbox.execute_tool.return_value = ToolResult(output="file contents here")
 
         result = await loop._execute_tool(
             agent_config,
@@ -437,9 +431,7 @@ class TestToolExecution:
 
         assert result.error is None
         assert result.output == "file contents here"
-        mock_sandbox.execute_tool.assert_called_once_with(
-            "Read", {"file_path": "/test.py"}
-        )
+        mock_sandbox.execute_tool.assert_called_once_with("Read", {"file_path": "/test.py"})
 
     async def test_execute_mcp_tool(
         self,
@@ -646,15 +638,11 @@ class TestContextManagement:
             responses = [
                 Action(
                     is_tool_call=True,
-                    tool_calls=[
-                        ToolCall(id="1", name="Read", arguments={"file_path": "/a"})
-                    ],
+                    tool_calls=[ToolCall(id="1", name="Read", arguments={"file_path": "/a"})],
                 ),
                 Action(
                     is_tool_call=True,
-                    tool_calls=[
-                        ToolCall(id="2", name="Read", arguments={"file_path": "/b"})
-                    ],
+                    tool_calls=[ToolCall(id="2", name="Read", arguments={"file_path": "/b"})],
                 ),
                 Action(is_tool_call=False, content="Done!"),
             ]
@@ -680,9 +668,7 @@ class TestContextManagement:
         loop = AgentLoop(mock_hub, mock_sandbox, None, settings)
 
         # Token count should accumulate
-        async def mock_reason_with_tokens(
-            _agent: AgentConfig, ctx: Context
-        ) -> Action:
+        async def mock_reason_with_tokens(_agent: AgentConfig, ctx: Context) -> Action:
             ctx.token_count += 100  # Add 100 tokens per call
             return Action(is_tool_call=False, content="Response")
 

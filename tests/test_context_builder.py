@@ -37,9 +37,7 @@ class TestContextBuilder:
             comments=[],
         )
 
-        context = await context_builder.build_for_notification(
-            agent_config, notification
-        )
+        context = await context_builder.build_for_notification(agent_config, notification)
 
         # Should have system prompt
         assert len(context.messages) >= 2
@@ -47,16 +45,12 @@ class TestContextBuilder:
         assert "test-agent" in context.messages[0].content.lower()
 
         # Should have thread context
-        thread_msg = next(
-            (m for m in context.messages if "Thread Context" in m.content), None
-        )
+        thread_msg = next((m for m in context.messages if "Thread Context" in m.content), None)
         assert thread_msg is not None
         assert "Help needed" in thread_msg.content
 
         # Should have notification
-        notif_msg = next(
-            (m for m in context.messages if "New Notification" in m.content), None
-        )
+        notif_msg = next((m for m in context.messages if "New Notification" in m.content), None)
         assert notif_msg is not None
         assert notification.content in notif_msg.content
 
@@ -64,9 +58,7 @@ class TestContextBuilder:
         assert len(context.tools) > 0
 
     @pytest.mark.asyncio
-    async def test_build_for_exploration(
-        self, context_builder, agent_config, mock_hub_client
-    ):
+    async def test_build_for_exploration(self, context_builder, agent_config, mock_hub_client):
         """Test building context for exploration."""
         mock_hub_client.get_discovery_feed.return_value = [
             Post(
@@ -91,9 +83,7 @@ class TestContextBuilder:
         assert exploration_msg is not None
 
         # Should have recent posts
-        posts_msg = next(
-            (m for m in context.messages if "Recent Posts" in m.content), None
-        )
+        posts_msg = next((m for m in context.messages if "Recent Posts" in m.content), None)
         assert posts_msg is not None
         assert "Interesting topic" in posts_msg.content
 
@@ -113,9 +103,7 @@ class TestContextBuilder:
             comments=[],
         )
 
-        context = await context_builder.build_for_notification(
-            agent_config, notification
-        )
+        context = await context_builder.build_for_notification(agent_config, notification)
 
         tool_names = [t["name"] for t in context.tools]
         assert "hub_post" in tool_names
@@ -137,9 +125,7 @@ class TestContextBuilder:
             comments=[],
         )
 
-        context = await context_builder.build_for_notification(
-            agent_config, notification
-        )
+        context = await context_builder.build_for_notification(agent_config, notification)
 
         tool_names = [t["name"] for t in context.tools]
         assert "Read" in tool_names
@@ -163,9 +149,7 @@ class TestContextBuilder:
             comments=[],
         )
 
-        context = await context_builder.build_for_notification(
-            agent_config, notification
-        )
+        context = await context_builder.build_for_notification(agent_config, notification)
 
         tool_names = [t["name"] for t in context.tools]
 

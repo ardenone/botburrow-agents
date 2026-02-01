@@ -124,10 +124,12 @@ class AgentLoop:
                         )
 
                 # Add assistant message with tool calls
-                context.add_message(Message(
-                    role="assistant",
-                    content=action.content or "",
-                ))
+                context.add_message(
+                    Message(
+                        role="assistant",
+                        content=action.content or "",
+                    )
+                )
 
             else:
                 # No tool calls = final response
@@ -195,23 +197,29 @@ class AgentLoop:
             elif msg.role == "assistant":
                 messages.append({"role": "assistant", "content": msg.content})
             elif msg.role == "tool":
-                messages.append({
-                    "role": "user",
-                    "content": [{  # type: ignore[dict-item]
-                        "type": "tool_result",
-                        "tool_use_id": msg.tool_call_id,
-                        "content": msg.content,
-                    }],
-                })
+                messages.append(
+                    {
+                        "role": "user",
+                        "content": [
+                            {  # type: ignore[dict-item]
+                                "type": "tool_result",
+                                "tool_use_id": msg.tool_call_id,
+                                "content": msg.content,
+                            }
+                        ],
+                    }
+                )
 
         # Convert tools to Anthropic format
         tools = []
         for tool in context.tools:
-            tools.append({
-                "name": tool["name"],
-                "description": tool["description"],
-                "input_schema": tool["parameters"],
-            })
+            tools.append(
+                {
+                    "name": tool["name"],
+                    "description": tool["description"],
+                    "input_schema": tool["parameters"],
+                }
+            )
 
         # Make API call
         response = await self._anthropic.messages.create(
@@ -234,11 +242,13 @@ class AgentLoop:
             if block.type == "text":
                 text_content = block.text
             elif block.type == "tool_use":
-                tool_calls.append(ToolCall(
-                    id=block.id,
-                    name=block.name,
-                    arguments=block.input,
-                ))
+                tool_calls.append(
+                    ToolCall(
+                        id=block.id,
+                        name=block.name,
+                        arguments=block.input,
+                    )
+                )
 
         if tool_calls:
             return Action(is_tool_call=True, tool_calls=tool_calls, content=text_content)
@@ -258,25 +268,29 @@ class AgentLoop:
         messages = []
         for msg in context.messages:
             if msg.role == "tool":
-                messages.append({
-                    "role": "tool",
-                    "tool_call_id": msg.tool_call_id,
-                    "content": msg.content,
-                })
+                messages.append(
+                    {
+                        "role": "tool",
+                        "tool_call_id": msg.tool_call_id,
+                        "content": msg.content,
+                    }
+                )
             else:
                 messages.append({"role": msg.role, "content": msg.content})
 
         # Convert tools to OpenAI format
         tools = []
         for tool in context.tools:
-            tools.append({
-                "type": "function",
-                "function": {
-                    "name": tool["name"],
-                    "description": tool["description"],
-                    "parameters": tool["parameters"],
-                },
-            })
+            tools.append(
+                {
+                    "type": "function",
+                    "function": {
+                        "name": tool["name"],
+                        "description": tool["description"],
+                        "parameters": tool["parameters"],
+                    },
+                }
+            )
 
         # Make API call
         response = await self._openai.chat.completions.create(
@@ -298,11 +312,13 @@ class AgentLoop:
         if message.tool_calls:
             tool_calls = []
             for tc in message.tool_calls:
-                tool_calls.append(ToolCall(
-                    id=tc.id,
-                    name=tc.function.name,  # type: ignore[union-attr]
-                    arguments=json.loads(tc.function.arguments),  # type: ignore[union-attr]
-                ))
+                tool_calls.append(
+                    ToolCall(
+                        id=tc.id,
+                        name=tc.function.name,  # type: ignore[union-attr]
+                        arguments=json.loads(tc.function.arguments),  # type: ignore[union-attr]
+                    )
+                )
             return Action(
                 is_tool_call=True,
                 tool_calls=tool_calls,
@@ -362,9 +378,7 @@ class AgentLoop:
                     post_id=reply_to,
                     content=content,
                 )
-                return ToolResult(
-                    output=f"Comment posted successfully. ID: {post.id}"
-                )
+                return ToolResult(output=f"Comment posted successfully. ID: {post.id}")
             else:
                 post = await self.hub.create_post(
                     agent_id=agent.name,
@@ -372,9 +386,7 @@ class AgentLoop:
                     title=title,
                     community=community,
                 )
-                return ToolResult(
-                    output=f"Post created successfully. ID: {post.id}"
-                )
+                return ToolResult(output=f"Post created successfully. ID: {post.id}")
         except Exception as e:
             return ToolResult(error=f"Failed to post: {e}")
 

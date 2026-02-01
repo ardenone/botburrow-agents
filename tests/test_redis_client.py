@@ -88,9 +88,7 @@ class TestRedisClientBasicOperations:
         return client, mock_redis
 
     @pytest.mark.asyncio
-    async def test_get(
-        self, client_with_mock_redis: tuple[RedisClient, AsyncMock]
-    ) -> None:
+    async def test_get(self, client_with_mock_redis: tuple[RedisClient, AsyncMock]) -> None:
         """Test get operation."""
         client, mock_redis = client_with_mock_redis
         mock_redis.get.return_value = "test-value"
@@ -101,9 +99,7 @@ class TestRedisClientBasicOperations:
         assert result == "test-value"
 
     @pytest.mark.asyncio
-    async def test_set(
-        self, client_with_mock_redis: tuple[RedisClient, AsyncMock]
-    ) -> None:
+    async def test_set(self, client_with_mock_redis: tuple[RedisClient, AsyncMock]) -> None:
         """Test set operation."""
         client, mock_redis = client_with_mock_redis
         mock_redis.set.return_value = True
@@ -126,9 +122,7 @@ class TestRedisClientBasicOperations:
         assert result is False
 
     @pytest.mark.asyncio
-    async def test_delete(
-        self, client_with_mock_redis: tuple[RedisClient, AsyncMock]
-    ) -> None:
+    async def test_delete(self, client_with_mock_redis: tuple[RedisClient, AsyncMock]) -> None:
         """Test delete operation."""
         client, mock_redis = client_with_mock_redis
         mock_redis.delete.return_value = 1
@@ -139,9 +133,7 @@ class TestRedisClientBasicOperations:
         assert result == 1
 
     @pytest.mark.asyncio
-    async def test_exists(
-        self, client_with_mock_redis: tuple[RedisClient, AsyncMock]
-    ) -> None:
+    async def test_exists(self, client_with_mock_redis: tuple[RedisClient, AsyncMock]) -> None:
         """Test exists operation."""
         client, mock_redis = client_with_mock_redis
         mock_redis.exists.return_value = 1
@@ -164,9 +156,7 @@ class TestRedisClientBasicOperations:
         assert result is False
 
     @pytest.mark.asyncio
-    async def test_incr(
-        self, client_with_mock_redis: tuple[RedisClient, AsyncMock]
-    ) -> None:
+    async def test_incr(self, client_with_mock_redis: tuple[RedisClient, AsyncMock]) -> None:
         """Test incr operation."""
         client, mock_redis = client_with_mock_redis
         mock_redis.incr.return_value = 5
@@ -177,9 +167,7 @@ class TestRedisClientBasicOperations:
         assert result == 5
 
     @pytest.mark.asyncio
-    async def test_expire(
-        self, client_with_mock_redis: tuple[RedisClient, AsyncMock]
-    ) -> None:
+    async def test_expire(self, client_with_mock_redis: tuple[RedisClient, AsyncMock]) -> None:
         """Test expire operation."""
         client, mock_redis = client_with_mock_redis
         mock_redis.expire.return_value = True
@@ -202,9 +190,7 @@ class TestRedisClientListOperations:
         return client, mock_redis
 
     @pytest.mark.asyncio
-    async def test_lpush(
-        self, client_with_mock_redis: tuple[RedisClient, AsyncMock]
-    ) -> None:
+    async def test_lpush(self, client_with_mock_redis: tuple[RedisClient, AsyncMock]) -> None:
         """Test lpush operation."""
         client, mock_redis = client_with_mock_redis
         mock_redis.lpush.return_value = 3
@@ -215,9 +201,7 @@ class TestRedisClientListOperations:
         assert result == 3
 
     @pytest.mark.asyncio
-    async def test_rpush(
-        self, client_with_mock_redis: tuple[RedisClient, AsyncMock]
-    ) -> None:
+    async def test_rpush(self, client_with_mock_redis: tuple[RedisClient, AsyncMock]) -> None:
         """Test rpush operation."""
         client, mock_redis = client_with_mock_redis
         mock_redis.rpush.return_value = 2
@@ -228,9 +212,7 @@ class TestRedisClientListOperations:
         assert result == 2
 
     @pytest.mark.asyncio
-    async def test_brpop(
-        self, client_with_mock_redis: tuple[RedisClient, AsyncMock]
-    ) -> None:
+    async def test_brpop(self, client_with_mock_redis: tuple[RedisClient, AsyncMock]) -> None:
         """Test brpop operation."""
         client, mock_redis = client_with_mock_redis
         mock_redis.brpop.return_value = ("queue", "item")
@@ -253,9 +235,7 @@ class TestRedisClientListOperations:
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_llen(
-        self, client_with_mock_redis: tuple[RedisClient, AsyncMock]
-    ) -> None:
+    async def test_llen(self, client_with_mock_redis: tuple[RedisClient, AsyncMock]) -> None:
         """Test llen operation."""
         client, mock_redis = client_with_mock_redis
         mock_redis.llen.return_value = 5
@@ -278,9 +258,7 @@ class TestRedisClientHashOperations:
         return client, mock_redis
 
     @pytest.mark.asyncio
-    async def test_hset(
-        self, client_with_mock_redis: tuple[RedisClient, AsyncMock]
-    ) -> None:
+    async def test_hset(self, client_with_mock_redis: tuple[RedisClient, AsyncMock]) -> None:
         """Test hset operation."""
         client, mock_redis = client_with_mock_redis
         mock_redis.hset.return_value = 1
@@ -291,9 +269,7 @@ class TestRedisClientHashOperations:
         assert result == 1
 
     @pytest.mark.asyncio
-    async def test_hget(
-        self, client_with_mock_redis: tuple[RedisClient, AsyncMock]
-    ) -> None:
+    async def test_hget(self, client_with_mock_redis: tuple[RedisClient, AsyncMock]) -> None:
         """Test hget operation."""
         client, mock_redis = client_with_mock_redis
         mock_redis.hget.return_value = "value"
@@ -304,9 +280,7 @@ class TestRedisClientHashOperations:
         assert result == "value"
 
     @pytest.mark.asyncio
-    async def test_hgetall(
-        self, client_with_mock_redis: tuple[RedisClient, AsyncMock]
-    ) -> None:
+    async def test_hgetall(self, client_with_mock_redis: tuple[RedisClient, AsyncMock]) -> None:
         """Test hgetall operation."""
         client, mock_redis = client_with_mock_redis
         mock_redis.hgetall.return_value = {"field1": "value1", "field2": "value2"}
@@ -317,9 +291,7 @@ class TestRedisClientHashOperations:
         assert result == {"field1": "value1", "field2": "value2"}
 
     @pytest.mark.asyncio
-    async def test_hdel(
-        self, client_with_mock_redis: tuple[RedisClient, AsyncMock]
-    ) -> None:
+    async def test_hdel(self, client_with_mock_redis: tuple[RedisClient, AsyncMock]) -> None:
         """Test hdel operation."""
         client, mock_redis = client_with_mock_redis
         mock_redis.hdel.return_value = 2
@@ -342,9 +314,7 @@ class TestRedisClientPubSub:
         return client, mock_redis
 
     @pytest.mark.asyncio
-    async def test_publish(
-        self, client_with_mock_redis: tuple[RedisClient, AsyncMock]
-    ) -> None:
+    async def test_publish(self, client_with_mock_redis: tuple[RedisClient, AsyncMock]) -> None:
         """Test publish operation."""
         client, mock_redis = client_with_mock_redis
         mock_redis.publish.return_value = 3
@@ -355,9 +325,7 @@ class TestRedisClientPubSub:
         assert result == 3
 
     @pytest.mark.asyncio
-    async def test_subscribe(
-        self, client_with_mock_redis: tuple[RedisClient, AsyncMock]
-    ) -> None:
+    async def test_subscribe(self, client_with_mock_redis: tuple[RedisClient, AsyncMock]) -> None:
         """Test subscribe operation."""
         client, mock_redis = client_with_mock_redis
         mock_pubsub = MagicMock()
@@ -392,9 +360,7 @@ class TestRedisLock:
 
         assert result is True
         assert lock.acquired is True
-        mock_client._redis.set.assert_called_once_with(
-            "test-lock", "owner-1", nx=True, ex=600
-        )
+        mock_client._redis.set.assert_called_once_with("test-lock", "owner-1", nx=True, ex=600)
 
     @pytest.mark.asyncio
     async def test_acquire_failure(self, mock_client: RedisClient) -> None:
@@ -496,6 +462,4 @@ class TestRedisClientLockContextManager:
         lock = await client.acquire_lock("test-lock", "owner-1", 600)
 
         assert lock.acquired is True
-        mock_redis.set.assert_called_once_with(
-            "test-lock", "owner-1", nx=True, ex=600
-        )
+        mock_redis.set.assert_called_once_with("test-lock", "owner-1", nx=True, ex=600)

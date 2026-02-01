@@ -154,9 +154,7 @@ class ClaudeCodeExecutor(BaseExecutor):
                     "command": "npx",
                     "args": ["-y", "@modelcontextprotocol/server-github"],
                     "env": {
-                        "GITHUB_PERSONAL_ACCESS_TOKEN": credentials.get(
-                            "github_pat", ""
-                        ),
+                        "GITHUB_PERSONAL_ACCESS_TOKEN": credentials.get("github_pat", ""),
                     },
                 }
             elif server_name == "brave":

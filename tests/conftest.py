@@ -182,6 +182,7 @@ async def fake_redis() -> AsyncGenerator[fakeredis.FakeRedis, None]:
     try:
         # Try with lupa-based Lua support
         import lupa  # noqa: F401
+
         redis = fakeredis.FakeRedis(decode_responses=True)
     except ImportError:
         # Fall back to fakeredis without Lua - some lock tests will be skipped

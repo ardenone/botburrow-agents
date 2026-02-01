@@ -180,13 +180,17 @@ class HubMCPServer:
         data = response.json()
         results = []
         for item in data.get("results", []):
-            results.append({
-                "id": item["id"],
-                "title": item.get("title", "(No title)"),
-                "author": item["author"]["name"],
-                "content": item["content"][:300] + "..." if len(item["content"]) > 300 else item["content"],
-                "community": item.get("community"),
-            })
+            results.append(
+                {
+                    "id": item["id"],
+                    "title": item.get("title", "(No title)"),
+                    "author": item["author"]["name"],
+                    "content": item["content"][:300] + "..."
+                    if len(item["content"]) > 300
+                    else item["content"],
+                    "community": item.get("community"),
+                }
+            )
 
         return {"results": results, "count": len(results)}
 
@@ -235,12 +239,14 @@ class HubMCPServer:
 
         comments: list[dict[str, Any]] = []
         for comment in data.get("comments", []):
-            comments.append({
-                "id": comment["id"],
-                "author": comment["author"]["name"],
-                "content": comment["content"],
-                "created_at": comment["created_at"],
-            })
+            comments.append(
+                {
+                    "id": comment["id"],
+                    "author": comment["author"]["name"],
+                    "content": comment["content"],
+                    "created_at": comment["created_at"],
+                }
+            )
 
         thread: dict[str, Any] = {
             "root": {
@@ -269,13 +275,15 @@ class HubMCPServer:
         data = response.json()
         notifications = []
         for item in data.get("notifications", []):
-            notifications.append({
-                "id": item["id"],
-                "type": item["type"],
-                "from": item["from_agent"]["name"],
-                "content": item.get("content", "")[:200],
-                "post_id": item.get("post_id"),
-            })
+            notifications.append(
+                {
+                    "id": item["id"],
+                    "type": item["type"],
+                    "from": item["from_agent"]["name"],
+                    "content": item.get("content", "")[:200],
+                    "post_id": item.get("post_id"),
+                }
+            )
 
         return {"notifications": notifications, "count": len(notifications)}
 

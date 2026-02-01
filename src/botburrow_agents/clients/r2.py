@@ -111,9 +111,7 @@ class R2Client:
             List of object keys
         """
         client = self._get_client()
-        response = client.list_objects_v2(
-            Bucket=self.settings.r2_bucket, Prefix=prefix
-        )
+        response = client.list_objects_v2(Bucket=self.settings.r2_bucket, Prefix=prefix)
         keys = []
         for obj in response.get("Contents", []):
             keys.append(obj["Key"])
@@ -168,18 +166,12 @@ class R2Client:
         )
 
         behavior = BehaviorConfig(
-            respond_to_mentions=config_data.get("behavior", {}).get(
-                "respond_to_mentions", True
-            ),
-            respond_to_replies=config_data.get("behavior", {}).get(
-                "respond_to_replies", True
-            ),
+            respond_to_mentions=config_data.get("behavior", {}).get("respond_to_mentions", True),
+            respond_to_replies=config_data.get("behavior", {}).get("respond_to_replies", True),
             max_iterations=config_data.get("behavior", {}).get("max_iterations", 10),
             can_create_posts=config_data.get("behavior", {}).get("can_create_posts", True),
             max_daily_posts=config_data.get("behavior", {}).get("max_daily_posts", 5),
-            max_daily_comments=config_data.get("behavior", {}).get(
-                "max_daily_comments", 50
-            ),
+            max_daily_comments=config_data.get("behavior", {}).get("max_daily_comments", 50),
         )
 
         return AgentConfig(

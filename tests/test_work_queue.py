@@ -101,16 +101,12 @@ class TestWorkQueueEnqueue:
     """Tests for WorkQueue enqueue functionality."""
 
     @pytest.fixture
-    def queue(
-        self, mock_redis: AsyncMock, work_queue_settings: Settings
-    ) -> WorkQueue:
+    def queue(self, mock_redis: AsyncMock, work_queue_settings: Settings) -> WorkQueue:
         """Create WorkQueue with mock."""
         return WorkQueue(mock_redis, work_queue_settings)
 
     @pytest.mark.asyncio
-    async def test_enqueue_success(
-        self, queue: WorkQueue, mock_redis: AsyncMock
-    ) -> None:
+    async def test_enqueue_success(self, queue: WorkQueue, mock_redis: AsyncMock) -> None:
         """Test successful enqueue."""
         mock_redis.hget.return_value = None  # No active task
 
@@ -126,9 +122,7 @@ class TestWorkQueueEnqueue:
         mock_redis.lpush.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_enqueue_skip_duplicate(
-        self, queue: WorkQueue, mock_redis: AsyncMock
-    ) -> None:
+    async def test_enqueue_skip_duplicate(self, queue: WorkQueue, mock_redis: AsyncMock) -> None:
         """Test skipping duplicate work item."""
         mock_redis.hget.return_value = "runner-1"  # Already active
 
@@ -144,9 +138,7 @@ class TestWorkQueueEnqueue:
         mock_redis.lpush.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_enqueue_skip_backoff(
-        self, queue: WorkQueue, mock_redis: AsyncMock
-    ) -> None:
+    async def test_enqueue_skip_backoff(self, queue: WorkQueue, mock_redis: AsyncMock) -> None:
         """Test skipping agent in backoff."""
         mock_redis.hget.side_effect = [
             None,  # No active task
@@ -187,9 +179,7 @@ class TestWorkQueueEnqueue:
         mock_redis.lpush.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_enqueue_force_skip_dedup(
-        self, queue: WorkQueue, mock_redis: AsyncMock
-    ) -> None:
+    async def test_enqueue_force_skip_dedup(self, queue: WorkQueue, mock_redis: AsyncMock) -> None:
         """Test force flag bypasses deduplication."""
         mock_redis.hget.return_value = "runner-1"  # Already active
 
@@ -205,9 +195,7 @@ class TestWorkQueueEnqueue:
         mock_redis.lpush.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_enqueue_priority_queues(
-        self, queue: WorkQueue, mock_redis: AsyncMock
-    ) -> None:
+    async def test_enqueue_priority_queues(self, queue: WorkQueue, mock_redis: AsyncMock) -> None:
         """Test items go to correct priority queue."""
         mock_redis.hget.return_value = None
 
@@ -234,16 +222,12 @@ class TestWorkQueueClaim:
     """Tests for WorkQueue claim functionality."""
 
     @pytest.fixture
-    def queue(
-        self, mock_redis: AsyncMock, work_queue_settings: Settings
-    ) -> WorkQueue:
+    def queue(self, mock_redis: AsyncMock, work_queue_settings: Settings) -> WorkQueue:
         """Create WorkQueue with mock."""
         return WorkQueue(mock_redis, work_queue_settings)
 
     @pytest.mark.asyncio
-    async def test_claim_success(
-        self, queue: WorkQueue, mock_redis: AsyncMock
-    ) -> None:
+    async def test_claim_success(self, queue: WorkQueue, mock_redis: AsyncMock) -> None:
         """Test successful claim."""
         work_data = {
             "agent_id": "agent-1",
@@ -260,14 +244,10 @@ class TestWorkQueueClaim:
 
         assert result is not None
         assert result.agent_id == "agent-1"
-        mock_redis.hset.assert_called_once_with(
-            ACTIVE_TASKS, "agent-1", "runner-1"
-        )
+        mock_redis.hset.assert_called_once_with(ACTIVE_TASKS, "agent-1", "runner-1")
 
     @pytest.mark.asyncio
-    async def test_claim_timeout(
-        self, queue: WorkQueue, mock_redis: AsyncMock
-    ) -> None:
+    async def test_claim_timeout(self, queue: WorkQueue, mock_redis: AsyncMock) -> None:
         """Test claim returns None on timeout."""
         mock_redis.brpop.return_value = None
 
@@ -280,16 +260,12 @@ class TestWorkQueueComplete:
     """Tests for WorkQueue complete functionality."""
 
     @pytest.fixture
-    def queue(
-        self, mock_redis: AsyncMock, work_queue_settings: Settings
-    ) -> WorkQueue:
+    def queue(self, mock_redis: AsyncMock, work_queue_settings: Settings) -> WorkQueue:
         """Create WorkQueue with mock."""
         return WorkQueue(mock_redis, work_queue_settings)
 
     @pytest.mark.asyncio
-    async def test_complete_success(
-        self, queue: WorkQueue, mock_redis: AsyncMock
-    ) -> None:
+    async def test_complete_success(self, queue: WorkQueue, mock_redis: AsyncMock) -> None:
         """Test completing work successfully."""
         item = WorkItem(
             agent_id="agent-1",
@@ -319,9 +295,7 @@ class TestWorkQueueComplete:
         await queue.complete(item, success=False)
 
         mock_redis.hdel.assert_called_once_with(ACTIVE_TASKS, "agent-1")
-        mock_redis.hincrby.assert_called_once_with(
-            AGENT_FAILURES, "agent-1", 1
-        )
+        mock_redis.hincrby.assert_called_once_with(AGENT_FAILURES, "agent-1", 1)
         # Should not trigger circuit breaker yet
         mock_redis.hset.assert_not_called()
 
@@ -351,16 +325,12 @@ class TestWorkQueueStats:
     """Tests for WorkQueue statistics."""
 
     @pytest.fixture
-    def queue(
-        self, mock_redis: AsyncMock, work_queue_settings: Settings
-    ) -> WorkQueue:
+    def queue(self, mock_redis: AsyncMock, work_queue_settings: Settings) -> WorkQueue:
         """Create WorkQueue with mock."""
         return WorkQueue(mock_redis, work_queue_settings)
 
     @pytest.mark.asyncio
-    async def test_get_queue_stats(
-        self, queue: WorkQueue, mock_redis: AsyncMock
-    ) -> None:
+    async def test_get_queue_stats(self, queue: WorkQueue, mock_redis: AsyncMock) -> None:
         """Test getting queue statistics."""
         mock_redis.llen.side_effect = [10, 20, 5]  # high, normal, low
         mock_redis.hlen.side_effect = [3, 2]  # active, backoff
@@ -375,9 +345,7 @@ class TestWorkQueueStats:
         assert stats["agents_in_backoff"] == 2
 
     @pytest.mark.asyncio
-    async def test_clear_backoff(
-        self, queue: WorkQueue, mock_redis: AsyncMock
-    ) -> None:
+    async def test_clear_backoff(self, queue: WorkQueue, mock_redis: AsyncMock) -> None:
         """Test clearing agent backoff."""
         await queue.clear_backoff("agent-1")
 
@@ -394,9 +362,7 @@ class TestConfigCache:
         return ConfigCache(mock_redis, ttl=300)
 
     @pytest.mark.asyncio
-    async def test_get_cached(
-        self, cache: ConfigCache, mock_redis: AsyncMock
-    ) -> None:
+    async def test_get_cached(self, cache: ConfigCache, mock_redis: AsyncMock) -> None:
         """Test getting cached config."""
         config = {"name": "Agent 1", "type": "claude-code"}
         mock_redis.get.return_value = json.dumps(config)
@@ -407,9 +373,7 @@ class TestConfigCache:
         mock_redis.get.assert_called_once_with("cache:agent:agent-1")
 
     @pytest.mark.asyncio
-    async def test_get_not_cached(
-        self, cache: ConfigCache, mock_redis: AsyncMock
-    ) -> None:
+    async def test_get_not_cached(self, cache: ConfigCache, mock_redis: AsyncMock) -> None:
         """Test getting config when not cached."""
         mock_redis.get.return_value = None
 
@@ -418,9 +382,7 @@ class TestConfigCache:
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_set(
-        self, cache: ConfigCache, mock_redis: AsyncMock
-    ) -> None:
+    async def test_set(self, cache: ConfigCache, mock_redis: AsyncMock) -> None:
         """Test setting cached config."""
         config = {"name": "Agent 1", "type": "claude-code"}
 
@@ -433,9 +395,7 @@ class TestConfigCache:
         )
 
     @pytest.mark.asyncio
-    async def test_invalidate(
-        self, cache: ConfigCache, mock_redis: AsyncMock
-    ) -> None:
+    async def test_invalidate(self, cache: ConfigCache, mock_redis: AsyncMock) -> None:
         """Test invalidating cached config."""
         await cache.invalidate("agent-1")
 
@@ -496,9 +456,7 @@ class TestLeaderElection:
         assert leader.is_leader is False
 
     @pytest.mark.asyncio
-    async def test_release_leadership(
-        self, leader: LeaderElection, mock_redis: AsyncMock
-    ) -> None:
+    async def test_release_leadership(self, leader: LeaderElection, mock_redis: AsyncMock) -> None:
         """Test releasing leadership."""
         # First become leader
         mock_redis.set.return_value = True

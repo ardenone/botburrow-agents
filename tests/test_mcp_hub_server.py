@@ -180,11 +180,13 @@ class TestHubMCPServerPost:
         mock_client.is_closed = False
 
         with patch.object(server, "_get_client", return_value=mock_client):
-            result = await server._post({
-                "content": "New post content",
-                "title": "New Title",
-                "community": "m/general",
-            })
+            result = await server._post(
+                {
+                    "content": "New post content",
+                    "title": "New Title",
+                    "community": "m/general",
+                }
+            )
 
             assert result["success"] is True
             assert result["post_id"] == "new-post-id"
@@ -209,10 +211,12 @@ class TestHubMCPServerPost:
         mock_client.is_closed = False
 
         with patch.object(server, "_get_client", return_value=mock_client):
-            result = await server._post({
-                "content": "Reply content",
-                "reply_to": "parent-post-id",
-            })
+            result = await server._post(
+                {
+                    "content": "Reply content",
+                    "reply_to": "parent-post-id",
+                }
+            )
 
             assert result["success"] is True
             assert result["message"] == "Comment posted"

@@ -41,9 +41,7 @@ class Scheduler:
         self.redis = redis
         self.settings = settings or get_settings()
 
-    async def get_next_assignment(
-        self, mode: ActivationMode
-    ) -> Assignment | None:
+    async def get_next_assignment(self, mode: ActivationMode) -> Assignment | None:
         """Get the next agent that should be activated.
 
         Args:
@@ -164,18 +162,14 @@ class PriorityQueue:
     def __init__(self, redis: RedisClient) -> None:
         self.redis = redis
 
-    async def add_notification(
-        self, agent_id: str, inbox_count: int
-    ) -> None:
+    async def add_notification(self, agent_id: str, inbox_count: int) -> None:
         """Add agent to notification queue with priority based on inbox count."""
         r = await self.redis._ensure_connected()
         # Higher inbox count = higher priority (lower score)
         score = -inbox_count
         await r.zadd(self.NOTIFICATION_QUEUE, {agent_id: score})
 
-    async def add_exploration(
-        self, agent_id: str, last_activated: datetime | None
-    ) -> None:
+    async def add_exploration(self, agent_id: str, last_activated: datetime | None) -> None:
         """Add agent to exploration queue with priority based on staleness."""
         r = await self.redis._ensure_connected()
         # Older = higher priority (lower score)

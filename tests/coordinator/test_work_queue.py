@@ -26,6 +26,7 @@ from botburrow_agents.models import TaskType
 # Check if Lua scripting is available (needed for eval command in leader election)
 try:
     import lupa  # noqa: F401
+
     HAS_LUA = True
 except ImportError:
     HAS_LUA = False
@@ -48,9 +49,7 @@ def work_item() -> WorkItem:
 
 
 @pytest.fixture
-async def work_queue(
-    settings: Settings, fake_redis: fakeredis.FakeRedis
-) -> WorkQueue:
+async def work_queue(settings: Settings, fake_redis: fakeredis.FakeRedis) -> WorkQueue:
     """Create a work queue backed by fakeredis."""
     mock_redis_client = MagicMock()
     mock_redis_client._ensure_connected = AsyncMock(return_value=fake_redis)
@@ -105,9 +104,7 @@ class TestWorkQueueEnqueue:
         assert length == 1
 
     @pytest.mark.asyncio
-    async def test_enqueue_high_priority(
-        self, work_queue: WorkQueue, work_item: WorkItem
-    ) -> None:
+    async def test_enqueue_high_priority(self, work_queue: WorkQueue, work_item: WorkItem) -> None:
         """Test enqueuing to high priority queue."""
         work_item.priority = "high"
         result = await work_queue.enqueue(work_item)
@@ -119,9 +116,7 @@ class TestWorkQueueEnqueue:
         assert await r.llen(QUEUE_NORMAL) == 0
 
     @pytest.mark.asyncio
-    async def test_enqueue_low_priority(
-        self, work_queue: WorkQueue, work_item: WorkItem
-    ) -> None:
+    async def test_enqueue_low_priority(self, work_queue: WorkQueue, work_item: WorkItem) -> None:
         """Test enqueuing to low priority queue."""
         work_item.priority = "low"
         await work_queue.enqueue(work_item)
@@ -130,9 +125,7 @@ class TestWorkQueueEnqueue:
         assert await r.llen(QUEUE_LOW) == 1
 
     @pytest.mark.asyncio
-    async def test_enqueue_deduplication(
-        self, work_queue: WorkQueue, work_item: WorkItem
-    ) -> None:
+    async def test_enqueue_deduplication(self, work_queue: WorkQueue, work_item: WorkItem) -> None:
         """Test that duplicate work items are rejected."""
         # First enqueue succeeds
         result1 = await work_queue.enqueue(work_item)
@@ -167,9 +160,7 @@ class TestWorkQueueClaim:
     """Tests for claiming work."""
 
     @pytest.mark.asyncio
-    async def test_claim_respects_priority_order(
-        self, work_queue: WorkQueue
-    ) -> None:
+    async def test_claim_respects_priority_order(self, work_queue: WorkQueue) -> None:
         """Test that high priority items are claimed first."""
         # Enqueue items at different priorities
         low_item = WorkItem(
@@ -202,9 +193,7 @@ class TestWorkQueueClaim:
         assert claimed.agent_id == "high-agent"
 
     @pytest.mark.asyncio
-    async def test_claim_marks_as_active(
-        self, work_queue: WorkQueue, work_item: WorkItem
-    ) -> None:
+    async def test_claim_marks_as_active(self, work_queue: WorkQueue, work_item: WorkItem) -> None:
         """Test that claimed work is marked as active."""
         await work_queue.enqueue(work_item)
         claimed = await work_queue.claim("runner-1", timeout=1)
@@ -217,9 +206,7 @@ class TestWorkQueueClaim:
         assert active_runner == "runner-1"
 
     @pytest.mark.asyncio
-    async def test_claim_empty_queue_returns_none(
-        self, work_queue: WorkQueue
-    ) -> None:
+    async def test_claim_empty_queue_returns_none(self, work_queue: WorkQueue) -> None:
         """Test that claiming from empty queue returns None."""
         claimed = await work_queue.claim("runner-1", timeout=1)
         assert claimed is None
@@ -319,9 +306,7 @@ class TestWorkQueueCircuitBreaker:
         assert backoff is None
 
     @pytest.mark.asyncio
-    async def test_clear_backoff(
-        self, work_queue: WorkQueue, work_item: WorkItem
-    ) -> None:
+    async def test_clear_backoff(self, work_queue: WorkQueue, work_item: WorkItem) -> None:
         """Test manually clearing backoff."""
         r = await work_queue.redis._ensure_connected()
 
@@ -341,9 +326,7 @@ class TestWorkQueueStats:
     """Tests for queue statistics."""
 
     @pytest.mark.asyncio
-    async def test_get_queue_stats(
-        self, work_queue: WorkQueue
-    ) -> None:
+    async def test_get_queue_stats(self, work_queue: WorkQueue) -> None:
         """Test getting queue statistics."""
         r = await work_queue.redis._ensure_connected()
 
@@ -374,9 +357,7 @@ class TestConfigCache:
     """Tests for configuration caching."""
 
     @pytest.fixture
-    async def config_cache(
-        self, fake_redis: fakeredis.FakeRedis
-    ) -> ConfigCache:
+    async def config_cache(self, fake_redis: fakeredis.FakeRedis) -> ConfigCache:
         """Create a config cache backed by fakeredis."""
         mock_redis_client = MagicMock()
         mock_redis_client._ensure_connected = AsyncMock(return_value=fake_redis)
@@ -393,9 +374,7 @@ class TestConfigCache:
         assert result == config
 
     @pytest.mark.asyncio
-    async def test_get_missing_returns_none(
-        self, config_cache: ConfigCache
-    ) -> None:
+    async def test_get_missing_returns_none(self, config_cache: ConfigCache) -> None:
         """Test that missing config returns None."""
         result = await config_cache.get("nonexistent")
         assert result is None
@@ -414,18 +393,14 @@ class TestLeaderElection:
     """Tests for leader election."""
 
     @pytest.fixture
-    async def leader_election(
-        self, fake_redis: fakeredis.FakeRedis
-    ) -> LeaderElection:
+    async def leader_election(self, fake_redis: fakeredis.FakeRedis) -> LeaderElection:
         """Create a leader election instance."""
         mock_redis_client = MagicMock()
         mock_redis_client._ensure_connected = AsyncMock(return_value=fake_redis)
         return LeaderElection(mock_redis_client, "instance-1")
 
     @pytest.mark.asyncio
-    async def test_become_leader(
-        self, leader_election: LeaderElection
-    ) -> None:
+    async def test_become_leader(self, leader_election: LeaderElection) -> None:
         """Test acquiring leadership."""
         result = await leader_election.try_become_leader()
 
@@ -433,9 +408,7 @@ class TestLeaderElection:
         assert leader_election.is_leader is True
 
     @pytest.mark.asyncio
-    async def test_only_one_leader(
-        self, fake_redis: fakeredis.FakeRedis
-    ) -> None:
+    async def test_only_one_leader(self, fake_redis: fakeredis.FakeRedis) -> None:
         """Test that only one instance can be leader."""
         mock_client1 = MagicMock()
         mock_client1._ensure_connected = AsyncMock(return_value=fake_redis)
@@ -474,9 +447,7 @@ class TestLeaderElection:
         assert result is True
 
     @pytest.mark.asyncio
-    async def test_refresh_leadership(
-        self, leader_election: LeaderElection
-    ) -> None:
+    async def test_refresh_leadership(self, leader_election: LeaderElection) -> None:
         """Test that leader can refresh their leadership."""
         # Become leader
         await leader_election.try_become_leader()

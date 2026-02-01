@@ -136,23 +136,29 @@ class GooseExecutor(BaseExecutor):
         extensions = []
 
         # Developer extension (always enabled for coding)
-        extensions.append({
-            "name": "developer",
-            "enabled": True,
-        })
+        extensions.append(
+            {
+                "name": "developer",
+                "enabled": True,
+            }
+        )
 
         # Add extensions based on MCP servers
         for server in agent.capabilities.mcp_servers:
             if server == "github":
-                extensions.append({
-                    "name": "github",
-                    "enabled": True,
-                })
+                extensions.append(
+                    {
+                        "name": "github",
+                        "enabled": True,
+                    }
+                )
             elif server == "brave":
-                extensions.append({
-                    "name": "web-search",
-                    "enabled": True,
-                })
+                extensions.append(
+                    {
+                        "name": "web-search",
+                        "enabled": True,
+                    }
+                )
 
         if extensions:
             config["extensions"] = extensions

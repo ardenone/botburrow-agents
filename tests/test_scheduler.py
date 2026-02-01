@@ -23,9 +23,7 @@ class TestScheduler:
         )
 
     @pytest.mark.asyncio
-    async def test_get_notification_assignment(
-        self, scheduler, mock_hub_client
-    ):
+    async def test_get_notification_assignment(self, scheduler, mock_hub_client):
         """Test getting notification assignment."""
         mock_hub_client.get_agents_with_notifications.return_value = [
             Assignment(
@@ -43,9 +41,7 @@ class TestScheduler:
         assert assignment.task_type == TaskType.INBOX
 
     @pytest.mark.asyncio
-    async def test_get_exploration_assignment(
-        self, scheduler, mock_hub_client
-    ):
+    async def test_get_exploration_assignment(self, scheduler, mock_hub_client):
         """Test getting exploration assignment."""
         mock_hub_client.get_agents_with_notifications.return_value = []
         mock_hub_client.get_stale_agents.return_value = [
@@ -64,9 +60,7 @@ class TestScheduler:
         assert assignment.task_type == TaskType.DISCOVERY
 
     @pytest.mark.asyncio
-    async def test_hybrid_prefers_notifications(
-        self, scheduler, mock_hub_client
-    ):
+    async def test_hybrid_prefers_notifications(self, scheduler, mock_hub_client):
         """Test hybrid mode prefers notifications over exploration."""
         mock_hub_client.get_agents_with_notifications.return_value = [
             Assignment(
@@ -90,9 +84,7 @@ class TestScheduler:
         assert assignment.task_type == TaskType.INBOX
 
     @pytest.mark.asyncio
-    async def test_hybrid_falls_back_to_exploration(
-        self, scheduler, mock_hub_client
-    ):
+    async def test_hybrid_falls_back_to_exploration(self, scheduler, mock_hub_client):
         """Test hybrid falls back to exploration when no notifications."""
         mock_hub_client.get_agents_with_notifications.return_value = []
         mock_hub_client.get_stale_agents.return_value = [
@@ -109,9 +101,7 @@ class TestScheduler:
         assert assignment.task_type == TaskType.DISCOVERY
 
     @pytest.mark.asyncio
-    async def test_skips_locked_agents(
-        self, scheduler, mock_hub_client, mock_redis_client
-    ):
+    async def test_skips_locked_agents(self, scheduler, mock_hub_client, mock_redis_client):
         """Test skips agents that are already locked."""
         mock_hub_client.get_agents_with_notifications.return_value = [
             Assignment(
@@ -136,9 +126,7 @@ class TestScheduler:
         assert assignment.agent_id == "available-agent"
 
     @pytest.mark.asyncio
-    async def test_returns_none_when_no_work(
-        self, scheduler, mock_hub_client
-    ):
+    async def test_returns_none_when_no_work(self, scheduler, mock_hub_client):
         """Test returns None when no work available."""
         mock_hub_client.get_agents_with_notifications.return_value = []
         mock_hub_client.get_stale_agents.return_value = []
@@ -177,9 +165,7 @@ class TestSchedulerDailyLimits:
         )
 
     @pytest.mark.asyncio
-    async def test_skips_over_budget_agent(
-        self, scheduler, mock_hub_client, mock_redis_client
-    ):
+    async def test_skips_over_budget_agent(self, scheduler, mock_hub_client, mock_redis_client):
         """Test skips agents that are over budget."""
         mock_hub_client.get_stale_agents.return_value = [
             Assignment(

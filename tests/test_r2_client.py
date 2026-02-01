@@ -43,9 +43,7 @@ class TestR2ClientOperations:
         mock = MagicMock()
         return mock
 
-    def test_get_client_creates_client(
-        self, r2_client: R2Client
-    ) -> None:
+    def test_get_client_creates_client(self, r2_client: R2Client) -> None:
         """Test S3 client is created on first access."""
         with patch("boto3.client") as mock_boto:
             mock_boto.return_value = MagicMock()
@@ -53,9 +51,7 @@ class TestR2ClientOperations:
             assert client is not None
             mock_boto.assert_called_once()
 
-    def test_get_client_reuses_client(
-        self, r2_client: R2Client
-    ) -> None:
+    def test_get_client_reuses_client(self, r2_client: R2Client) -> None:
         """Test S3 client is reused on subsequent calls."""
         with patch("boto3.client") as mock_boto:
             mock_client = MagicMock()
@@ -86,9 +82,7 @@ class TestR2ClientOperations:
             )
 
     @pytest.mark.asyncio
-    async def test_get_text(
-        self, r2_client: R2Client, mock_s3_client: MagicMock
-    ) -> None:
+    async def test_get_text(self, r2_client: R2Client, mock_s3_client: MagicMock) -> None:
         """Test getting text from R2."""
         mock_body = MagicMock()
         mock_body.read.return_value = b"text content"
@@ -100,9 +94,7 @@ class TestR2ClientOperations:
             assert result == "text content"
 
     @pytest.mark.asyncio
-    async def test_get_yaml(
-        self, r2_client: R2Client, mock_s3_client: MagicMock
-    ) -> None:
+    async def test_get_yaml(self, r2_client: R2Client, mock_s3_client: MagicMock) -> None:
         """Test getting and parsing YAML from R2."""
         yaml_content = yaml.dump({"key": "value", "number": 42})
         mock_body = MagicMock()
@@ -129,9 +121,7 @@ class TestR2ClientOperations:
             )
 
     @pytest.mark.asyncio
-    async def test_put_object_string(
-        self, r2_client: R2Client, mock_s3_client: MagicMock
-    ) -> None:
+    async def test_put_object_string(self, r2_client: R2Client, mock_s3_client: MagicMock) -> None:
         """Test putting string to R2 (gets encoded)."""
         with patch.object(r2_client, "_get_client", return_value=mock_s3_client):
             await r2_client.put_object("test/key.txt", "string content")
@@ -161,9 +151,7 @@ class TestR2ClientOperations:
             )
 
     @pytest.mark.asyncio
-    async def test_list_objects_empty(
-        self, r2_client: R2Client, mock_s3_client: MagicMock
-    ) -> None:
+    async def test_list_objects_empty(self, r2_client: R2Client, mock_s3_client: MagicMock) -> None:
         """Test listing objects when none exist."""
         mock_s3_client.list_objects_v2.return_value = {}
 
@@ -173,9 +161,7 @@ class TestR2ClientOperations:
             assert result == []
 
     @pytest.mark.asyncio
-    async def test_object_exists_true(
-        self, r2_client: R2Client, mock_s3_client: MagicMock
-    ) -> None:
+    async def test_object_exists_true(self, r2_client: R2Client, mock_s3_client: MagicMock) -> None:
         """Test checking object exists when it does."""
         mock_s3_client.head_object.return_value = {}
 
@@ -211,30 +197,30 @@ class TestR2ClientAgentConfig:
     @pytest.fixture
     def agent_config_yaml(self) -> str:
         """Sample agent config YAML."""
-        return yaml.dump({
-            "name": "test-agent",
-            "type": "claude-code",
-            "brain": {
-                "model": "claude-sonnet-4-20250514",
-                "provider": "anthropic",
-                "temperature": 0.7,
-                "max_tokens": 4096,
-            },
-            "capabilities": {
-                "grants": ["hub:read", "hub:write"],
-                "skills": ["hub-post"],
-                "mcp_servers": ["hub"],
-            },
-            "behavior": {
-                "respond_to_mentions": True,
-                "max_iterations": 10,
-            },
-        })
+        return yaml.dump(
+            {
+                "name": "test-agent",
+                "type": "claude-code",
+                "brain": {
+                    "model": "claude-sonnet-4-20250514",
+                    "provider": "anthropic",
+                    "temperature": 0.7,
+                    "max_tokens": 4096,
+                },
+                "capabilities": {
+                    "grants": ["hub:read", "hub:write"],
+                    "skills": ["hub-post"],
+                    "mcp_servers": ["hub"],
+                },
+                "behavior": {
+                    "respond_to_mentions": True,
+                    "max_iterations": 10,
+                },
+            }
+        )
 
     @pytest.mark.asyncio
-    async def test_load_agent_config(
-        self, r2_client: R2Client, agent_config_yaml: str
-    ) -> None:
+    async def test_load_agent_config(self, r2_client: R2Client, agent_config_yaml: str) -> None:
         """Test loading agent configuration."""
         mock_s3 = MagicMock()
         mock_body_config = MagicMock()
@@ -293,9 +279,7 @@ class TestR2ClientSkills:
         return R2Client(settings)
 
     @pytest.mark.asyncio
-    async def test_load_skill(
-        self, r2_client: R2Client
-    ) -> None:
+    async def test_load_skill(self, r2_client: R2Client) -> None:
         """Test loading a skill."""
         mock_s3 = MagicMock()
         mock_body = MagicMock()
@@ -308,9 +292,7 @@ class TestR2ClientSkills:
             assert "Skill Instructions" in content
 
     @pytest.mark.asyncio
-    async def test_list_skills(
-        self, r2_client: R2Client
-    ) -> None:
+    async def test_list_skills(self, r2_client: R2Client) -> None:
         """Test listing available skills."""
         mock_s3 = MagicMock()
         mock_s3.list_objects_v2.return_value = {
@@ -329,9 +311,7 @@ class TestR2ClientSkills:
             assert "github-pr" in skills
 
     @pytest.mark.asyncio
-    async def test_list_agents(
-        self, r2_client: R2Client
-    ) -> None:
+    async def test_list_agents(self, r2_client: R2Client) -> None:
         """Test listing available agents."""
         mock_s3 = MagicMock()
         mock_s3.list_objects_v2.return_value = {

@@ -406,9 +406,7 @@ class MCPManager:
         try:
             return await self._send_request(server, "tools/call", params)
         except TimeoutError as e:
-            raise TimeoutError(
-                f"MCP call to {server_name}.{tool_name} timed out"
-            ) from e
+            raise TimeoutError(f"MCP call to {server_name}.{tool_name} timed out") from e
 
     def get_server_tools(self, server_name: str) -> list[dict[str, Any]]:
         """Get tool definitions from an MCP server.
@@ -426,7 +424,8 @@ class MCPManager:
                 {
                     "name": f"mcp_{server_name}_{tool.name}",
                     "description": tool.description,
-                    "parameters": tool.input_schema or {
+                    "parameters": tool.input_schema
+                    or {
                         "type": "object",
                         "properties": {},
                     },
@@ -447,7 +446,10 @@ class MCPManager:
                     "parameters": {
                         "type": "object",
                         "properties": {
-                            "repo": {"type": "string", "description": "Repository in owner/repo format"},
+                            "repo": {
+                                "type": "string",
+                                "description": "Repository in owner/repo format",
+                            },
                             "path": {"type": "string", "description": "File path in repository"},
                         },
                         "required": ["repo", "path"],
@@ -459,7 +461,10 @@ class MCPManager:
                     "parameters": {
                         "type": "object",
                         "properties": {
-                            "repo": {"type": "string", "description": "Repository in owner/repo format"},
+                            "repo": {
+                                "type": "string",
+                                "description": "Repository in owner/repo format",
+                            },
                             "title": {"type": "string", "description": "PR title"},
                             "body": {"type": "string", "description": "PR description"},
                             "head": {"type": "string", "description": "Branch containing changes"},
@@ -474,8 +479,15 @@ class MCPManager:
                     "parameters": {
                         "type": "object",
                         "properties": {
-                            "repo": {"type": "string", "description": "Repository in owner/repo format"},
-                            "state": {"type": "string", "enum": ["open", "closed", "all"], "default": "open"},
+                            "repo": {
+                                "type": "string",
+                                "description": "Repository in owner/repo format",
+                            },
+                            "state": {
+                                "type": "string",
+                                "enum": ["open", "closed", "all"],
+                                "default": "open",
+                            },
                         },
                         "required": ["repo"],
                     },
@@ -489,7 +501,11 @@ class MCPManager:
                         "type": "object",
                         "properties": {
                             "query": {"type": "string", "description": "Search query"},
-                            "count": {"type": "integer", "description": "Number of results", "default": 10},
+                            "count": {
+                                "type": "integer",
+                                "description": "Number of results",
+                                "default": 10,
+                            },
                         },
                         "required": ["query"],
                     },
@@ -503,7 +519,10 @@ class MCPManager:
                         "type": "object",
                         "properties": {
                             "query": {"type": "string", "description": "Search query"},
-                            "community": {"type": "string", "description": "Filter by community (e.g., m/general)"},
+                            "community": {
+                                "type": "string",
+                                "description": "Filter by community (e.g., m/general)",
+                            },
                         },
                         "required": ["query"],
                     },
@@ -591,10 +610,7 @@ class MCPManager:
 
     def get_running_servers(self) -> list[str]:
         """Get list of running server names."""
-        return [
-            name for name, server in self._servers.items()
-            if server.initialized
-        ]
+        return [name for name, server in self._servers.items() if server.initialized]
 
     async def call_tool_by_name(
         self,
@@ -653,6 +669,7 @@ class MCPManager:
     ) -> dict[str, str]:
         """Build environment for MCP server with credential injection."""
         import os
+
         env = os.environ.copy()
 
         # Common settings

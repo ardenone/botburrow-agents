@@ -11,6 +11,7 @@ from botburrow_agents.config import Settings
 # Check if Lua scripting is available (needed for eval command in lock tests)
 try:
     import lupa  # noqa: F401
+
     HAS_LUA = True
 except ImportError:
     HAS_LUA = False
@@ -34,9 +35,7 @@ class TestRedisClientBasicOperations:
     """Tests for basic Redis operations."""
 
     @pytest.mark.asyncio
-    async def test_set_and_get(
-        self, redis_client_with_fake: RedisClient
-    ) -> None:
+    async def test_set_and_get(self, redis_client_with_fake: RedisClient) -> None:
         """Test setting and getting a value."""
         await redis_client_with_fake._ensure_connected()
 
@@ -46,9 +45,7 @@ class TestRedisClientBasicOperations:
         assert result == "test-value"
 
     @pytest.mark.asyncio
-    async def test_set_with_expiry(
-        self, redis_client_with_fake: RedisClient
-    ) -> None:
+    async def test_set_with_expiry(self, redis_client_with_fake: RedisClient) -> None:
         """Test setting a value with expiry."""
         await redis_client_with_fake._ensure_connected()
 
@@ -71,9 +68,7 @@ class TestRedisClientBasicOperations:
         assert await redis_client_with_fake.get("new-key") == "value"
 
     @pytest.mark.asyncio
-    async def test_set_nx_fails_when_exists(
-        self, redis_client_with_fake: RedisClient
-    ) -> None:
+    async def test_set_nx_fails_when_exists(self, redis_client_with_fake: RedisClient) -> None:
         """Test NX flag when key already exists."""
         await redis_client_with_fake._ensure_connected()
 
@@ -126,9 +121,7 @@ class TestRedisClientListOperations:
     """Tests for Redis list operations."""
 
     @pytest.mark.asyncio
-    async def test_lpush_and_llen(
-        self, redis_client_with_fake: RedisClient
-    ) -> None:
+    async def test_lpush_and_llen(self, redis_client_with_fake: RedisClient) -> None:
         """Test pushing to and getting length of list."""
         await redis_client_with_fake._ensure_connected()
 
@@ -154,9 +147,7 @@ class TestRedisClientHashOperations:
     """Tests for Redis hash operations."""
 
     @pytest.mark.asyncio
-    async def test_hset_and_hget(
-        self, redis_client_with_fake: RedisClient
-    ) -> None:
+    async def test_hset_and_hget(self, redis_client_with_fake: RedisClient) -> None:
         """Test setting and getting hash field."""
         await redis_client_with_fake._ensure_connected()
 
@@ -193,46 +184,32 @@ class TestRedisLock:
     """Tests for distributed locking."""
 
     @pytest.mark.asyncio
-    async def test_lock_acquisition(
-        self, redis_client_with_fake: RedisClient
-    ) -> None:
+    async def test_lock_acquisition(self, redis_client_with_fake: RedisClient) -> None:
         """Test acquiring a lock."""
         await redis_client_with_fake._ensure_connected()
 
-        lock = await redis_client_with_fake.acquire_lock(
-            "test-lock", "owner-1", ttl=60
-        )
+        lock = await redis_client_with_fake.acquire_lock("test-lock", "owner-1", ttl=60)
 
         assert lock.acquired is True
 
     @pytest.mark.asyncio
-    async def test_lock_prevents_duplicate(
-        self, redis_client_with_fake: RedisClient
-    ) -> None:
+    async def test_lock_prevents_duplicate(self, redis_client_with_fake: RedisClient) -> None:
         """Test that lock prevents second acquisition."""
         await redis_client_with_fake._ensure_connected()
 
-        lock1 = await redis_client_with_fake.acquire_lock(
-            "exclusive-lock", "owner-1", ttl=60
-        )
-        lock2 = await redis_client_with_fake.acquire_lock(
-            "exclusive-lock", "owner-2", ttl=60
-        )
+        lock1 = await redis_client_with_fake.acquire_lock("exclusive-lock", "owner-1", ttl=60)
+        lock2 = await redis_client_with_fake.acquire_lock("exclusive-lock", "owner-2", ttl=60)
 
         assert lock1.acquired is True
         assert lock2.acquired is False
 
     @requires_lua
     @pytest.mark.asyncio
-    async def test_lock_release(
-        self, redis_client_with_fake: RedisClient
-    ) -> None:
+    async def test_lock_release(self, redis_client_with_fake: RedisClient) -> None:
         """Test releasing a lock."""
         await redis_client_with_fake._ensure_connected()
 
-        lock = await redis_client_with_fake.acquire_lock(
-            "release-lock", "owner-1", ttl=60
-        )
+        lock = await redis_client_with_fake.acquire_lock("release-lock", "owner-1", ttl=60)
         assert lock.acquired is True
 
         released = await lock.release()
@@ -240,16 +217,12 @@ class TestRedisLock:
         assert lock.acquired is False
 
         # Now another owner can acquire
-        lock2 = await redis_client_with_fake.acquire_lock(
-            "release-lock", "owner-2", ttl=60
-        )
+        lock2 = await redis_client_with_fake.acquire_lock("release-lock", "owner-2", ttl=60)
         assert lock2.acquired is True
 
     @requires_lua
     @pytest.mark.asyncio
-    async def test_lock_context_manager(
-        self, redis_client_with_fake: RedisClient
-    ) -> None:
+    async def test_lock_context_manager(self, redis_client_with_fake: RedisClient) -> None:
         """Test lock as context manager."""
         await redis_client_with_fake._ensure_connected()
 
@@ -259,22 +232,16 @@ class TestRedisLock:
             await redis_client_with_fake.set("protected-resource", "modified")
 
         # Lock should be released after context
-        lock2 = await redis_client_with_fake.acquire_lock(
-            "ctx-lock", "owner-2", ttl=60
-        )
+        lock2 = await redis_client_with_fake.acquire_lock("ctx-lock", "owner-2", ttl=60)
         assert lock2.acquired is True
 
     @requires_lua
     @pytest.mark.asyncio
-    async def test_lock_extend(
-        self, redis_client_with_fake: RedisClient
-    ) -> None:
+    async def test_lock_extend(self, redis_client_with_fake: RedisClient) -> None:
         """Test extending lock TTL."""
         await redis_client_with_fake._ensure_connected()
 
-        lock = await redis_client_with_fake.acquire_lock(
-            "extend-lock", "owner-1", ttl=30
-        )
+        lock = await redis_client_with_fake.acquire_lock("extend-lock", "owner-1", ttl=30)
         assert lock.acquired is True
 
         # Extend the lock
@@ -283,9 +250,7 @@ class TestRedisLock:
 
     @requires_lua
     @pytest.mark.asyncio
-    async def test_lock_release_only_by_owner(
-        self, redis_client_with_fake: RedisClient
-    ) -> None:
+    async def test_lock_release_only_by_owner(self, redis_client_with_fake: RedisClient) -> None:
         """Test that only owner can release lock."""
         await redis_client_with_fake._ensure_connected()
 

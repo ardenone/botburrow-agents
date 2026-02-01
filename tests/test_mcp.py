@@ -86,9 +86,7 @@ class TestMCPManager:
         github_config = BUILTIN_SERVERS["github"]
         assert manager._has_required_grants(agent_with_mcp, github_config)
 
-    def test_has_required_grants_with_wildcard(
-        self, manager: MCPManager
-    ) -> None:
+    def test_has_required_grants_with_wildcard(self, manager: MCPManager) -> None:
         """Test grant matching with wildcard."""
         agent = AgentConfig(
             name="wildcard-agent",
@@ -107,9 +105,7 @@ class TestMCPManager:
         github_config = BUILTIN_SERVERS["github"]
         assert not manager._has_required_grants(agent_without_grants, github_config)
 
-    def test_build_server_env_github(
-        self, manager: MCPManager
-    ) -> None:
+    def test_build_server_env_github(self, manager: MCPManager) -> None:
         """Test building env for GitHub server."""
         credentials = {"github_pat": "ghp_test_token"}
         workspace = Path("/tmp/test")
@@ -119,9 +115,7 @@ class TestMCPManager:
         assert env["GITHUB_PERSONAL_ACCESS_TOKEN"] == "ghp_test_token"
         assert env["HOME"] == str(workspace)
 
-    def test_build_server_env_brave(
-        self, manager: MCPManager
-    ) -> None:
+    def test_build_server_env_brave(self, manager: MCPManager) -> None:
         """Test building env for Brave server."""
         credentials = {"brave_api_key": "brave_test_key"}
         workspace = Path("/tmp/test")
@@ -130,9 +124,7 @@ class TestMCPManager:
 
         assert env["BRAVE_API_KEY"] == "brave_test_key"
 
-    def test_build_server_env_hub(
-        self, manager: MCPManager, settings: Settings
-    ) -> None:
+    def test_build_server_env_hub(self, manager: MCPManager, settings: Settings) -> None:
         """Test building env for Hub server."""
         credentials = {"hub_api_key": "hub_test_key"}
         workspace = Path("/tmp/test")
@@ -142,9 +134,7 @@ class TestMCPManager:
         assert env["HUB_API_KEY"] == "hub_test_key"
         assert env["HUB_URL"] == settings.hub_url
 
-    def test_get_server_tools_github_static(
-        self, manager: MCPManager
-    ) -> None:
+    def test_get_server_tools_github_static(self, manager: MCPManager) -> None:
         """Test getting GitHub server tools (static fallback)."""
         tools = manager.get_server_tools("github")
 
@@ -153,9 +143,7 @@ class TestMCPManager:
         assert "mcp_github_get_file" in tool_names
         assert "mcp_github_create_pr" in tool_names
 
-    def test_get_server_tools_hub_static(
-        self, manager: MCPManager
-    ) -> None:
+    def test_get_server_tools_hub_static(self, manager: MCPManager) -> None:
         """Test getting Hub server tools (static fallback)."""
         tools = manager.get_server_tools("hub")
 
@@ -164,16 +152,12 @@ class TestMCPManager:
         assert "mcp_hub_search" in tool_names
         assert "mcp_hub_post" in tool_names
 
-    def test_get_server_tools_unknown(
-        self, manager: MCPManager
-    ) -> None:
+    def test_get_server_tools_unknown(self, manager: MCPManager) -> None:
         """Test getting tools for unknown server."""
         tools = manager.get_server_tools("unknown")
         assert tools == []
 
-    def test_get_server_tools_dynamic(
-        self, manager: MCPManager
-    ) -> None:
+    def test_get_server_tools_dynamic(self, manager: MCPManager) -> None:
         """Test getting tools from running server with discovered tools."""
         # Create a mock server with discovered tools
         config = MCPServerConfig(name="test", command="test")
@@ -192,9 +176,7 @@ class TestMCPManager:
         assert tools[0]["name"] == "mcp_test_custom_tool"
         assert tools[0]["description"] == "Custom tool"
 
-    def test_get_all_tools(
-        self, manager: MCPManager
-    ) -> None:
+    def test_get_all_tools(self, manager: MCPManager) -> None:
         """Test getting tools from all servers."""
         # Add mock servers
         config1 = MCPServerConfig(name="server1", command="test")
@@ -218,9 +200,7 @@ class TestMCPManager:
         assert "mcp_server1_tool1" in tool_names
         assert "mcp_server2_tool2" in tool_names
 
-    def test_is_server_running(
-        self, manager: MCPManager
-    ) -> None:
+    def test_is_server_running(self, manager: MCPManager) -> None:
         """Test checking if server is running."""
         assert not manager.is_server_running("test")
 
@@ -229,9 +209,7 @@ class TestMCPManager:
 
         assert manager.is_server_running("test")
 
-    def test_get_running_servers(
-        self, manager: MCPManager
-    ) -> None:
+    def test_get_running_servers(self, manager: MCPManager) -> None:
         """Test getting list of running servers."""
         config = MCPServerConfig(name="test", command="test")
         manager._servers["test"] = MCPServer(config=config, initialized=True)
@@ -243,25 +221,19 @@ class TestMCPManager:
         assert "test2" not in running
 
     @pytest.mark.asyncio
-    async def test_stop_servers_empty(
-        self, manager: MCPManager
-    ) -> None:
+    async def test_stop_servers_empty(self, manager: MCPManager) -> None:
         """Test stopping when no servers running."""
         await manager.stop_servers()
         # Should complete without error
 
     @pytest.mark.asyncio
-    async def test_call_tool_not_running(
-        self, manager: MCPManager
-    ) -> None:
+    async def test_call_tool_not_running(self, manager: MCPManager) -> None:
         """Test calling tool when server not running."""
         with pytest.raises(ValueError, match="not running"):
             await manager.call_tool("github", "get_file", {"repo": "test/repo"})
 
     @pytest.mark.asyncio
-    async def test_call_tool_not_initialized(
-        self, manager: MCPManager
-    ) -> None:
+    async def test_call_tool_not_initialized(self, manager: MCPManager) -> None:
         """Test calling tool when server not initialized."""
         config = MCPServerConfig(name="test", command="test")
         manager._servers["test"] = MCPServer(config=config, initialized=False)
@@ -270,9 +242,7 @@ class TestMCPManager:
             await manager.call_tool("test", "some_tool", {})
 
     @pytest.mark.asyncio
-    async def test_call_tool_by_name(
-        self, manager: MCPManager
-    ) -> None:
+    async def test_call_tool_by_name(self, manager: MCPManager) -> None:
         """Test calling tool by full name."""
         # Mock the call_tool method
         manager.call_tool = AsyncMock(return_value={"result": "success"})
@@ -287,9 +257,7 @@ class TestMCPManager:
         )
 
     @pytest.mark.asyncio
-    async def test_call_tool_by_name_invalid_format(
-        self, manager: MCPManager
-    ) -> None:
+    async def test_call_tool_by_name_invalid_format(self, manager: MCPManager) -> None:
         """Test calling tool with invalid name format."""
         with pytest.raises(ValueError, match="Invalid MCP tool name"):
             await manager.call_tool_by_name("invalid_tool", {})

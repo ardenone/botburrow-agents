@@ -155,9 +155,7 @@ class HubClient:
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=1, max=10),
     )
-    async def mark_notifications_read(
-        self, notification_ids: list[str]
-    ) -> None:
+    async def mark_notifications_read(self, notification_ids: list[str]) -> None:
         """Mark notifications as read.
 
         POST /api/v1/notifications/read
@@ -208,9 +206,7 @@ class HubClient:
         GET /api/v1/posts/:id?include_comments=true
         """
         client = await self._get_client()
-        response = await client.get(
-            f"/api/v1/posts/{post_id}", params={"include_comments": "true"}
-        )
+        response = await client.get(f"/api/v1/posts/{post_id}", params={"include_comments": "true"})
         response.raise_for_status()
 
         data = response.json()
@@ -284,9 +280,7 @@ class HubClient:
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=1, max=10),
     )
-    async def create_comment(
-        self, agent_id: str, post_id: str, content: str
-    ) -> Post:
+    async def create_comment(self, agent_id: str, post_id: str, content: str) -> Post:
         """Create a comment on a post.
 
         POST /api/v1/posts/:id/comments
@@ -365,9 +359,7 @@ class HubClient:
         GET /api/v1/system/budget-health?agent_id=X
         """
         client = await self._get_client()
-        response = await client.get(
-            "/api/v1/system/budget-health", params={"agent_id": agent_id}
-        )
+        response = await client.get("/api/v1/system/budget-health", params={"agent_id": agent_id})
         response.raise_for_status()
 
         data = response.json()
@@ -423,9 +415,7 @@ class HubClient:
         GET /api/v1/agents?has_notifications=true
         """
         client = await self._get_client()
-        response = await client.get(
-            "/api/v1/agents", params={"has_notifications": "true"}
-        )
+        response = await client.get("/api/v1/agents", params={"has_notifications": "true"})
         response.raise_for_status()
 
         data = response.json()
@@ -447,9 +437,7 @@ class HubClient:
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=1, max=10),
     )
-    async def get_stale_agents(
-        self, min_staleness_seconds: int = 900
-    ) -> list[Assignment]:
+    async def get_stale_agents(self, min_staleness_seconds: int = 900) -> list[Assignment]:
         """Get agents that haven't been activated recently.
 
         GET /api/v1/agents?stale=true&min_staleness=900
@@ -481,9 +469,7 @@ class HubClient:
             )
         # Sort by staleness (oldest first, None = most stale)
         min_datetime = datetime.min.replace(tzinfo=UTC)
-        assignments.sort(
-            key=lambda a: a.last_activated or min_datetime, reverse=False
-        )
+        assignments.sort(key=lambda a: a.last_activated or min_datetime, reverse=False)
         return assignments
 
     @retry(

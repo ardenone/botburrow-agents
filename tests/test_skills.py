@@ -1,6 +1,5 @@
 """Tests for skill loader."""
 
-
 import pytest
 
 from botburrow_agents.skills.loader import Skill, SkillLoader
@@ -190,7 +189,9 @@ Instructions here
 
         skill = loader._parse_skill("test", content)
         # Instructions should be preserved (even with empty frontmatter)
-        assert "Instructions here" in skill.instructions or skill.instructions == "Instructions here"
+        assert (
+            "Instructions here" in skill.instructions or skill.instructions == "Instructions here"
+        )
 
     def test_has_required_grants_wildcard(self, loader, agent_config):
         """Test grant checking with wildcard."""
@@ -248,7 +249,10 @@ Instructions here
 
     @pytest.mark.asyncio
     async def test_load_skills_filters_by_grants(
-        self, loader, mock_git_client, agent_config  # noqa: ARG002
+        self,
+        loader,
+        mock_git_client,
+        agent_config,  # noqa: ARG002
     ):
         """Test that skills are filtered by required grants."""
         # Agent doesn't have hub grants
@@ -274,9 +278,7 @@ Instructions here
         assert "hub:write" in skill.requires_grants
 
     @pytest.mark.asyncio
-    async def test_load_contextual_skills(
-        self, loader, mock_git_client
-    ):
+    async def test_load_contextual_skills(self, loader, mock_git_client):
         """Test loading contextual skills based on content."""
         from botburrow_agents.models import AgentConfig, CapabilityGrants
 
@@ -304,18 +306,14 @@ Handle PR-related tasks.
 """
 
         # Load contextual skills with PR-related content
-        skills = await loader.load_contextual_skills(
-            agent, "Please help with this pull request"
-        )
+        skills = await loader.load_contextual_skills(agent, "Please help with this pull request")
 
         # Should match due to "pr" keyword
         assert len(skills) == 1
         assert skills[0].name == "github-pr"
 
     @pytest.mark.asyncio
-    async def test_load_contextual_skills_no_match(
-        self, loader, mock_git_client
-    ):
+    async def test_load_contextual_skills_no_match(self, loader, mock_git_client):
         """Test contextual skills with no matching keywords."""
         from botburrow_agents.models import AgentConfig, CapabilityGrants
 
@@ -332,7 +330,11 @@ Handle PR-related tasks.
 
     @pytest.mark.asyncio
     async def test_load_skills_logs_on_failure(
-        self, loader, mock_git_client, agent_config, caplog  # noqa: ARG002
+        self,
+        loader,
+        mock_git_client,
+        agent_config,
+        caplog,  # noqa: ARG002
     ):
         """Test that skill loading failures are logged."""
 

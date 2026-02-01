@@ -143,9 +143,17 @@ class TestSyncOnce:
     @pytest.mark.asyncio
     async def test_sync_once_aggregates_stats(self, skill_sync):
         """Test that sync_once aggregates stats from all sources."""
+
         # Mock _sync_source to return stats
         async def mock_sync_source(_source):
-            return {"fetched": 1, "validated": 1, "uploaded": 1, "skipped": 0, "failed": 0, "errors": []}
+            return {
+                "fetched": 1,
+                "validated": 1,
+                "uploaded": 1,
+                "skipped": 0,
+                "failed": 0,
+                "errors": [],
+            }
 
         skill_sync._sync_source = mock_sync_source
         skill_sync.sources = ["source1", "source2", "source3"]
@@ -164,7 +172,14 @@ class TestSyncOnce:
         async def mock_sync_source(source):
             if source == "fail/repo":
                 raise Exception("Connection error")
-            return {"fetched": 1, "validated": 1, "uploaded": 1, "skipped": 0, "failed": 0, "errors": []}
+            return {
+                "fetched": 1,
+                "validated": 1,
+                "uploaded": 1,
+                "skipped": 0,
+                "failed": 0,
+                "errors": [],
+            }
 
         skill_sync._sync_source = mock_sync_source
         skill_sync.sources = ["fail/repo", "good/repo"]
@@ -179,8 +194,16 @@ class TestSyncOnce:
     @pytest.mark.asyncio
     async def test_sync_once_with_custom_sources(self, skill_sync):
         """Test sync_once with custom source list."""
+
         async def mock_sync_source(_source):
-            return {"fetched": 2, "validated": 2, "uploaded": 2, "skipped": 0, "failed": 0, "errors": []}
+            return {
+                "fetched": 2,
+                "validated": 2,
+                "uploaded": 2,
+                "skipped": 0,
+                "failed": 0,
+                "errors": [],
+            }
 
         skill_sync._sync_source = mock_sync_source
         skill_sync.sources = ["custom/repo"]

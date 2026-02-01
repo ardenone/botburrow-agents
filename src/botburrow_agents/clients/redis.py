@@ -229,9 +229,7 @@ class RedisClient:
         r = await self._ensure_connected()
         return await r.rpush(key, *values)
 
-    async def brpop(
-        self, key: str, timeout: int = 0
-    ) -> tuple[str, str] | None:
+    async def brpop(self, key: str, timeout: int = 0) -> tuple[str, str] | None:
         """Blocking pop from right of list.
 
         Args:

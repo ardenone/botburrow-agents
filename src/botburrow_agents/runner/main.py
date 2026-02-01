@@ -291,9 +291,7 @@ class Runner:
 
         try:
             # 1. Check budget
-            can_proceed, reason = await self.budget_checker.check_budget(
-                assignment.agent_id
-            )
+            can_proceed, reason = await self.budget_checker.check_budget(assignment.agent_id)
             if not can_proceed:
                 duration = time.time() - start_time
                 # Record failed activation
@@ -450,9 +448,7 @@ class Runner:
         # Choose execution strategy based on agent type
         if self._uses_executor(agent):
             # Use external CLI tool (Claude Code, Goose, etc.)
-            result = await self._process_inbox_with_executor(
-                agent, sandbox, notifications
-            )
+            result = await self._process_inbox_with_executor(agent, sandbox, notifications)
             notification_ids_to_mark = [n.id for n in notifications]
         else:
             # Use built-in AgentLoop
@@ -461,9 +457,7 @@ class Runner:
             for notification in notifications:
                 try:
                     # Build context
-                    context = await self.context_builder.build_for_notification(
-                        agent, notification
-                    )
+                    context = await self.context_builder.build_for_notification(agent, notification)
 
                     # Run agentic loop
                     loop_result = await loop.run(agent, context)
@@ -514,7 +508,9 @@ class Runner:
                 thread_context = ""
                 if notification.post_id:
                     thread = await self.hub.get_thread(notification.post_id)
-                    thread_context = f"Thread from {thread.root.author_name}:\n{thread.root.content}\n"
+                    thread_context = (
+                        f"Thread from {thread.root.author_name}:\n{thread.root.content}\n"
+                    )
                     for comment in thread.comments:
                         thread_context += f"\n> {comment.author_name}: {comment.content}"
 

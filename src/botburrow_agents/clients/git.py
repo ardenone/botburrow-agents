@@ -40,18 +40,9 @@ class GitClient:
         self._http_client: httpx.AsyncClient | None = None
 
         # Config source settings
-        self.repo = os.environ.get(
-            "AGENT_DEFINITIONS_REPO",
-            f"{DEFAULT_GITHUB_REPO}"
-        )
-        self.branch = os.environ.get(
-            "AGENT_DEFINITIONS_BRANCH",
-            DEFAULT_GITHUB_BRANCH
-        )
-        self.local_path = os.environ.get(
-            "AGENT_DEFINITIONS_PATH",
-            "/configs/agent-definitions"
-        )
+        self.repo = os.environ.get("AGENT_DEFINITIONS_REPO", f"{DEFAULT_GITHUB_REPO}")
+        self.branch = os.environ.get("AGENT_DEFINITIONS_BRANCH", DEFAULT_GITHUB_BRANCH)
+        self.local_path = os.environ.get("AGENT_DEFINITIONS_PATH", "/configs/agent-definitions")
 
     @property
     def use_local(self) -> bool:
@@ -175,10 +166,13 @@ class GitClient:
             agents_dir = Path(self.local_path) / "agents"
             if not agents_dir.exists():
                 return []
-            return sorted([
-                d.name for d in agents_dir.iterdir()
-                if d.is_dir() and (d / "config.yaml").exists()
-            ])
+            return sorted(
+                [
+                    d.name
+                    for d in agents_dir.iterdir()
+                    if d.is_dir() and (d / "config.yaml").exists()
+                ]
+            )
         else:
             # For GitHub mode, we'd need to use the GitHub API
             # For now, return empty list - cache should handle this
@@ -195,10 +189,9 @@ class GitClient:
             skills_dir = Path(self.local_path) / "skills"
             if not skills_dir.exists():
                 return []
-            return sorted([
-                d.name for d in skills_dir.iterdir()
-                if d.is_dir() and (d / "SKILL.md").exists()
-            ])
+            return sorted(
+                [d.name for d in skills_dir.iterdir() if d.is_dir() and (d / "SKILL.md").exists()]
+            )
         else:
             logger.warning("list_skills_not_supported_for_github_mode")
             return []
@@ -230,18 +223,12 @@ class GitClient:
         )
 
         behavior = BehaviorConfig(
-            respond_to_mentions=config_data.get("behavior", {}).get(
-                "respond_to_mentions", True
-            ),
-            respond_to_replies=config_data.get("behavior", {}).get(
-                "respond_to_replies", True
-            ),
+            respond_to_mentions=config_data.get("behavior", {}).get("respond_to_mentions", True),
+            respond_to_replies=config_data.get("behavior", {}).get("respond_to_replies", True),
             max_iterations=config_data.get("behavior", {}).get("max_iterations", 10),
             can_create_posts=config_data.get("behavior", {}).get("can_create_posts", True),
             max_daily_posts=config_data.get("behavior", {}).get("max_daily_posts", 5),
-            max_daily_comments=config_data.get("behavior", {}).get(
-                "max_daily_comments", 50
-            ),
+            max_daily_comments=config_data.get("behavior", {}).get("max_daily_comments", 50),
         )
 
         return AgentConfig(

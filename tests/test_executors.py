@@ -74,9 +74,7 @@ class TestClaudeCodeExecutor:
         assert "Fix the bug" in cmd
 
     @pytest.mark.asyncio
-    async def test_build_env(
-        self, executor: ClaudeCodeExecutor, agent_config: AgentConfig
-    ) -> None:
+    async def test_build_env(self, executor: ClaudeCodeExecutor, agent_config: AgentConfig) -> None:
         """Test environment building."""
         credentials = {"anthropic_api_key": "test-key"}
         env = await executor.build_env(agent_config, credentials)
@@ -120,9 +118,7 @@ class TestGooseExecutor:
         return GooseExecutor()
 
     @pytest.mark.asyncio
-    async def test_build_command(
-        self, executor: GooseExecutor, agent_config: AgentConfig
-    ) -> None:
+    async def test_build_command(self, executor: GooseExecutor, agent_config: AgentConfig) -> None:
         """Test command building."""
         workspace = Path("/tmp/test-workspace")
         cmd = await executor.build_command(agent_config, "Write tests", workspace)
@@ -133,9 +129,7 @@ class TestGooseExecutor:
         assert "--message" in cmd
         assert "--no-interactive" in cmd
 
-    def test_build_profile_config(
-        self, executor: GooseExecutor, agent_config: AgentConfig
-    ) -> None:
+    def test_build_profile_config(self, executor: GooseExecutor, agent_config: AgentConfig) -> None:
         """Test profile configuration building."""
         config = executor._build_profile_config(agent_config, {})
 
@@ -165,9 +159,7 @@ class TestAiderExecutor:
         return AiderExecutor()
 
     @pytest.mark.asyncio
-    async def test_build_command(
-        self, executor: AiderExecutor, agent_config: AgentConfig
-    ) -> None:
+    async def test_build_command(self, executor: AiderExecutor, agent_config: AgentConfig) -> None:
         """Test command building."""
         workspace = Path("/tmp/test-workspace")
         cmd = await executor.build_command(agent_config, "Refactor code", workspace)
@@ -230,10 +222,13 @@ class TestOpenCodeExecutor:
     def test_parse_metrics_json(self, executor: OpenCodeExecutor) -> None:
         """Test JSON output parsing."""
         import json
-        output = json.dumps({
-            "usage": {"prompt_tokens": 1000, "completion_tokens": 300},
-            "files_modified": ["file1.py", "file2.py"],
-        })
+
+        output = json.dumps(
+            {
+                "usage": {"prompt_tokens": 1000, "completion_tokens": 300},
+                "files_modified": ["file1.py", "file2.py"],
+            }
+        )
         metrics = executor._parse_metrics(output)
 
         assert metrics["tokens_input"] == 1000
@@ -298,7 +293,9 @@ class TestNativeExecutor:
         # Should include OpenAI API key
         assert env["OPENAI_API_KEY"] == "openai-key"
 
-    def test_get_default_system_prompt(self, executor: NativeExecutor, agent_config: AgentConfig) -> None:
+    def test_get_default_system_prompt(
+        self, executor: NativeExecutor, agent_config: AgentConfig
+    ) -> None:
         """Test default system prompt generation."""
         prompt = executor._get_default_system_prompt(agent_config)
 
@@ -342,4 +339,3 @@ class TestNativeExecutor:
         assert "Read" not in tool_names
         assert "Write" not in tool_names
         assert "Bash" not in tool_names
-

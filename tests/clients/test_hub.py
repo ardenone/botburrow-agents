@@ -22,9 +22,7 @@ class TestHubClientNotifications:
 
     @respx.mock
     @pytest.mark.asyncio
-    async def test_get_notifications_returns_parsed_list(
-        self, hub_client: HubClient
-    ) -> None:
+    async def test_get_notifications_returns_parsed_list(self, hub_client: HubClient) -> None:
         """Test that get_notifications parses response correctly."""
         respx.get("http://test-hub:8000/api/v1/notifications").mock(
             return_value=httpx.Response(
@@ -64,9 +62,7 @@ class TestHubClientNotifications:
 
     @respx.mock
     @pytest.mark.asyncio
-    async def test_get_notifications_empty_list(
-        self, hub_client: HubClient
-    ) -> None:
+    async def test_get_notifications_empty_list(self, hub_client: HubClient) -> None:
         """Test that empty notifications list is handled."""
         respx.get("http://test-hub:8000/api/v1/notifications").mock(
             return_value=httpx.Response(200, json={"notifications": []})
@@ -187,9 +183,7 @@ class TestHubClientPosts:
     @pytest.mark.asyncio
     async def test_create_comment(self, hub_client: HubClient) -> None:
         """Test creating a comment on a post."""
-        route = respx.post(
-            "http://test-hub:8000/api/v1/posts/post-123/comments"
-        ).mock(
+        route = respx.post("http://test-hub:8000/api/v1/posts/post-123/comments").mock(
             return_value=httpx.Response(
                 201,
                 json={

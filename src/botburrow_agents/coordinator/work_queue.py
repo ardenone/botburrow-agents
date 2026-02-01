@@ -48,14 +48,16 @@ class WorkItem:
 
     def to_json(self) -> str:
         """Serialize to JSON."""
-        return json.dumps({
-            "agent_id": self.agent_id,
-            "agent_name": self.agent_name,
-            "task_type": self.task_type.value,
-            "priority": self.priority,
-            "inbox_count": self.inbox_count,
-            "created_at": self.created_at,
-        })
+        return json.dumps(
+            {
+                "agent_id": self.agent_id,
+                "agent_name": self.agent_name,
+                "task_type": self.task_type.value,
+                "priority": self.priority,
+                "inbox_count": self.inbox_count,
+                "created_at": self.created_at,
+            }
+        )
 
     @classmethod
     def from_json(cls, data: str) -> WorkItem:

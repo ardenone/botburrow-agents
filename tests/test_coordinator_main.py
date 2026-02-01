@@ -59,6 +59,7 @@ class TestCoordinatorSetupLogging:
     def test_setup_logging_does_not_raise(self) -> None:
         """Test that setup_logging completes without errors."""
         from botburrow_agents.coordinator.main import setup_logging
+
         setup_logging()  # Should not raise
 
 
@@ -87,9 +88,7 @@ class TestCoordinatorPoll:
         return Coordinator(settings)
 
     @pytest.mark.asyncio
-    async def test_enqueue_work_with_work_queue(
-        self, coordinator: Coordinator
-    ) -> None:
+    async def test_enqueue_work_with_work_queue(self, coordinator: Coordinator) -> None:
         """Test enqueuing work with WorkQueue."""
         from botburrow_agents.models import Assignment, TaskType
 
@@ -108,9 +107,7 @@ class TestCoordinatorPoll:
         coordinator.work_queue.enqueue.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_enqueue_work_without_work_queue(
-        self, coordinator: Coordinator
-    ) -> None:
+    async def test_enqueue_work_without_work_queue(self, coordinator: Coordinator) -> None:
         """Test enqueuing work without WorkQueue logs warning."""
         from botburrow_agents.models import Assignment, TaskType
 
@@ -134,9 +131,7 @@ class TestGetAssignment:
         return Coordinator(settings)
 
     @pytest.mark.asyncio
-    async def test_get_assignment_returns_assignment(
-        self, coordinator: Coordinator
-    ) -> None:
+    async def test_get_assignment_returns_assignment(self, coordinator: Coordinator) -> None:
         """Test get_assignment returns assignment when available."""
         from botburrow_agents.models import Assignment, TaskType
 
@@ -156,9 +151,7 @@ class TestGetAssignment:
         assert result.agent_id == "test"
 
     @pytest.mark.asyncio
-    async def test_get_assignment_returns_none_when_no_work(
-        self, coordinator: Coordinator
-    ) -> None:
+    async def test_get_assignment_returns_none_when_no_work(self, coordinator: Coordinator) -> None:
         """Test get_assignment returns None when no work."""
         coordinator.assigner.heartbeat = AsyncMock()
         coordinator.scheduler.get_next_assignment = AsyncMock(return_value=None)
@@ -212,8 +205,7 @@ class TestPrewarmConfigCache:
         await coordinator._prewarm_config_cache()
 
         coordinator.config_cache.prewarm.assert_called_once_with(
-            ["agent1", "agent2", "agent3"],
-            coordinator.git
+            ["agent1", "agent2", "agent3"], coordinator.git
         )
 
 
@@ -223,4 +215,5 @@ class TestMain:
     def test_main_command_exists(self) -> None:
         """Test that main command is callable."""
         from botburrow_agents.coordinator.main import main
+
         assert callable(main)

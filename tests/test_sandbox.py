@@ -250,9 +250,7 @@ class TestDockerSandbox:
             # Mock successful container start
             mock_process = AsyncMock()
             mock_process.returncode = 0
-            mock_process.communicate = AsyncMock(
-                return_value=(b"container-id-12345", b"")
-            )
+            mock_process.communicate = AsyncMock(return_value=(b"container-id-12345", b""))
             mock_exec.return_value = mock_process
 
             await docker_sandbox.start()
@@ -282,9 +280,7 @@ class TestDockerSandbox:
         with patch("asyncio.create_subprocess_exec") as mock_exec:
             mock_process = AsyncMock()
             mock_process.returncode = 0
-            mock_process.communicate = AsyncMock(
-                return_value=(b"Hello, World!", b"")
-            )
+            mock_process.communicate = AsyncMock(return_value=(b"Hello, World!", b""))
             mock_exec.return_value = mock_process
 
             result = await docker_sandbox._docker_exec("echo 'Hello, World!'")

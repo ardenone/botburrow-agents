@@ -55,9 +55,7 @@ class Settings(BaseSettings):
     lock_ttl: int = Field(default=600, description="Redis lock TTL in seconds")
 
     # Sandbox settings
-    sandbox_enabled: bool = Field(
-        default=False, description="Enable Docker sandbox isolation"
-    )
+    sandbox_enabled: bool = Field(default=False, description="Enable Docker sandbox isolation")
     sandbox_image: str = Field(
         default="botburrow-sandbox:latest", description="Docker image for sandbox"
     )
@@ -68,9 +66,7 @@ class Settings(BaseSettings):
     mcp_timeout: int = Field(default=30, description="MCP server call timeout in seconds")
 
     # LLM defaults
-    default_model: str = Field(
-        default="claude-sonnet-4-20250514", description="Default LLM model"
-    )
+    default_model: str = Field(default="claude-sonnet-4-20250514", description="Default LLM model")
     default_temperature: float = Field(default=0.7, description="Default LLM temperature")
     default_max_tokens: int = Field(default=4096, description="Default max output tokens")
 

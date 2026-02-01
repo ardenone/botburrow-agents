@@ -38,9 +38,7 @@ class TestHubClientNotifications:
 
     @respx.mock
     @pytest.mark.asyncio
-    async def test_get_notifications(
-        self, hub_client: HubClient, settings: Settings
-    ) -> None:
+    async def test_get_notifications(self, hub_client: HubClient, settings: Settings) -> None:
         """Test getting notifications."""
         respx.get(f"{settings.hub_url}/api/v1/notifications").mock(
             return_value=httpx.Response(
@@ -72,9 +70,7 @@ class TestHubClientNotifications:
 
     @respx.mock
     @pytest.mark.asyncio
-    async def test_mark_notifications_read(
-        self, hub_client: HubClient, settings: Settings
-    ) -> None:
+    async def test_mark_notifications_read(self, hub_client: HubClient, settings: Settings) -> None:
         """Test marking notifications as read."""
         respx.post(f"{settings.hub_url}/api/v1/notifications/read").mock(
             return_value=httpx.Response(200, json={"success": True})
@@ -96,9 +92,7 @@ class TestHubClientPosts:
 
     @respx.mock
     @pytest.mark.asyncio
-    async def test_get_post(
-        self, hub_client: HubClient, settings: Settings
-    ) -> None:
+    async def test_get_post(self, hub_client: HubClient, settings: Settings) -> None:
         """Test getting a single post."""
         respx.get(f"{settings.hub_url}/api/v1/posts/post-123").mock(
             return_value=httpx.Response(
@@ -124,9 +118,7 @@ class TestHubClientPosts:
 
     @respx.mock
     @pytest.mark.asyncio
-    async def test_get_thread(
-        self, hub_client: HubClient, settings: Settings
-    ) -> None:
+    async def test_get_thread(self, hub_client: HubClient, settings: Settings) -> None:
         """Test getting a thread with comments."""
         respx.get(f"{settings.hub_url}/api/v1/posts/post-123").mock(
             return_value=httpx.Response(
@@ -159,9 +151,7 @@ class TestHubClientPosts:
 
     @respx.mock
     @pytest.mark.asyncio
-    async def test_create_post(
-        self, hub_client: HubClient, settings: Settings
-    ) -> None:
+    async def test_create_post(self, hub_client: HubClient, settings: Settings) -> None:
         """Test creating a new post."""
         respx.post(f"{settings.hub_url}/api/v1/posts").mock(
             return_value=httpx.Response(
@@ -187,9 +177,7 @@ class TestHubClientPosts:
 
     @respx.mock
     @pytest.mark.asyncio
-    async def test_create_comment(
-        self, hub_client: HubClient, settings: Settings
-    ) -> None:
+    async def test_create_comment(self, hub_client: HubClient, settings: Settings) -> None:
         """Test creating a comment."""
         respx.post(f"{settings.hub_url}/api/v1/posts/post-123/comments").mock(
             return_value=httpx.Response(
@@ -224,9 +212,7 @@ class TestHubClientSearch:
 
     @respx.mock
     @pytest.mark.asyncio
-    async def test_search(
-        self, hub_client: HubClient, settings: Settings
-    ) -> None:
+    async def test_search(self, hub_client: HubClient, settings: Settings) -> None:
         """Test searching posts."""
         respx.get(f"{settings.hub_url}/api/v1/search").mock(
             return_value=httpx.Response(
@@ -263,9 +249,7 @@ class TestHubClientBudget:
 
     @respx.mock
     @pytest.mark.asyncio
-    async def test_get_budget_health(
-        self, hub_client: HubClient, settings: Settings
-    ) -> None:
+    async def test_get_budget_health(self, hub_client: HubClient, settings: Settings) -> None:
         """Test getting budget health."""
         respx.get(f"{settings.hub_url}/api/v1/system/budget-health").mock(
             return_value=httpx.Response(
@@ -290,9 +274,7 @@ class TestHubClientBudget:
 
     @respx.mock
     @pytest.mark.asyncio
-    async def test_report_consumption(
-        self, hub_client: HubClient, settings: Settings
-    ) -> None:
+    async def test_report_consumption(self, hub_client: HubClient, settings: Settings) -> None:
         """Test reporting consumption."""
         respx.post(f"{settings.hub_url}/api/v1/system/consumption").mock(
             return_value=httpx.Response(200, json={"success": True})
@@ -354,9 +336,7 @@ class TestHubClientAgents:
 
     @respx.mock
     @pytest.mark.asyncio
-    async def test_get_stale_agents(
-        self, hub_client: HubClient, settings: Settings
-    ) -> None:
+    async def test_get_stale_agents(self, hub_client: HubClient, settings: Settings) -> None:
         """Test getting stale agents for exploration."""
         respx.get(f"{settings.hub_url}/api/v1/agents").mock(
             return_value=httpx.Response(
@@ -382,9 +362,7 @@ class TestHubClientAgents:
 
     @respx.mock
     @pytest.mark.asyncio
-    async def test_update_agent_activation(
-        self, hub_client: HubClient, settings: Settings
-    ) -> None:
+    async def test_update_agent_activation(self, hub_client: HubClient, settings: Settings) -> None:
         """Test updating agent activation timestamp."""
         respx.post(f"{settings.hub_url}/api/v1/agents/agent-1/activated").mock(
             return_value=httpx.Response(200, json={"success": True})
@@ -500,9 +478,7 @@ class TestHubClientDiscovery:
 
     @respx.mock
     @pytest.mark.asyncio
-    async def test_get_discovery_feed(
-        self, hub_client: HubClient, settings: Settings
-    ) -> None:
+    async def test_get_discovery_feed(self, hub_client: HubClient, settings: Settings) -> None:
         """Test getting discovery feed."""
         respx.get(f"{settings.hub_url}/api/v1/feed/discover").mock(
             return_value=httpx.Response(

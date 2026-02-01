@@ -278,9 +278,7 @@ class ContextBuilder:
 
         # 3. Feed of relevant posts
         feed = await self.hub.get_discovery_feed(
-            communities=agent.behavior.can_create_posts
-            and ["m/general"]
-            or [],
+            communities=agent.behavior.can_create_posts and ["m/general"] or [],
             keywords=[],  # Could extract from agent interests
             exclude_responded=True,
             limit=10,
@@ -431,60 +429,68 @@ You're browsing for posts you can meaningfully contribute to based on your exper
         tools = []
 
         if scope in ["read", "*"]:
-            tools.append({
-                "name": "mcp_github_get_file",
-                "description": "Get file contents from a GitHub repository",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "repo": {"type": "string", "description": "Repository (owner/repo)"},
-                        "path": {"type": "string", "description": "File path"},
+            tools.append(
+                {
+                    "name": "mcp_github_get_file",
+                    "description": "Get file contents from a GitHub repository",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "repo": {"type": "string", "description": "Repository (owner/repo)"},
+                            "path": {"type": "string", "description": "File path"},
+                        },
+                        "required": ["repo", "path"],
                     },
-                    "required": ["repo", "path"],
-                },
-            })
-            tools.append({
-                "name": "mcp_github_list_prs",
-                "description": "List pull requests in a repository",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "repo": {"type": "string"},
-                        "state": {"type": "string", "enum": ["open", "closed", "all"]},
+                }
+            )
+            tools.append(
+                {
+                    "name": "mcp_github_list_prs",
+                    "description": "List pull requests in a repository",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "repo": {"type": "string"},
+                            "state": {"type": "string", "enum": ["open", "closed", "all"]},
+                        },
+                        "required": ["repo"],
                     },
-                    "required": ["repo"],
-                },
-            })
+                }
+            )
 
         if scope in ["write", "*"]:
-            tools.append({
-                "name": "mcp_github_create_pr",
-                "description": "Create a pull request",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "repo": {"type": "string"},
-                        "title": {"type": "string"},
-                        "body": {"type": "string"},
-                        "head": {"type": "string"},
-                        "base": {"type": "string"},
+            tools.append(
+                {
+                    "name": "mcp_github_create_pr",
+                    "description": "Create a pull request",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "repo": {"type": "string"},
+                            "title": {"type": "string"},
+                            "body": {"type": "string"},
+                            "head": {"type": "string"},
+                            "base": {"type": "string"},
+                        },
+                        "required": ["repo", "title", "head", "base"],
                     },
-                    "required": ["repo", "title", "head", "base"],
-                },
-            })
-            tools.append({
-                "name": "mcp_github_create_issue",
-                "description": "Create an issue",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "repo": {"type": "string"},
-                        "title": {"type": "string"},
-                        "body": {"type": "string"},
+                }
+            )
+            tools.append(
+                {
+                    "name": "mcp_github_create_issue",
+                    "description": "Create an issue",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "repo": {"type": "string"},
+                            "title": {"type": "string"},
+                            "body": {"type": "string"},
+                        },
+                        "required": ["repo", "title"],
                     },
-                    "required": ["repo", "title"],
-                },
-            })
+                }
+            )
 
         return tools
 
@@ -499,32 +505,36 @@ You're browsing for posts you can meaningfully contribute to based on your exper
         if service == "s3":
             tools = []
             if scope in ["read", "*"]:
-                tools.append({
-                    "name": "mcp_aws_s3_get",
-                    "description": "Get object from S3",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "bucket": {"type": "string"},
-                            "key": {"type": "string"},
+                tools.append(
+                    {
+                        "name": "mcp_aws_s3_get",
+                        "description": "Get object from S3",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "bucket": {"type": "string"},
+                                "key": {"type": "string"},
+                            },
+                            "required": ["bucket", "key"],
                         },
-                        "required": ["bucket", "key"],
-                    },
-                })
+                    }
+                )
             if scope in ["write", "*"]:
-                tools.append({
-                    "name": "mcp_aws_s3_put",
-                    "description": "Put object to S3",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "bucket": {"type": "string"},
-                            "key": {"type": "string"},
-                            "content": {"type": "string"},
+                tools.append(
+                    {
+                        "name": "mcp_aws_s3_put",
+                        "description": "Put object to S3",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "bucket": {"type": "string"},
+                                "key": {"type": "string"},
+                                "content": {"type": "string"},
+                            },
+                            "required": ["bucket", "key", "content"],
                         },
-                        "required": ["bucket", "key", "content"],
-                    },
-                })
+                    }
+                )
             return tools
 
         return []
@@ -539,16 +549,18 @@ You're browsing for posts you can meaningfully contribute to based on your exper
 
         tools = []
         if scope in ["read", "*"]:
-            tools.append({
-                "name": f"mcp_postgres_{database}_query",
-                "description": f"Execute a SELECT query on {database}",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "query": {"type": "string", "description": "SQL SELECT query"},
+            tools.append(
+                {
+                    "name": f"mcp_postgres_{database}_query",
+                    "description": f"Execute a SELECT query on {database}",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "query": {"type": "string", "description": "SQL SELECT query"},
+                        },
+                        "required": ["query"],
                     },
-                    "required": ["query"],
-                },
-            })
+                }
+            )
 
         return tools

@@ -149,22 +149,28 @@ class NativeExecutor(BaseExecutor):
 
             # Add system prompt
             if agent.system_prompt:
-                context.add_message(Message(
-                    role="system",
-                    content=agent.system_prompt,
-                ))
+                context.add_message(
+                    Message(
+                        role="system",
+                        content=agent.system_prompt,
+                    )
+                )
             else:
                 # Default system prompt for native execution
-                context.add_message(Message(
-                    role="system",
-                    content=self._get_default_system_prompt(agent),
-                ))
+                context.add_message(
+                    Message(
+                        role="system",
+                        content=self._get_default_system_prompt(agent),
+                    )
+                )
 
             # Add user message with the prompt
-            context.add_message(Message(
-                role="user",
-                content=prompt,
-            ))
+            context.add_message(
+                Message(
+                    role="user",
+                    content=prompt,
+                )
+            )
 
             # Add available tools
             context.tools = self._get_available_tools(agent)
@@ -338,107 +344,109 @@ class NativeExecutor(BaseExecutor):
 
         # Add file/system tools if network access is enabled
         if agent.network.enabled:
-            tools.extend([
-                {
-                    "name": "Read",
-                    "description": "Read file contents",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "file_path": {
-                                "type": "string",
-                                "description": "Path to file to read",
+            tools.extend(
+                [
+                    {
+                        "name": "Read",
+                        "description": "Read file contents",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "file_path": {
+                                    "type": "string",
+                                    "description": "Path to file to read",
+                                },
                             },
+                            "required": ["file_path"],
                         },
-                        "required": ["file_path"],
                     },
-                },
-                {
-                    "name": "Write",
-                    "description": "Write or create a file",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "file_path": {
-                                "type": "string",
-                                "description": "Path to file to write",
+                    {
+                        "name": "Write",
+                        "description": "Write or create a file",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "file_path": {
+                                    "type": "string",
+                                    "description": "Path to file to write",
+                                },
+                                "content": {
+                                    "type": "string",
+                                    "description": "Content to write",
+                                },
                             },
-                            "content": {
-                                "type": "string",
-                                "description": "Content to write",
-                            },
+                            "required": ["file_path", "content"],
                         },
-                        "required": ["file_path", "content"],
                     },
-                },
-                {
-                    "name": "Edit",
-                    "description": "Edit an existing file",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "file_path": {
-                                "type": "string",
-                                "description": "Path to file to edit",
+                    {
+                        "name": "Edit",
+                        "description": "Edit an existing file",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "file_path": {
+                                    "type": "string",
+                                    "description": "Path to file to edit",
+                                },
+                                "old_text": {
+                                    "type": "string",
+                                    "description": "Text to replace",
+                                },
+                                "new_text": {
+                                    "type": "string",
+                                    "description": "New text",
+                                },
                             },
-                            "old_text": {
-                                "type": "string",
-                                "description": "Text to replace",
-                            },
-                            "new_text": {
-                                "type": "string",
-                                "description": "New text",
-                            },
+                            "required": ["file_path", "old_text", "new_text"],
                         },
-                        "required": ["file_path", "old_text", "new_text"],
                     },
-                },
-                {
-                    "name": "Bash",
-                    "description": "Execute shell commands",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "command": {
-                                "type": "string",
-                                "description": "Command to execute",
+                    {
+                        "name": "Bash",
+                        "description": "Execute shell commands",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "command": {
+                                    "type": "string",
+                                    "description": "Command to execute",
+                                },
                             },
+                            "required": ["command"],
                         },
-                        "required": ["command"],
                     },
-                },
-                {
-                    "name": "Glob",
-                    "description": "Find files by pattern",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "pattern": {
-                                "type": "string",
-                                "description": "Glob pattern (e.g., **/*.py)",
+                    {
+                        "name": "Glob",
+                        "description": "Find files by pattern",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "pattern": {
+                                    "type": "string",
+                                    "description": "Glob pattern (e.g., **/*.py)",
+                                },
                             },
+                            "required": ["pattern"],
                         },
-                        "required": ["pattern"],
                     },
-                },
-                {
-                    "name": "Grep",
-                    "description": "Search for text in files",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "pattern": {
-                                "type": "string",
-                                "description": "Regex pattern to search for",
+                    {
+                        "name": "Grep",
+                        "description": "Search for text in files",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "pattern": {
+                                    "type": "string",
+                                    "description": "Regex pattern to search for",
+                                },
+                                "path": {
+                                    "type": "string",
+                                    "description": "Directory to search in (optional)",
+                                },
                             },
-                            "path": {
-                                "type": "string",
-                                "description": "Directory to search in (optional)",
-                            },
+                            "required": ["pattern"],
                         },
-                        "required": ["pattern"],
                     },
-                },
-            ])
+                ]
+            )
 
         return tools

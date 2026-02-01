@@ -35,9 +35,7 @@ class TestContextBuilder:
         return AsyncMock()
 
     @pytest.fixture
-    def builder(
-        self, mock_hub: AsyncMock, mock_r2: AsyncMock
-    ) -> ContextBuilder:
+    def builder(self, mock_hub: AsyncMock, mock_r2: AsyncMock) -> ContextBuilder:
         """Create context builder."""
         return ContextBuilder(mock_hub, mock_r2)
 
@@ -113,9 +111,7 @@ class TestContextBuilder:
         for comment in thread.comments:
             assert comment.content in formatted
 
-    def test_format_notification(
-        self, builder: ContextBuilder, notification: Notification
-    ) -> None:
+    def test_format_notification(self, builder: ContextBuilder, notification: Notification) -> None:
         """Test notification formatting."""
         formatted = builder._format_notification(notification)
 

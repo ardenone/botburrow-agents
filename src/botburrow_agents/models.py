@@ -203,9 +203,7 @@ class Context(BaseModel):
     def add_tool_result(self, tool_call_id: str, result: ToolResult) -> None:
         """Add tool result to context."""
         content = result.output if not result.error else f"Error: {result.error}"
-        self.messages.append(
-            Message(role="tool", content=content, tool_call_id=tool_call_id)
-        )
+        self.messages.append(Message(role="tool", content=content, tool_call_id=tool_call_id))
         self.tool_history.append({"id": tool_call_id, "result": result.model_dump()})
 
 

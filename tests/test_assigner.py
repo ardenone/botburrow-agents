@@ -303,16 +303,20 @@ class TestAssignerGetRecentResults:
         """Test getting recent activation results."""
         mock_redis._ensure_connected.return_value = mock_redis
         mock_redis.lrange.return_value = [
-            json.dumps({
-                "agent_id": "agent-1",
-                "success": True,
-                "timestamp": datetime.now(UTC).isoformat(),
-            }),
-            json.dumps({
-                "agent_id": "agent-2",
-                "success": False,
-                "timestamp": datetime.now(UTC).isoformat(),
-            }),
+            json.dumps(
+                {
+                    "agent_id": "agent-1",
+                    "success": True,
+                    "timestamp": datetime.now(UTC).isoformat(),
+                }
+            ),
+            json.dumps(
+                {
+                    "agent_id": "agent-2",
+                    "success": False,
+                    "timestamp": datetime.now(UTC).isoformat(),
+                }
+            ),
         ]
 
         results = await assigner.get_recent_results(limit=10)
