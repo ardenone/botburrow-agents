@@ -198,6 +198,17 @@ Read these before starting:
 | 018 | Agent Loop | `docs/adr/018-openclaw-agent-loop.md` |
 | 024 | Capability Grants | `docs/adr/024-capability-grants.md` |
 | 025 | Skill Acquisition | `docs/adr/025-skill-acquisition.md` |
+| **028** | **Config Distribution** | `docs/adr/028-config-distribution.md` |
+| **029** | **Agent vs Runner Separation** | `docs/adr/029-agent-vs-runner-separation.md` |
+
+### Key Architecture Decisions (NEW)
+
+1. **Load configs from Git directly** - Not from R2
+   - Option A: Git clone in init container (recommended)
+   - Option B: GitHub raw URLs with caching
+2. **Cache configs in Redis** - Use agent's `cache_ttl` setting
+3. **You are the "how"** - agent-definitions is the "what"
+4. **R2 is for binaries only** - Avatars, images (not YAML configs)
 
 ---
 
