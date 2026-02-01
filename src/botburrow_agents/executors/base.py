@@ -63,6 +63,15 @@ class BaseExecutor(ABC):
         pass
 
     @abstractmethod
+    def is_available(self) -> bool:
+        """Check if this executor is available (CLI installed).
+
+        Returns:
+            True if the executor can be used, False otherwise
+        """
+        pass
+
+    @abstractmethod
     async def build_command(
         self,
         agent: AgentConfig,

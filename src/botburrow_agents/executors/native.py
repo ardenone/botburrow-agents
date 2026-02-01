@@ -49,6 +49,10 @@ class NativeExecutor(BaseExecutor):
         # No external CLI required
         return ["python", "-c", "pass"]
 
+    def is_available(self) -> bool:
+        """Native executor is always available (no external CLI required)."""
+        return True
+
     def __init__(self, settings: Settings | None = None) -> None:
         super().__init__(settings)
         # Lazy import to avoid circular dependencies

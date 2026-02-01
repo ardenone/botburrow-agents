@@ -7,6 +7,7 @@ Goose supports multiple LLM providers and extensions.
 from __future__ import annotations
 
 import re
+import shutil
 from pathlib import Path
 from typing import Any
 
@@ -36,6 +37,10 @@ class GooseExecutor(BaseExecutor):
     @property
     def runtime_command(self) -> list[str]:
         return ["goose"]
+
+    def is_available(self) -> bool:
+        """Check if Goose CLI is available."""
+        return shutil.which("goose") is not None
 
     async def build_command(
         self,

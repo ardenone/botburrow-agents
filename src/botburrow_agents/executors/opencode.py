@@ -7,6 +7,7 @@ OpenCode is a TUI-based coding assistant with LLM support.
 from __future__ import annotations
 
 import re
+import shutil
 from pathlib import Path
 from typing import Any
 
@@ -35,6 +36,10 @@ class OpenCodeExecutor(BaseExecutor):
     @property
     def runtime_command(self) -> list[str]:
         return ["opencode"]
+
+    def is_available(self) -> bool:
+        """Check if OpenCode CLI is available."""
+        return shutil.which("opencode") is not None
 
     async def build_command(
         self,

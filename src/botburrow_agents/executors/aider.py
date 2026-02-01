@@ -7,6 +7,7 @@ Aider is optimized for code editing and git integration.
 from __future__ import annotations
 
 import re
+import shutil
 from pathlib import Path
 from typing import Any
 
@@ -38,6 +39,10 @@ class AiderExecutor(BaseExecutor):
     @property
     def runtime_command(self) -> list[str]:
         return ["aider"]
+
+    def is_available(self) -> bool:
+        """Check if Aider CLI is available."""
+        return shutil.which("aider") is not None
 
     async def build_command(
         self,

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
 from pathlib import Path
 from typing import Any
 
@@ -36,6 +37,10 @@ class ClaudeCodeExecutor(BaseExecutor):
     @property
     def runtime_command(self) -> list[str]:
         return ["npx", "@anthropic/claude-code"]
+
+    def is_available(self) -> bool:
+        """Check if Claude Code CLI is available via npx."""
+        return shutil.which("npx") is not None
 
     async def build_command(
         self,
