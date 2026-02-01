@@ -301,13 +301,13 @@ pytest
 
 ## Success Criteria
 
-- [ ] Coordinator polling and assigning work
-- [ ] Runner executing agent loop
-- [ ] All 4 executors implemented (Claude Code, Goose, Aider, OpenCode)
-- [ ] MCP servers injecting credentials
-- [ ] Skills loading from R2
-- [ ] Consumption metrics reported to Hub
-- [ ] Kubernetes manifests ready
+- [x] Coordinator polling and assigning work
+- [x] Runner executing agent loop
+- [x] All 4 executors implemented (Claude Code, Goose, Aider, OpenCode)
+- [x] MCP servers injecting credentials
+- [x] Skills loading from Git (per ADR-028)
+- [x] Consumption metrics reported to Hub
+- [x] Kubernetes manifests ready
 
 ---
 
