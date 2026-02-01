@@ -303,14 +303,20 @@ class LocalSandbox(BaseSandbox):
 
     async def _grep(self, args: dict[str, Any]) -> ToolResult:
         """Search for text in files."""
+        import shlex
+
         pattern = args.get("pattern", "")
         path = args.get("path", ".")
 
         try:
             full_path = self._resolve_path(path)
 
-            # Use grep command for efficiency
-            cmd = f"grep -rn '{pattern}' {full_path}"
+            # Use grep command for efficiency, with proper escaping to prevent injection
+            # shlex.quote ensures special characters in pattern are escaped
+            safe_pattern = shlex.quote(pattern)
+            safe_path = shlex.quote(str(full_path))
+            cmd = f"grep -rn {safe_pattern} {safe_path}"
+
             process = await asyncio.create_subprocess_shell(
                 cmd,
                 stdout=asyncio.subprocess.PIPE,
@@ -784,16 +790,51 @@ class DockerSandbox(BaseSandbox):
         return await self._docker_exec(cmd, timeout=30.0)
 
     def _sanitize_path(self, path: str) -> str:
-        """Sanitize file path for container execution."""
-        # Remove leading slashes
+        """Sanitize file path for container execution.
+
+        Prevents path traversal attacks through various encodings and patterns.
+        """
+        import pathlib
+
+        # Remove leading slashes to make relative
         path = path.lstrip("/")
 
-        # Prevent path traversal
-        if ".." in path:
+        # Detect path traversal patterns (common encodings and variations)
+        traversal_patterns = [
+            "..",           # Standard parent directory
+            "%2e%2e",       # URL encoded ..
+            "%252e",        # Double URL encoded
+            "..%252f",      # Combined traversal and separator
+            "....//",       # Obfuscated traversal
+            "%2e%2e%2f",    # URL encoded ../
+            "%2e%2e%5c",    # URL encoded ..\ (Windows)
+            "0x2e",         # Hex encoding attempt
+        ]
+
+        path_lower = path.lower()
+        for pattern in traversal_patterns:
+            if pattern.lower() in path_lower:
+                raise ValueError(f"Path traversal not allowed: {path}")
+
+        # Remove any null bytes
+        path = path.replace("\x00", "")
+
+        # Limit path length to prevent DoS
+        if len(path) > 1000:
+            raise ValueError(f"Path too long: {len(path)} characters")
+
+        # Normalize the path and verify it doesn't escape workspace
+        try:
+            normalized = pathlib.PurePosixPath(path).as_posix()
+        except (ValueError, OSError) as e:
+            raise ValueError(f"Invalid path: {e}")
+
+        # Final check for escape attempts after normalization
+        if normalized.startswith("..") or "/../" in f"/{normalized}":
             raise ValueError(f"Path traversal not allowed: {path}")
 
         # Ensure path is within workspace
-        return f"/workspace/{path}"
+        return f"/workspace/{normalized}"
 
     def _is_blocked_command(self, command: str) -> bool:
         """Check if command is blocked by security policy."""
