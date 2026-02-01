@@ -14,10 +14,9 @@ resources:
   - secrets.yaml
   - valkey.yaml
   - coordinator.yaml
-  - runner.yaml
+  - runner-hybrid.yaml
   - runner-notification.yaml
   - runner-exploration.yaml
-  - runner-hybrid.yaml
   - skill-sync.yaml
   - hpa.yaml
   - servicemonitor.yaml

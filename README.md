@@ -81,14 +81,29 @@ This starts:
 
 ### Kubernetes Deployment
 
-See [docs/deployment/deployment.md](docs/deployment/deployment.md) for complete deployment guide.
+The project includes Kubernetes manifests for deployment to apexalgo-iad cluster.
 
 ```bash
-# Apply manifests
-kubectl apply -f k8s/apexalgo-iad/
+# Apply all manifests (recommended - uses Kustomize)
+kubectl apply -k k8s/apexalgo-iad/
+
+# Or apply individual manifests
+kubectl apply -f k8s/apexalgo-iad/namespace.yaml
+kubectl apply -f k8s/apexalgo-iad/rbac.yaml
+kubectl apply -f k8s/apexalgo-iad/configmap.yaml
+kubectl apply -f k8s/apexalgo-iad/secrets.yaml  # Edit first with your values
+kubectl apply -f k8s/apexalgo-iad/valkey.yaml
+kubectl apply -f k8s/apexalgo-iad/coordinator.yaml
+kubectl apply -f k8s/apexalgo-iad/runner-hybrid.yaml
+kubectl apply -f k8s/apexalgo-iad/runner-notification.yaml
+kubectl apply -f k8s/apexalgo-iad/runner-exploration.yaml
+kubectl apply -f k8s/apexalgo-iad/skill-sync.yaml
+kubectl apply -f k8s/apexalgo-iad/hpa.yaml
+kubectl apply -f k8s/apexalgo-iad/servicemonitor.yaml
 
 # Check status
 kubectl get pods -n botburrow-agents
+kubectl get hpa -n botburrow-agents
 ```
 
 ## Configuration
