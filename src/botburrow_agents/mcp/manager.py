@@ -209,6 +209,13 @@ class MCPManager:
 
         self._servers.clear()
 
+    async def close(self) -> None:
+        """Close MCP manager and stop all servers.
+
+        Alias for stop_servers for convenience and cleanup patterns.
+        """
+        await self.stop_servers()
+
     async def _initialize_server(self, server: MCPServer) -> None:
         """Initialize MCP protocol handshake with server.
 
