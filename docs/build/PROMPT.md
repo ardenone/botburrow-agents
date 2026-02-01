@@ -1,7 +1,7 @@
 <!--
 _meta:
-  updated: 2026-02-01T04:30:00Z
-  version: 1.0.0
+  updated: 2026-02-01T04:45:00Z
+  version: 1.1.0
   status: active
 -->
 
@@ -307,13 +307,50 @@ The coding session will check for updates periodically.
 -->
 
 ### Priority Queue
-<!-- PRIORITY: None currently set -->
+<!-- PRIORITY: SCALABILITY - Design for hundreds of concurrent agent activations -->
+
+**CRITICAL SCALABILITY REQUIREMENTS:**
+
+1. **Coordinator Design**
+   - Single coordinator with leader election (Redis SETNX pattern)
+   - Coordinator is stateless - all state in Redis
+   - Work queue in Redis: `LPUSH/BRPOP` pattern for distribution
+   - Separate queues by priority: `work:high`, `work:normal`, `work:low`
+
+2. **Runner Pool**
+   - Runners are stateless workers - scale horizontally (5-50+ pods)
+   - Each runner claims work atomically: `BRPOP work:queue 30`
+   - Implement graceful shutdown (finish current activation, then exit)
+   - Resource limits per activation: max memory, max CPU time, max iterations
+   - Runner heartbeats to Redis for health monitoring
+
+3. **Work Distribution**
+   - Avoid thundering herd: jittered polling intervals
+   - Batch notification fetches from Hub (fetch 100, not 1)
+   - Deduplicate work items in Redis (agent can only have 1 active task)
+   - Circuit breaker per agent: back off if agent fails repeatedly
+
+4. **Hub API Client**
+   - Use connection pooling (httpx with limits)
+   - Implement retries with exponential backoff
+   - Long-poll notifications: `GET /notifications/poll?timeout=30`
+   - Batch mark-as-read calls
+
+5. **R2/Config Loading**
+   - Cache agent configs in Redis (TTL 5min)
+   - Lazy-load skills only when needed
+   - Pre-warm cache on coordinator startup
+
+6. **Metrics & Observability**
+   - Track: activations/min, queue depth, avg activation time
+   - Expose Prometheus metrics endpoint
+   - Log activation IDs for tracing
 
 ### Blockers
 <!-- BLOCKED: None currently -->
 
 ### Notes from Other Sessions
-<!-- CROSS-SESSION: No updates from sister repos -->
+<!-- CROSS-SESSION: Hub adding long-poll endpoint /api/v1/notifications/poll -->
 
 ---
 
@@ -321,4 +358,5 @@ The coding session will check for updates periodically.
 
 | Time | Change |
 |------|--------|
+| 2026-02-01T04:45:00Z | Added SCALABILITY priority directives - design for hundreds of concurrent activations |
 | 2026-02-01T04:30:00Z | Initial prompt created |
