@@ -358,6 +358,27 @@ The coding session will check for updates periodically.
    - Expose Prometheus metrics endpoint
    - Log activation IDs for tracing
 
+### GitHub Actions Monitoring
+<!-- CI/CD: Monitor GitHub Actions after every push -->
+
+**IMPORTANT**: After every `git push`, monitor GitHub Actions for failures!
+
+1. **Check workflow status**: `gh run list --limit 5`
+2. **View failed run details**: `gh run view <run-id>`
+3. **View job logs**: `gh run view <run-id> --log-failed`
+4. **Investigate and fix failures immediately** - don't continue coding if CI is red
+5. **Common failure causes**:
+   - Linting errors (ruff, black)
+   - Type errors (mypy)
+   - Test failures (pytest)
+   - Docker build issues
+
+If a workflow fails:
+1. Read the error logs carefully
+2. Fix the issue locally
+3. Run relevant checks locally before pushing again
+4. Push the fix and verify CI passes
+
 ### Git Workflow
 <!-- GIT: Commit and push after completing each major feature or file group -->
 
