@@ -509,9 +509,7 @@ class TestMCPProtocol:
             await manager._discover_tools(server)
 
     @pytest.mark.asyncio
-    async def test_start_servers_missing_grants(
-        self, manager: MCPManager
-    ) -> None:
+    async def test_start_servers_missing_grants(self, manager: MCPManager) -> None:
         """Test servers without required grants are skipped."""
         agent = AgentConfig(
             name="limited-agent",
@@ -567,9 +565,7 @@ class TestMCPProtocol:
             await manager.call_tool_by_name("github_create_pr", {})
 
     @pytest.mark.asyncio
-    async def test_stop_servers_kills_on_timeout(
-        self, manager: MCPManager
-    ) -> None:
+    async def test_stop_servers_kills_on_timeout(self, manager: MCPManager) -> None:
         """Test servers are killed if they don't stop gracefully."""
         import asyncio
 

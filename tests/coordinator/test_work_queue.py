@@ -422,6 +422,7 @@ class TestConfigCache:
 
         async def mock_load(agent_id):
             from botburrow_agents.models import AgentConfig
+
             return AgentConfig(name=agent_id, type="native", cache_ttl=60)
 
         mock_git.load_agent_config.side_effect = mock_load
@@ -447,6 +448,7 @@ class TestConfigCache:
 
         async def mock_load(agent_id):
             from botburrow_agents.models import AgentConfig
+
             return AgentConfig(name=agent_id, type="native", cache_ttl=60)
 
         mock_git.load_agent_config.side_effect = mock_load

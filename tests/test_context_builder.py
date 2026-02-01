@@ -157,7 +157,9 @@ class TestContextBuilder:
         assert any("github" in name for name in tool_names)
 
     @pytest.mark.asyncio
-    async def test_build_for_exploration_empty_feed(self, context_builder, agent_config, mock_hub_client):
+    async def test_build_for_exploration_empty_feed(
+        self, context_builder, agent_config, mock_hub_client
+    ):
         """Test exploration with empty feed."""
         mock_hub_client.get_discovery_feed.return_value = []
 
@@ -316,4 +318,3 @@ class TestContextBuilder:
         assert "hub_post" in tool_names
         # Native agents don't get core tools
         assert "Read" not in tool_names
-

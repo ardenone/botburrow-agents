@@ -361,7 +361,7 @@ class TestLocalSandboxSecurity:
 
         # Create test file with quotes in content
         test_file = sandbox.workspace / "test.txt"
-        test_file.write_text("It's a \"test\" file\n")
+        test_file.write_text('It\'s a "test" file\n')
 
         # Search for pattern with quotes
         result = await sandbox.execute_tool("Grep", {"pattern": "It's", "path": "."})

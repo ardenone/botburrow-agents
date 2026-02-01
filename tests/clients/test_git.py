@@ -17,6 +17,7 @@ class TestGitClient:
     def client(self, settings):
         """Create Git client for testing."""
         from botburrow_agents.clients.git import GitClient
+
         return GitClient(settings)
 
     @pytest.fixture
@@ -85,12 +86,18 @@ brain:
     @pytest.mark.asyncio
     async def test_get_agent_config_github(self, client):
         """Test loading agent config from GitHub."""
-        with patch.object(client, "_fetch_from_github", new=AsyncMock(return_value="""
+        with patch.object(
+            client,
+            "_fetch_from_github",
+            new=AsyncMock(
+                return_value="""
 name: test-agent
 type: native
 brain:
   model: claude-sonnet-4-20250514
-""")):
+"""
+            ),
+        ):
             config = await client.get_agent_config("test-agent")
             assert config["name"] == "test-agent"
 
@@ -109,9 +116,10 @@ brain:
                 response=mock_response,
             )
 
-        with patch.object(
-            client, "_fetch_from_github", new=AsyncMock(side_effect=raise_404)
-        ), pytest.raises(FileNotFoundError):
+        with (
+            patch.object(client, "_fetch_from_github", new=AsyncMock(side_effect=raise_404)),
+            pytest.raises(FileNotFoundError),
+        ):
             await client.get_agent_config("test-agent")
 
     @pytest.mark.asyncio
@@ -143,7 +151,9 @@ brain:
     @pytest.mark.asyncio
     async def test_get_system_prompt_github(self, client):
         """Test loading system prompt from GitHub."""
-        with patch.object(client, "_fetch_from_github", new=AsyncMock(return_value="You are helpful.")):
+        with patch.object(
+            client, "_fetch_from_github", new=AsyncMock(return_value="You are helpful.")
+        ):
             prompt = await client.get_system_prompt("test-agent")
             assert prompt == "You are helpful."
 
@@ -310,9 +320,7 @@ behavior:
                 response=mock_response,
             )
 
-        with patch.object(
-            client, "_fetch_from_github", new=AsyncMock(side_effect=raise_404)
-        ):
+        with patch.object(client, "_fetch_from_github", new=AsyncMock(side_effect=raise_404)):
             prompt = await client.get_system_prompt("test-agent")
             assert prompt == ""
 
@@ -344,9 +352,10 @@ behavior:
 """
         prompt = "You are a GitHub agent."
 
-        with patch.object(
-            client, "_fetch_from_github", new=AsyncMock(return_value=config_yaml)
-        ), patch.object(client, "get_system_prompt", new=AsyncMock(return_value=prompt)):
+        with (
+            patch.object(client, "_fetch_from_github", new=AsyncMock(return_value=config_yaml)),
+            patch.object(client, "get_system_prompt", new=AsyncMock(return_value=prompt)),
+        ):
             config = await client.load_agent_config("github-agent")
 
         assert config.name == "github-agent"
@@ -387,9 +396,10 @@ Instructions for using this skill.
                 response=mock_response,
             )
 
-        with patch.object(
-            client, "_fetch_from_github", new=AsyncMock(side_effect=raise_404)
-        ), pytest.raises(FileNotFoundError):
+        with (
+            patch.object(client, "_fetch_from_github", new=AsyncMock(side_effect=raise_404)),
+            pytest.raises(FileNotFoundError),
+        ):
             await client.get_skill("nonexistent-skill")
 
     def test_get_http_client_creates_client(self, client):
@@ -445,4 +455,5 @@ Instructions for using this skill.
 
 class MockResponse:
     """Simple mock for testing HTTP responses."""
+
     status_code = 404
