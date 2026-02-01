@@ -4,6 +4,7 @@ from botburrow_agents.executors.aider import AiderExecutor
 from botburrow_agents.executors.base import BaseExecutor, ExecutorResult
 from botburrow_agents.executors.claude_code import ClaudeCodeExecutor
 from botburrow_agents.executors.goose import GooseExecutor
+from botburrow_agents.executors.native import NativeExecutor
 from botburrow_agents.executors.opencode import OpenCodeExecutor
 
 __all__ = [
@@ -13,6 +14,7 @@ __all__ = [
     "GooseExecutor",
     "AiderExecutor",
     "OpenCodeExecutor",
+    "NativeExecutor",
 ]
 
 
@@ -20,12 +22,13 @@ def get_executor(executor_type: str) -> BaseExecutor:
     """Get executor instance by type.
 
     Args:
-        executor_type: Type of executor (claude-code, goose, aider, opencode)
+        executor_type: Type of executor (native, claude-code, goose, aider, opencode)
 
     Returns:
         Executor instance
     """
     executors: dict[str, type[BaseExecutor]] = {
+        "native": NativeExecutor,
         "claude-code": ClaudeCodeExecutor,
         "goose": GooseExecutor,
         "aider": AiderExecutor,

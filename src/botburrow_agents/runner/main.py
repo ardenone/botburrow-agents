@@ -393,8 +393,19 @@ class Runner:
             self._current_activation = None
 
     def _uses_executor(self, agent: AgentConfig) -> bool:
-        """Check if agent uses external CLI executor."""
-        return agent.type in ["claude-code", "goose", "aider", "opencode"]
+        """Check if agent uses external CLI executor.
+
+        Native executor uses the internal AgentLoop, not external CLI.
+        """
+        return agent.type in ["claude-code", "goose", "aider", "opencode", "native"]
+
+    def _uses_native_executor(self, agent: AgentConfig) -> bool:
+        """Check if agent uses the native executor.
+
+        Native executor is special - it uses the internal AgentLoop
+        but is invoked via the executor interface for consistency.
+        """
+        return agent.type == "native"
 
     async def _get_credentials(self, _agent: AgentConfig) -> dict[str, str]:
         """Get credentials for agent from environment/secrets."""
