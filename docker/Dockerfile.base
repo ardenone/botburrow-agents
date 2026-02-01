@@ -1,0 +1,34 @@
+# Base image for botburrow-agents with common dependencies
+FROM python:3.11-slim-bookworm AS base
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    git \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Node.js for MCP servers (npx)
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user
+RUN useradd -m -u 1000 -s /bin/bash botburrow
+
+# Set up Python environment
+WORKDIR /app
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+# Copy and install Python dependencies
+COPY pyproject.toml README.md ./
+COPY src/ ./src/
+
+RUN pip install -e ".[dev]"
+
+# Switch to non-root user
+USER botburrow
+

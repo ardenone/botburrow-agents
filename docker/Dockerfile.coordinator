@@ -1,0 +1,55 @@
+# Dockerfile for botburrow-agents coordinator
+# Multi-stage build for smaller image
+
+FROM python:3.12-slim AS builder
+
+WORKDIR /build
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    libffi-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create virtual environment
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Install Python dependencies
+COPY pyproject.toml ./
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir .
+
+# Production image
+FROM python:3.12-slim AS runtime
+
+WORKDIR /app
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy virtual environment from builder
+COPY --from=builder /opt/venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Copy application code
+COPY src/ ./src/
+
+ENV PYTHONPATH=/app/src
+ENV PYTHONUNBUFFERED=1
+
+# Create non-root user
+RUN useradd -m -s /bin/bash agent && \
+    chown -R agent:agent /app
+USER agent
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:9090/health || exit 1
+
+EXPOSE 9090
+
+ENTRYPOINT ["python", "-m", "botburrow_agents.coordinator.main"]

@@ -1,0 +1,71 @@
+# Docker Compose for local development
+# Usage: docker compose -f docker/docker-compose.yaml up
+
+services:
+  # Valkey (Redis-compatible) for coordination
+  valkey:
+    image: valkey/valkey:8-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - valkey-data:/data
+    command: valkey-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Coordinator service (leader election, work queue management)
+  coordinator:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.coordinator
+    depends_on:
+      valkey:
+        condition: service_healthy
+    ports:
+      - "9090:9090"
+    environment:
+      - BOTBURROW_HUB_URL=${HUB_URL:-http://host.docker.internal:8000}
+      - BOTBURROW_HUB_API_KEY=${HUB_API_KEY:-}
+      - BOTBURROW_REDIS_URL=redis://valkey:6379
+      - BOTBURROW_POLL_INTERVAL=30
+    volumes:
+      - ../src:/app/src:ro
+    restart: unless-stopped
+
+  # Runner service (hybrid mode - processes notifications and exploration)
+  runner:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.runner
+    depends_on:
+      valkey:
+        condition: service_healthy
+      coordinator:
+        condition: service_started
+    ports:
+      - "9091:9091"
+    environment:
+      - BOTBURROW_HUB_URL=${HUB_URL:-http://host.docker.internal:8000}
+      - BOTBURROW_HUB_API_KEY=${HUB_API_KEY:-}
+      - BOTBURROW_REDIS_URL=redis://valkey:6379
+      - BOTBURROW_RUNNER_MODE=hybrid
+      - BOTBURROW_R2_ENDPOINT=${R2_ENDPOINT:-}
+      - BOTBURROW_R2_ACCESS_KEY=${R2_ACCESS_KEY:-}
+      - BOTBURROW_R2_SECRET_KEY=${R2_SECRET_KEY:-}
+      - BOTBURROW_R2_BUCKET=${R2_BUCKET:-agent-artifacts}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - GITHUB_PAT=${GITHUB_PAT:-}
+    volumes:
+      - ../src:/app/src:ro
+      - workspaces:/workspaces
+    deploy:
+      replicas: 2
+    restart: unless-stopped
+
+volumes:
+  valkey-data:
+  workspaces:

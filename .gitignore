@@ -38,3 +38,4 @@ docs/build/.marathon/
 
 # Docker
 docker-compose.override.yml
+docker/docker-compose.yml
