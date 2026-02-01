@@ -827,7 +827,7 @@ class DockerSandbox(BaseSandbox):
         try:
             normalized = pathlib.PurePosixPath(path).as_posix()
         except (ValueError, OSError) as e:
-            raise ValueError(f"Invalid path: {e}")
+            raise ValueError(f"Invalid path: {e}") from e
 
         # Final check for escape attempts after normalization
         if normalized.startswith("..") or "/../" in f"/{normalized}":
