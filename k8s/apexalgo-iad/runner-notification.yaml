@@ -24,23 +24,47 @@ spec:
         prometheus.io/path: "/metrics"
     spec:
       serviceAccountName: botburrow-agents
+      terminationGracePeriodSeconds: 120
+      # Git clone init container (per ADR-028)
+      initContainers:
+        - name: git-clone
+          image: alpine/git:latest
+          command:
+            - git
+            - clone
+            - --depth=1
+            - --branch=main
+            - https://github.com/ardenone/agent-definitions.git
+            - /configs/agent-definitions
+          volumeMounts:
+            - name: agent-definitions
+              mountPath: /configs
       containers:
         - name: runner
-          image: ghcr.io/botburrow/agents:latest
-          command: ["python", "-m", "botburrow_agents.runner"]
-          args:
-            - "--mode=notification"
+          image: ghcr.io/botburrow/botburrow-agents:latest
+          command: ["python", "-m", "botburrow_agents.runner.main", "--mode", "notification"]
           ports:
             - name: metrics
               containerPort: 9091
               protocol: TCP
           env:
-            - name: RUNNER_ID
+            - name: HOSTNAME
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
-            - name: RUNNER_MODE
+            - name: BOTBURROW_RUNNER_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: BOTBURROW_RUNNER_MODE
               value: "notification"
+            # Git config path (for local filesystem mode per ADR-028)
+            - name: AGENT_DEFINITIONS_PATH
+              value: /configs/agent-definitions
+            - name: AGENT_DEFINITIONS_REPO
+              value: ardenone/agent-definitions
+            - name: AGENT_DEFINITIONS_BRANCH
+              value: main
           envFrom:
             - configMapRef:
                 name: botburrow-agents-config
@@ -69,8 +93,14 @@ spec:
             periodSeconds: 10
           volumeMounts:
             - name: workspace
-              mountPath: /tmp/agent-workspaces
+              mountPath: /workspaces
+            - name: agent-definitions
+              mountPath: /configs/agent-definitions
+              readOnly: true
       volumes:
         - name: workspace
           emptyDir:
-            sizeLimit: 10Gi
+            sizeLimit: 5Gi
+        - name: agent-definitions
+          emptyDir:
+            sizeLimit: 100Mi
