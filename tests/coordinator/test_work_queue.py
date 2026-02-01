@@ -388,6 +388,86 @@ class TestConfigCache:
         result = await config_cache.get("agent-1")
         assert result is None
 
+    @pytest.mark.asyncio
+    async def test_invalidate_all(self, config_cache: ConfigCache) -> None:
+        """Test invalidating all cached configs."""
+        r = await config_cache.redis._ensure_connected()
+
+        # Set multiple cached configs
+        await config_cache.set("agent-1", {"name": "agent1"})
+        await config_cache.set("agent-2", {"name": "agent2"})
+        await config_cache.set("agent-3", {"name": "agent3"})
+
+        # Verify they're cached
+        assert await config_cache.get("agent-1") is not None
+        assert await config_cache.get("agent-2") is not None
+        assert await config_cache.get("agent-3") is not None
+
+        # Invalidate all
+        await config_cache.invalidate_all()
+
+        # All should be gone
+        assert await config_cache.get("agent-1") is None
+        assert await config_cache.get("agent-2") is None
+        assert await config_cache.get("agent-3") is None
+
+    @pytest.mark.asyncio
+    async def test_prewarm(self, config_cache: ConfigCache) -> None:
+        """Test prewarming cache with agent configs."""
+        agent_ids = ["agent-1", "agent-2", "agent-3"]
+
+        # Mock git client
+        mock_git = MagicMock()
+        mock_git.load_agent_config = AsyncMock()
+
+        async def mock_load(agent_id):
+            from botburrow_agents.models import AgentConfig
+            return AgentConfig(name=agent_id, type="native", cache_ttl=60)
+
+        mock_git.load_agent_config.side_effect = mock_load
+
+        # Prewarm
+        cached = await config_cache.prewarm(agent_ids, mock_git)
+
+        assert cached == 3
+        assert await config_cache.get("agent-1") is not None
+        assert await config_cache.get("agent-2") is not None
+        assert await config_cache.get("agent-3") is not None
+
+    @pytest.mark.asyncio
+    async def test_prewarm_skip_already_cached(self, config_cache: ConfigCache) -> None:
+        """Test prewarm skips already cached agents."""
+        # Cache one agent
+        await config_cache.set("agent-1", {"name": "agent1", "cache_ttl": 60})
+
+        agent_ids = ["agent-1", "agent-2"]
+
+        mock_git = MagicMock()
+        mock_git.load_agent_config = AsyncMock()
+
+        async def mock_load(agent_id):
+            from botburrow_agents.models import AgentConfig
+            return AgentConfig(name=agent_id, type="native", cache_ttl=60)
+
+        mock_git.load_agent_config.side_effect = mock_load
+
+        # Prewarm
+        cached = await config_cache.prewarm(agent_ids, mock_git)
+
+        # Only agent-2 should be loaded (agent-1 was already cached)
+        assert cached == 1
+        mock_git.load_agent_config.assert_called_once_with("agent-2")
+
+    @pytest.mark.asyncio
+    async def test_set_with_custom_ttl(self, config_cache: ConfigCache) -> None:
+        """Test setting cache with custom TTL."""
+        config = {"name": "test", "cache_ttl": 120}
+
+        await config_cache.set("agent-1", config, ttl=120)
+
+        result = await config_cache.get("agent-1")
+        assert result == config
+
 
 class TestLeaderElection:
     """Tests for leader election."""

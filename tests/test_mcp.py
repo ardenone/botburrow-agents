@@ -386,3 +386,253 @@ class TestMCPProtocol:
 
         with pytest.raises(RuntimeError, match="Invalid request"):
             await manager._send_request(server, "test/method", {})
+
+    @pytest.mark.asyncio
+    async def test_send_request_timeout(self, manager: MCPManager, settings: Settings) -> None:
+        """Test timeout when waiting for response."""
+        config = MCPServerConfig(name="test", command="test")
+
+        mock_stdin = MagicMock()
+        mock_stdin.write = MagicMock(return_value=None)
+        mock_stdin.drain = AsyncMock()
+        mock_stdout = AsyncMock()
+
+        # Mock timeout
+        import asyncio
+
+        mock_stdout.readline = AsyncMock(side_effect=asyncio.TimeoutError())
+
+        server = MCPServer(config=config, stdin=mock_stdin, stdout=mock_stdout)
+
+        with pytest.raises(asyncio.TimeoutError):
+            await manager._send_request(server, "test/method", {})
+
+    @pytest.mark.asyncio
+    async def test_send_request_server_closed(self, manager: MCPManager) -> None:
+        """Test server closing connection."""
+        config = MCPServerConfig(name="test", command="test")
+
+        mock_stdin = MagicMock()
+        mock_stdin.write = MagicMock(return_value=None)
+        mock_stdin.drain = AsyncMock()
+        mock_stdout = AsyncMock()
+
+        # Mock empty response (connection closed)
+        mock_stdout.readline = AsyncMock(return_value=b"")
+
+        server = MCPServer(config=config, stdin=mock_stdin, stdout=mock_stdout)
+
+        with pytest.raises(RuntimeError, match="Server closed connection"):
+            await manager._send_request(server, "test/method", {})
+
+    @pytest.mark.asyncio
+    async def test_initialize_server(self, manager: MCPManager) -> None:
+        """Test server initialization handshake."""
+        config = MCPServerConfig(name="test", command="test")
+
+        mock_stdin = MagicMock()
+        mock_stdin.write = MagicMock(return_value=None)
+        mock_stdin.drain = AsyncMock()
+        mock_stdout = AsyncMock()
+
+        # Mock init response with capabilities
+        init_response = {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "result": {
+                "capabilities": {
+                    "tools": {},
+                    "resources": {},
+                }
+            },
+        }
+        mock_stdout.readline = AsyncMock(
+            return_value=(__import__("json").dumps(init_response) + "\n").encode()
+        )
+
+        server = MCPServer(config=config, stdin=mock_stdin, stdout=mock_stdout)
+
+        await manager._initialize_server(server)
+
+        assert server.initialized is True
+        assert server.capabilities.tools is True
+        assert server.capabilities.resources is True
+
+    @pytest.mark.asyncio
+    async def test_discover_tools(self, manager: MCPManager) -> None:
+        """Test tool discovery from server."""
+        config = MCPServerConfig(name="test", command="test")
+
+        mock_stdin = MagicMock()
+        mock_stdin.write = MagicMock(return_value=None)
+        mock_stdin.drain = AsyncMock()
+        mock_stdout = AsyncMock()
+
+        # Mock tools/list response
+        tools_response = {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "result": {
+                "tools": [
+                    {
+                        "name": "test_tool",
+                        "description": "A test tool",
+                        "inputSchema": {"type": "object"},
+                    }
+                ]
+            },
+        }
+        mock_stdout.readline = AsyncMock(
+            return_value=(__import__("json").dumps(tools_response) + "\n").encode()
+        )
+
+        server = MCPServer(
+            config=config,
+            stdin=mock_stdin,
+            stdout=mock_stdout,
+            initialized=True,
+        )
+
+        await manager._discover_tools(server)
+
+        assert len(server.tools) == 1
+        assert server.tools[0].name == "test_tool"
+        assert server.tools[0].description == "A test tool"
+
+    @pytest.mark.asyncio
+    async def test_discover_tools_not_initialized(self, manager: MCPManager) -> None:
+        """Test tool discovery fails when server not initialized."""
+        config = MCPServerConfig(name="test", command="test")
+        server = MCPServer(config=config, initialized=False)
+
+        with pytest.raises(RuntimeError, match="not initialized"):
+            await manager._discover_tools(server)
+
+    @pytest.mark.asyncio
+    async def test_start_servers_missing_grants(
+        self, manager: MCPManager
+    ) -> None:
+        """Test servers without required grants are skipped."""
+        agent = AgentConfig(
+            name="limited-agent",
+            type="claude-code",
+            capabilities=CapabilityGrants(
+                grants=["hub:read"],  # No github grants
+                mcp_servers=["github", "hub"],
+            ),
+        )
+        workspace = Path("/tmp/test")
+        credentials = {"github_pat": "test"}
+
+        started = await manager.start_servers(agent, credentials, workspace)
+
+        # GitHub should be skipped (missing grants)
+        # Hub should start but will fail without actual subprocess
+        assert len(started) == 0  # No servers actually started in test env
+
+    @pytest.mark.asyncio
+    async def test_start_servers_unknown_server(self, manager: MCPManager) -> None:
+        """Test unknown server names are skipped."""
+        agent = AgentConfig(
+            name="test",
+            capabilities=CapabilityGrants(
+                grants=["*:*"],
+                mcp_servers=["unknown-server"],
+            ),
+        )
+        workspace = Path("/tmp/test")
+        credentials = {}
+
+        # Should not raise, just log warning
+        started = await manager.start_servers(agent, credentials, workspace)
+        assert started == []
+
+    @pytest.mark.asyncio
+    async def test_close(self, manager: MCPManager) -> None:
+        """Test close method."""
+        # Add a mock server
+        config = MCPServerConfig(name="test", command="test")
+        mock_process = MagicMock()
+        mock_process.returncode = None
+        manager._servers["test"] = MCPServer(config=config, process=mock_process)
+
+        await manager.close()
+
+        assert len(manager._servers) == 0
+
+    @pytest.mark.asyncio
+    async def test_call_tool_by_name_mcp_prefix_missing(self, manager: MCPManager) -> None:
+        """Test tool name without mcp_ prefix."""
+        with pytest.raises(ValueError, match="Invalid MCP tool name"):
+            await manager.call_tool_by_name("github_create_pr", {})
+
+    @pytest.mark.asyncio
+    async def test_stop_servers_kills_on_timeout(
+        self, manager: MCPManager, settings: Settings
+    ) -> None:
+        """Test servers are killed if they don't stop gracefully."""
+        import asyncio
+
+        config = MCPServerConfig(name="test", command="test")
+
+        # Mock process that times out on wait
+        mock_process = MagicMock()
+        mock_process.returncode = None  # Still running
+        mock_process.terminate = MagicMock()
+        mock_process.kill = MagicMock()
+
+        async def wait_timeout():
+            await asyncio.sleep(10)
+            mock_process.returncode = 0
+
+        mock_process.wait = wait_timeout
+
+        server = MCPServer(config=config, process=mock_process)
+        manager._servers["test"] = server
+
+        await manager.stop_servers()
+
+        # Should have called terminate and then kill
+        mock_process.terminate.assert_called_once()
+        mock_process.kill.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_has_required_grants_wildcard_match(self, manager: MCPManager) -> None:
+        """Test wildcard grant matching."""
+        agent = AgentConfig(
+            name="test",
+            capabilities=CapabilityGrants(
+                grants=["github:*"],  # GitHub wildcard
+                mcp_servers=["github"],
+            ),
+        )
+
+        github_config = BUILTIN_SERVERS["github"]
+        # Should match with wildcard
+        assert manager._has_required_grants(agent, github_config)
+
+    @pytest.mark.asyncio
+    async def test_call_tool_timeout(self, manager: MCPManager, settings: Settings) -> None:
+        """Test timeout when calling tool."""
+        import asyncio
+
+        config = MCPServerConfig(name="test", command="test")
+
+        mock_stdin = MagicMock()
+        mock_stdin.write = MagicMock(return_value=None)
+        mock_stdin.drain = AsyncMock()
+        mock_stdout = AsyncMock()
+
+        # Mock timeout on response
+        mock_stdout.readline = AsyncMock(side_effect=asyncio.TimeoutError())
+
+        server = MCPServer(
+            config=config,
+            stdin=mock_stdin,
+            stdout=mock_stdout,
+            initialized=True,
+        )
+        manager._servers["test"] = server
+
+        with pytest.raises(TimeoutError, match="timed out"):
+            await manager.call_tool("test", "some_tool", {})

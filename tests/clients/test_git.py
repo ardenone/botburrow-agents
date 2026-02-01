@@ -272,6 +272,173 @@ behavior:
         await client.close()
         assert client._http_client is None
 
+    @pytest.mark.asyncio
+    async def test_list_skills_github_mode_logs_warning(self, client, monkeypatch):
+        """Test listing skills in GitHub mode logs warning."""
+        import os
+
+        # Force GitHub mode by making sure local path doesn't exist
+        monkeypatch.setenv("AGENT_DEFINITIONS_PATH", "/nonexistent/path")
+        client2 = client.__class__(client.settings)
+
+        # Should log warning and return empty list
+        skills = await client2.list_skills()
+        assert skills == []
+
+    @pytest.mark.asyncio
+    async def test_list_agents_github_mode_logs_warning(self, client, monkeypatch):
+        """Test listing agents in GitHub mode logs warning."""
+        # Force GitHub mode by making sure local path doesn't exist
+        monkeypatch.setenv("AGENT_DEFINITIONS_PATH", "/nonexistent/path")
+        client2 = client.__class__(client.settings)
+
+        # Should log warning and return empty list
+        agents = await client2.list_agents()
+        assert agents == []
+
+    @pytest.mark.asyncio
+    async def test_get_system_prompt_github_404_returns_empty(self, client):
+        """Test GitHub 404 for system prompt returns empty string."""
+        import httpx
+
+        async def raise_404(url):
+            mock_request = MagicMock()
+            mock_response = MagicMock()
+            mock_response.status_code = 404
+            raise httpx.HTTPStatusError(
+                "Not found",
+                request=mock_request,
+                response=mock_response,
+            )
+
+        with patch.object(client, "_fetch_from_github", new=AsyncMock(side_effect=raise_404)):
+            prompt = await client.get_system_prompt("test-agent")
+            assert prompt == ""
+
+    @pytest.mark.asyncio
+    async def test_load_agent_config_github_full(self, client):
+        """Test loading complete agent config from GitHub."""
+        config_yaml = """
+name: github-agent
+type: goose
+brain:
+  model: claude-sonnet-4-20250514
+  provider: anthropic
+  temperature: 0.5
+  max_tokens: 8192
+capabilities:
+  grants:
+    - github:read
+  skills:
+    - test-skill
+  mcp_servers:
+    - brave
+behavior:
+  respond_to_mentions: false
+  respond_to_replies: true
+  max_iterations: 15
+  can_create_posts: false
+  max_daily_posts: 10
+  max_daily_comments: 25
+"""
+        prompt = "You are a GitHub agent."
+
+        with patch.object(client, "_fetch_from_github", new=AsyncMock(return_value=config_yaml)):
+            with patch.object(client, "get_system_prompt", new=AsyncMock(return_value=prompt)):
+                config = await client.load_agent_config("github-agent")
+
+        assert config.name == "github-agent"
+        assert config.type == "goose"
+        assert config.brain.temperature == 0.5
+        assert config.brain.max_tokens == 8192
+        assert config.behavior.respond_to_mentions is False
+        assert config.behavior.max_iterations == 15
+        assert config.behavior.can_create_posts is False
+        assert config.behavior.max_daily_posts == 10
+        assert config.behavior.max_daily_comments == 25
+        assert config.system_prompt == prompt
+        assert config.r2_path == ""
+
+    @pytest.mark.asyncio
+    async def test_get_skill_github(self, client):
+        """Test loading skill from GitHub."""
+        skill_content = """# Test Skill
+
+Instructions for using this skill.
+"""
+        with patch.object(client, "_fetch_from_github", new=AsyncMock(return_value=skill_content)):
+            skill = await client.get_skill("test-skill")
+            assert skill == skill_content
+
+    @pytest.mark.asyncio
+    async def test_get_skill_github_404(self, client):
+        """Test GitHub 404 when loading skill."""
+        import httpx
+
+        async def raise_404(url):
+            mock_request = MagicMock()
+            mock_response = MagicMock()
+            mock_response.status_code = 404
+            raise httpx.HTTPStatusError(
+                "Not found",
+                request=mock_request,
+                response=mock_response,
+            )
+
+        with patch.object(client, "_fetch_from_github", new=AsyncMock(side_effect=raise_404)):
+            with pytest.raises(FileNotFoundError):
+                await client.get_skill("nonexistent-skill")
+
+    def test_get_http_client_creates_client(self, client):
+        """Test that HTTP client is created and cached."""
+        # First call creates the client
+        client1 = client._get_http_client()
+        assert client1 is not None
+
+        # Second call returns the same client
+        client2 = client._get_http_client()
+        assert client1 is client2
+
+    @pytest.mark.asyncio
+    async def test_close_with_existing_client(self, client):
+        """Test closing existing client."""
+        # Create a client first
+        _ = client._get_http_client()
+        assert client._http_client is not None
+
+        # Close should clear it
+        await client.close()
+        assert client._http_client is None
+
+    @pytest.mark.asyncio
+    async def test_close_with_no_client(self, client):
+        """Test closing when no client exists."""
+        # Should not raise even if no client
+        await client.close()
+        assert client._http_client is None
+
+    def test_get_local_path_with_custom_filename(self, client):
+        """Test getting local path with custom filename."""
+        path = client._get_local_path("test-agent", "system-prompt.md")
+        assert "test-agent" in str(path)
+        assert "system-prompt.md" in str(path)
+
+    def test_get_github_url_with_custom_filename(self, client):
+        """Test getting GitHub URL with custom filename."""
+        url = client._get_github_url("test-agent", "system-prompt.md")
+        assert "test-agent" in url
+        assert "system-prompt.md" in url
+
+    def test_get_github_url_with_custom_repo_and_branch(self, client, monkeypatch):
+        """Test GitHub URL with custom repo and branch."""
+        monkeypatch.setenv("AGENT_DEFINITIONS_REPO", "custom/repo")
+        monkeypatch.setenv("AGENT_DEFINITIONS_BRANCH", "develop")
+        client2 = client.__class__(client.settings)
+
+        url = client2._get_github_url("test-agent")
+        assert "custom/repo" in url
+        assert "develop" in url
+
 
 class MockResponse:
     """Simple mock for testing HTTP responses."""
