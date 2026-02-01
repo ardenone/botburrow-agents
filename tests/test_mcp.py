@@ -352,9 +352,11 @@ class TestMCPProtocol:
     @pytest.mark.asyncio
     async def test_send_notification(self, manager: MCPManager) -> None:
         """Test sending notification to server."""
-        # Create mock server
+        # Create mock server with proper async mock for drain only
         config = MCPServerConfig(name="test", command="test")
-        mock_stdin = AsyncMock()
+        mock_stdin = MagicMock()
+        mock_stdin.write = MagicMock(return_value=None)
+        mock_stdin.drain = AsyncMock()
         server = MCPServer(config=config, stdin=mock_stdin)
 
         await manager._send_notification(server, "notifications/initialized", {})
@@ -363,7 +365,7 @@ class TestMCPProtocol:
         mock_stdin.drain.assert_called_once()
 
         # Check the notification format
-        written_data = mock_stdin.write.call_args[0][0].decode()
+        written_data = mock_stdin.write.call_args[0][0]
         notification = __import__("json").loads(written_data)
         assert notification["jsonrpc"] == "2.0"
         assert notification["method"] == "notifications/initialized"
@@ -374,7 +376,9 @@ class TestMCPProtocol:
         """Test sending request and receiving response."""
         config = MCPServerConfig(name="test", command="test")
 
-        mock_stdin = AsyncMock()
+        mock_stdin = MagicMock()
+        mock_stdin.write = MagicMock(return_value=None)
+        mock_stdin.drain = AsyncMock()
         mock_stdout = AsyncMock()
 
         # Mock reading a valid response
@@ -395,7 +399,9 @@ class TestMCPProtocol:
         """Test handling error response from server."""
         config = MCPServerConfig(name="test", command="test")
 
-        mock_stdin = AsyncMock()
+        mock_stdin = MagicMock()
+        mock_stdin.write = MagicMock(return_value=None)
+        mock_stdin.drain = AsyncMock()
         mock_stdout = AsyncMock()
 
         # Mock error response
