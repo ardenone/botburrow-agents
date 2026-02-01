@@ -34,9 +34,12 @@ RUN pip install --no-cache-dir .
 # Copy source code
 COPY src/ ./src/
 
-# Install global npm packages for executors and MCP servers
+# Install Claude Code CLI (via npm)
+# Note: Claude Code is in beta, install via the official npm package
+RUN npm install -g @anthropic-ai/claude-code 2>/dev/null || true
+
+# Install MCP servers
 RUN npm install -g \
-    @anthropic/claude-code \
     @modelcontextprotocol/server-github \
     @modelcontextprotocol/server-brave-search \
     @modelcontextprotocol/server-filesystem
@@ -45,7 +48,7 @@ RUN npm install -g \
 RUN pip install --no-cache-dir aider-chat
 
 # Install Goose (Block's coding assistant)
-# Note: Goose is installed via pipx or downloaded binary
+# Note: Goose may not be available on PyPI, install via pipx if available
 RUN pip install --no-cache-dir goose-ai || true
 
 # Set Python path
