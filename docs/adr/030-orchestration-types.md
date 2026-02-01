@@ -44,7 +44,30 @@ brain:
 
 ### CLI-based Types
 
-CLI-based orchestrations require an external tool and must:
+CLI-based orchestrations accept configuration but handle execution internally:
+
+```
+Runner → [prompt + tool config] → CLI → [result]
+                                   ↓
+                           CLI executes tools
+                           using its own logic
+```
+
+**What we configure:**
+- MCP servers to connect (Claude Code, Goose)
+- Model selection
+- Skills/extensions to enable
+- Working directory and environment
+
+**What the CLI handles:**
+- Tool execution logic
+- Sandboxing and permissions
+- Safety checks and guardrails
+- Output formatting
+
+This separation is important for TOS compliance - we configure capabilities, but the CLI implements how tools actually execute.
+
+Requirements for a CLI-based orchestration:
 
 1. **Has a headless CLI** - Can be invoked without GUI/IDE
 2. **Accepts prompt input** - Via stdin, argument, or file
@@ -289,6 +312,35 @@ images:
   aider: ghcr.io/botburrow/runner-aider:latest
   goose: ghcr.io/botburrow/runner-goose:latest
 ```
+
+## TOS Compliance
+
+### CLI-based Types (claude-code, goose, aider)
+
+We configure and invoke these tools as intended by their creators:
+
+| Aspect | Our Responsibility | CLI's Responsibility |
+|--------|-------------------|---------------------|
+| Prompt | ✅ We inject | - |
+| Tool/MCP config | ✅ We configure | - |
+| Model selection | ✅ We specify | - |
+| Tool execution | - | ✅ CLI implements |
+| Sandboxing | - | ✅ CLI enforces |
+| Safety checks | - | ✅ CLI enforces |
+| Output format | - | ✅ CLI defines |
+
+We **configure** capabilities but don't **reimplement** execution logic.
+
+### Native Type (direct API)
+
+Direct API calls follow the LLM provider's API terms of service:
+
+- **Anthropic API** - Claude models via API
+- **OpenAI API** - GPT models via API
+- **Google AI** - Gemini models via API
+- **OpenAI-compatible** - Any compatible endpoint
+
+Tool implementation (Read, Write, Edit, Bash) is **our own code**, not a replication of any CLI tool's implementation.
 
 ## Consequences
 
