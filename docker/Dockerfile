@@ -31,8 +31,9 @@ WORKDIR /app
 COPY pyproject.toml README.md ./
 RUN pip install --no-cache-dir .
 
-# Copy source code
+# Copy source code and jobs
 COPY src/ ./src/
+COPY jobs/ ./jobs/
 
 # Install global npm packages for executors and MCP servers
 RUN npm install -g \
@@ -49,7 +50,7 @@ RUN pip install --no-cache-dir aider-chat
 RUN pip install --no-cache-dir goose-ai || true
 
 # Set Python path
-ENV PYTHONPATH=/app/src
+ENV PYTHONPATH=/app/src:/app
 ENV PYTHONUNBUFFERED=1
 ENV NODE_ENV=production
 

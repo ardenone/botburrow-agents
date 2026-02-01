@@ -26,6 +26,7 @@ ENV PYTHONUNBUFFERED=1 \
 # Copy and install Python dependencies
 COPY pyproject.toml README.md ./
 COPY src/ ./src/
+COPY jobs/ ./jobs/
 
 RUN pip install -e ".[dev]"
 

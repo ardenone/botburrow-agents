@@ -19,8 +19,7 @@ import os
 import signal
 import time
 from datetime import UTC, datetime
-from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import httpx
 import structlog
@@ -30,6 +29,9 @@ from botburrow_agents.clients.r2 import R2Client
 from botburrow_agents.config import Settings, get_settings
 
 logger = structlog.get_logger(__name__)
+
+# Type alias for stats dict
+StatsDict = dict[str, Any]
 
 
 # Default ClawHub repositories to sync from
@@ -94,14 +96,14 @@ class SkillSync:
             await self._client.aclose()
             self._client = None
 
-    async def sync_once(self) -> dict[str, Any]:
+    async def sync_once(self) -> StatsDict:
         """Run a single sync iteration.
 
         Returns:
             Dict with sync statistics
         """
         start_time = time.time()
-        stats = {
+        stats: StatsDict = {
             "fetched": 0,
             "validated": 0,
             "uploaded": 0,
@@ -115,16 +117,16 @@ class SkillSync:
         for source in self.sources:
             try:
                 source_stats = await self._sync_source(source)
-                stats["fetched"] += source_stats.get("fetched", 0)
-                stats["validated"] += source_stats.get("validated", 0)
-                stats["uploaded"] += source_stats.get("uploaded", 0)
-                stats["skipped"] += source_stats.get("skipped", 0)
-                stats["failed"] += source_stats.get("failed", 0)
-                stats["errors"].extend(source_stats.get("errors", []))
+                stats["fetched"] += cast(int, source_stats.get("fetched", 0))
+                stats["validated"] += cast(int, source_stats.get("validated", 0))
+                stats["uploaded"] += cast(int, source_stats.get("uploaded", 0))
+                stats["skipped"] += cast(int, source_stats.get("skipped", 0))
+                stats["failed"] += cast(int, source_stats.get("failed", 0))
+                cast(list, stats["errors"]).extend(cast(list, source_stats.get("errors", [])))
             except Exception as e:
                 logger.error("source_sync_failed", source=source, error=str(e))
                 stats["failed"] += 1
-                stats["errors"].append(f"{source}: {str(e)}")
+                cast(list, stats["errors"]).append(f"{source}: {str(e)}")
 
         duration = time.time() - start_time
         logger.info(
@@ -135,7 +137,7 @@ class SkillSync:
 
         return stats
 
-    async def _sync_source(self, source: str) -> dict[str, Any]:
+    async def _sync_source(self, source: str) -> StatsDict:
         """Sync skills from a single source repository.
 
         Args:
@@ -144,7 +146,7 @@ class SkillSync:
         Returns:
             Stats dict for this source
         """
-        stats = {"fetched": 0, "validated": 0, "uploaded": 0, "skipped": 0, "failed": 0, "errors": []}
+        stats: StatsDict = {"fetched": 0, "validated": 0, "uploaded": 0, "skipped": 0, "failed": 0, "errors": []}
 
         try:
             client = await self._get_client()
@@ -166,7 +168,7 @@ class SkillSync:
 
                 filename = item["name"]
                 if not any(filename.endswith(ext) for ext in ALLOWED_SKILL_EXTENSIONS):
-                    stats["skipped"] += 1
+                    cast(dict, stats)["skipped"] += 1
                     continue
 
                 try:
@@ -182,7 +184,7 @@ class SkillSync:
 
                     # Validate skill
                     if not await self._validate_skill(filename, content):
-                        stats["skipped"] += 1
+                        cast(dict, stats)["skipped"] += 1
                         continue
 
                     # Parse YAML frontmatter if present
@@ -190,24 +192,20 @@ class SkillSync:
 
                     # Upload to R2
                     skill_key = f"skills/{source}/{filename}"
-                    await self.r2._put_object(
-                        key=skill_key,
-                        body=content.encode("utf-8"),
-                        metadata=skill_meta,
-                    )
+                    await self.r2.put_object(key=skill_key, data=content.encode("utf-8"))
 
-                    stats["uploaded"] += 1
-                    stats["fetched"] += 1
+                    cast(dict, stats)["uploaded"] += 1
+                    cast(dict, stats)["fetched"] += 1
                     logger.debug("skill_uploaded", name=filename, source=source)
 
                 except Exception as e:
                     logger.error("skill_upload_failed", file=filename, error=str(e))
-                    stats["failed"] += 1
-                    stats["errors"].append(f"{filename}: {str(e)}")
+                    cast(dict, stats)["failed"] += 1
+                    cast(list, stats["errors"]).append(f"{filename}: {str(e)}")
 
         except Exception as e:
             logger.error("source_fetch_failed", source=source, error=str(e))
-            stats["errors"].append(str(e))
+            cast(list, stats["errors"]).append(str(e))
 
         return stats
 
@@ -297,7 +295,7 @@ class SkillSync:
             try:
                 await asyncio.wait_for(self._shutdown.wait(), timeout=interval)
                 break
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 continue
 
         logger.info("skill_sync_loop_stopped")
@@ -351,7 +349,7 @@ async def main() -> None:
     sync = SkillSync(r2, settings, sources=args.sources)
 
     # Set up signal handlers
-    def handle_signal(sig: int, frame: Any) -> None:
+    def handle_signal(sig: int, frame: object) -> None:  # noqa: ARG001 - frame required by signal API
         logger.info("shutdown_requested", signal=sig)
         sync.stop()
 
@@ -366,7 +364,6 @@ async def main() -> None:
             await sync.run(interval=args.interval)
     finally:
         await sync.close()
-        await r2.close()
 
 
 if __name__ == "__main__":

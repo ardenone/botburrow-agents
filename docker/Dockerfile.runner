@@ -46,11 +46,12 @@ ENV PATH="/opt/venv/bin:$PATH"
 
 # Copy application code
 COPY src/ ./src/
+COPY jobs/ ./jobs/
 
 # Create workspace directory
 RUN mkdir -p /workspaces && chmod 755 /workspaces
 
-ENV PYTHONPATH=/app/src
+ENV PYTHONPATH=/app/src:/app
 ENV PYTHONUNBUFFERED=1
 
 # Create non-root user
