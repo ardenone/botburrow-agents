@@ -388,7 +388,7 @@ class TestMCPProtocol:
             await manager._send_request(server, "test/method", {})
 
     @pytest.mark.asyncio
-    async def test_send_request_timeout(self, manager: MCPManager, settings: Settings) -> None:
+    async def test_send_request_timeout(self, manager: MCPManager) -> None:
         """Test timeout when waiting for response."""
         config = MCPServerConfig(name="test", command="test")
 
@@ -568,7 +568,7 @@ class TestMCPProtocol:
 
     @pytest.mark.asyncio
     async def test_stop_servers_kills_on_timeout(
-        self, manager: MCPManager, settings: Settings
+        self, manager: MCPManager
     ) -> None:
         """Test servers are killed if they don't stop gracefully."""
         import asyncio
@@ -612,7 +612,7 @@ class TestMCPProtocol:
         assert manager._has_required_grants(agent, github_config)
 
     @pytest.mark.asyncio
-    async def test_call_tool_timeout(self, manager: MCPManager, settings: Settings) -> None:
+    async def test_call_tool_timeout(self, manager: MCPManager) -> None:
         """Test timeout when calling tool."""
 
         config = MCPServerConfig(name="test", command="test")

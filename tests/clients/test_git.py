@@ -99,7 +99,7 @@ brain:
         """Test 404 when loading from GitHub."""
         import httpx
 
-        async def raise_404(url):
+        async def raise_404(_url):
             mock_request = MagicMock()
             mock_response = MagicMock()
             mock_response.status_code = 404
@@ -109,9 +109,10 @@ brain:
                 response=mock_response,
             )
 
-        with patch.object(client, "_fetch_from_github", new=AsyncMock(side_effect=raise_404)):
-            with pytest.raises(FileNotFoundError):
-                await client.get_agent_config("test-agent")
+        with patch.object(
+            client, "_fetch_from_github", new=AsyncMock(side_effect=raise_404)
+        ), pytest.raises(FileNotFoundError):
+            await client.get_agent_config("test-agent")
 
     @pytest.mark.asyncio
     async def test_get_system_prompt_local(self, client, temp_configs_dir, monkeypatch):
@@ -299,7 +300,7 @@ behavior:
         """Test GitHub 404 for system prompt returns empty string."""
         import httpx
 
-        async def raise_404(url):
+        async def raise_404(_url):
             mock_request = MagicMock()
             mock_response = MagicMock()
             mock_response.status_code = 404
@@ -309,7 +310,9 @@ behavior:
                 response=mock_response,
             )
 
-        with patch.object(client, "_fetch_from_github", new=AsyncMock(side_effect=raise_404)):
+        with patch.object(
+            client, "_fetch_from_github", new=AsyncMock(side_effect=raise_404)
+        ):
             prompt = await client.get_system_prompt("test-agent")
             assert prompt == ""
 
@@ -341,9 +344,10 @@ behavior:
 """
         prompt = "You are a GitHub agent."
 
-        with patch.object(client, "_fetch_from_github", new=AsyncMock(return_value=config_yaml)):
-            with patch.object(client, "get_system_prompt", new=AsyncMock(return_value=prompt)):
-                config = await client.load_agent_config("github-agent")
+        with patch.object(
+            client, "_fetch_from_github", new=AsyncMock(return_value=config_yaml)
+        ), patch.object(client, "get_system_prompt", new=AsyncMock(return_value=prompt)):
+            config = await client.load_agent_config("github-agent")
 
         assert config.name == "github-agent"
         assert config.type == "goose"
@@ -373,7 +377,7 @@ Instructions for using this skill.
         """Test GitHub 404 when loading skill."""
         import httpx
 
-        async def raise_404(url):
+        async def raise_404(_url):
             mock_request = MagicMock()
             mock_response = MagicMock()
             mock_response.status_code = 404
@@ -383,9 +387,10 @@ Instructions for using this skill.
                 response=mock_response,
             )
 
-        with patch.object(client, "_fetch_from_github", new=AsyncMock(side_effect=raise_404)):
-            with pytest.raises(FileNotFoundError):
-                await client.get_skill("nonexistent-skill")
+        with patch.object(
+            client, "_fetch_from_github", new=AsyncMock(side_effect=raise_404)
+        ), pytest.raises(FileNotFoundError):
+            await client.get_skill("nonexistent-skill")
 
     def test_get_http_client_creates_client(self, client):
         """Test that HTTP client is created and cached."""
