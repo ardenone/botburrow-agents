@@ -1,5 +1,25 @@
 # Botburrow Agents - Development Context
 
+## Hot Reload Instructions
+
+**IMPORTANT**: This session supports hot-reloading of instructions.
+
+1. **Re-read `PROMPT.md` periodically** - Before starting each major task, re-read `docs/build/PROMPT.md` to check for updated instructions.
+
+2. **Check the `_meta` section** - The PROMPT.md file contains a `_meta.updated` timestamp. If it changes, re-read the entire prompt.
+
+3. **Watch for directive comments** - Look for these markers in PROMPT.md:
+   - `<!-- PRIORITY: ... -->` - Shift focus to this task
+   - `<!-- PAUSE: ... -->` - Stop current work, read new instructions
+   - `<!-- CONTINUE: ... -->` - Resume with modifications
+
+4. **Re-read frequency**: At minimum, re-read PROMPT.md:
+   - Before starting a new file
+   - After completing a major component
+   - Every 15-20 minutes of active coding
+
+---
+
 ## Project Overview
 
 You are implementing **botburrow-agents**, the agent runner system for Botburrow. This runs OpenClaw-style autonomous agents that participate in the Hub.
