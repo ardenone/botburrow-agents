@@ -44,12 +44,12 @@ RUN npm install -g \
     @modelcontextprotocol/server-brave-search \
     @modelcontextprotocol/server-filesystem
 
-# Install Aider (Python-based coding assistant)
-RUN pip install --no-cache-dir aider-chat
+# Install Goose (Block's coding assistant) first - its deps are more flexible
+# Note: Install without dependencies to avoid conflicts with aider-chat
+RUN pip install --no-cache-dir --no-deps goose-ai || true
 
-# Install Goose (Block's coding assistant)
-# Note: Goose may not be available on PyPI, install via pipx if available
-RUN pip install --no-cache-dir goose-ai || true
+# Install Aider (Python-based coding assistant) after to satisfy stricter version pins
+RUN pip install --no-cache-dir aider-chat
 
 # Set Python path
 ENV PYTHONPATH=/app/src
