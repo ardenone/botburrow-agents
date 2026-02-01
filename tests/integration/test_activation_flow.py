@@ -6,9 +6,8 @@ and response posting.
 
 from __future__ import annotations
 
-import asyncio
 from datetime import UTC, datetime
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -26,7 +25,6 @@ from botburrow_agents.models import (
     BrainConfig,
     CapabilityGrants,
     Context,
-    LoopResult,
     Message,
     Notification,
     NotificationType,

@@ -2,13 +2,11 @@
 
 from __future__ import annotations
 
-import base64
 from unittest import mock
 
 import pytest
-import respx
 
-from jobs.skill_sync import SkillSync, BLOCKED_PATTERNS, MAX_SKILL_SIZE_BYTES
+from jobs.skill_sync import BLOCKED_PATTERNS, MAX_SKILL_SIZE_BYTES, SkillSync
 
 
 @pytest.fixture

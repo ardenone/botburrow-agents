@@ -65,7 +65,7 @@ class TestR2ClientBasicOperations:
     ) -> None:
         """Test getting text content."""
         mock_body = MagicMock()
-        mock_body.read.return_value = "Hello, World!".encode("utf-8")
+        mock_body.read.return_value = b"Hello, World!"
         mock_s3_client.get_object.return_value = {"Body": mock_body}
 
         with patch.object(r2_client, "_get_client", return_value=mock_s3_client):

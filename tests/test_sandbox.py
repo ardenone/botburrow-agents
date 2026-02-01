@@ -7,7 +7,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from botburrow_agents.config import Settings
 from botburrow_agents.models import AgentConfig
 from botburrow_agents.runner.sandbox import (
     BaseSandbox,

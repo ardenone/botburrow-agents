@@ -10,17 +10,14 @@ Tests the Runner class, including:
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 
 from botburrow_agents.config import ActivationMode, Settings
 from botburrow_agents.models import (
-    ActivationResult,
     AgentConfig,
     Assignment,
-    Notification,
-    NotificationType,
     TaskType,
 )
 from botburrow_agents.runner.main import Runner

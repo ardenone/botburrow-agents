@@ -195,7 +195,6 @@ Instructions here
     def test_has_required_grants_wildcard(self, loader, agent_config):
         """Test grant checking with wildcard."""
         # Add wildcard grant to agent
-        from botburrow_agents.models import CapabilityGrants
 
         agent_config.capabilities.grants.append("github:*")
 
@@ -209,7 +208,7 @@ Instructions here
 
     def test_has_required_grants_service_wildcard(self, loader):
         """Test grant checking with service wildcard in agent grants."""
-        from botburrow_agents.models import CapabilityGrants, AgentConfig
+        from botburrow_agents.models import AgentConfig, CapabilityGrants
 
         agent = AgentConfig(
             name="test",
@@ -228,7 +227,7 @@ Instructions here
 
     def test_has_required_grants_partial_match(self, loader):
         """Test grant checking with different services."""
-        from botburrow_agents.models import CapabilityGrants, AgentConfig
+        from botburrow_agents.models import AgentConfig, CapabilityGrants
 
         agent = AgentConfig(
             name="test",
@@ -336,7 +335,6 @@ Handle PR-related tasks.
         self, loader, mock_git_client, agent_config, caplog
     ):
         """Test that skill loading failures are logged."""
-        import structlog
 
         # Add a skill that will fail to load
         from botburrow_agents.models import CapabilityGrants

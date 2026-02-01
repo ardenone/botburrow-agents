@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import time
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import structlog
 from aiohttp import web
@@ -193,7 +193,7 @@ class MetricsServer:
         self,
         port: int = 9090,
         host: str = "0.0.0.0",
-        config_cache=None,
+        config_cache: Any | None = None,
     ) -> None:
         self.port = port
         self.host = host
