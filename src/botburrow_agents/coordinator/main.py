@@ -25,6 +25,7 @@ import uuid
 import click
 import structlog
 
+from botburrow_agents.clients.git import GitClient
 from botburrow_agents.clients.hub import HubClient
 from botburrow_agents.clients.r2 import R2Client
 from botburrow_agents.clients.redis import RedisClient
@@ -69,7 +70,8 @@ class Coordinator:
         self.settings = settings or get_settings()
         self.hub = HubClient(self.settings)
         self.redis = RedisClient(self.settings)
-        self.r2 = R2Client(self.settings)
+        self.git = GitClient(self.settings)  # For loading configs from Git
+        self.r2 = R2Client(self.settings)  # For binary assets only (avatars, images)
         self.scheduler = Scheduler(self.hub, self.redis, self.settings)
         self.assigner = Assigner(self.hub, self.redis, self.settings)
 
@@ -388,7 +390,7 @@ class Coordinator:
     async def _prewarm_config_cache(self) -> None:
         """Pre-warm config cache with agent configurations.
 
-        Fetches list of agents from R2 and caches their configs.
+        Fetches list of agents from Git and caches their configs.
         Only runs if we're the leader to avoid duplicate fetches.
         """
         if not self.config_cache:
@@ -403,14 +405,14 @@ class Coordinator:
                     logger.debug("not_leader_skip_prewarm")
                     return
 
-            # Get list of agents from R2
-            agent_ids = await self.r2.list_agents()
+            # Get list of agents from Git
+            agent_ids = await self.git.list_agents()
             if not agent_ids:
                 logger.debug("no_agents_to_prewarm")
                 return
 
             # Pre-warm cache
-            cached = await self.config_cache.prewarm(agent_ids, self.r2)
+            cached = await self.config_cache.prewarm(agent_ids, self.git)
             logger.info(
                 "config_cache_prewarmed",
                 total_agents=len(agent_ids),

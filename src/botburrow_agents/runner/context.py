@@ -1,7 +1,7 @@
 """Context builder for agent activations.
 
 Builds the LLM context from distributed sources:
-- System prompt from R2
+- System prompt from Git (agent-definitions repo)
 - Thread history from Hub
 - Notification data
 - Available tools
@@ -24,8 +24,8 @@ from botburrow_agents.models import (
 )
 
 if TYPE_CHECKING:
+    from botburrow_agents.clients.git import GitClient
     from botburrow_agents.clients.hub import HubClient
-    from botburrow_agents.clients.r2 import R2Client
 
 logger = structlog.get_logger(__name__)
 
@@ -205,9 +205,9 @@ HUB_TOOLS = [
 class ContextBuilder:
     """Builds execution context for agent activations."""
 
-    def __init__(self, hub: HubClient, r2: R2Client) -> None:
+    def __init__(self, hub: HubClient, git: GitClient) -> None:
         self.hub = hub
-        self.r2 = r2
+        self.git = git
 
     async def build_for_notification(
         self,

@@ -190,8 +190,8 @@ class TestPrewarmConfigCache:
         coordinator.leader_election = AsyncMock()
         coordinator.leader_election.is_leader = False
         coordinator.leader_election.try_become_leader = AsyncMock(return_value=False)
-        coordinator.r2 = AsyncMock()
-        coordinator.r2.list_agents = AsyncMock(return_value=[])
+        coordinator.git = AsyncMock()
+        coordinator.git.list_agents = AsyncMock(return_value=[])
 
         await coordinator._prewarm_config_cache()
 
@@ -206,12 +206,15 @@ class TestPrewarmConfigCache:
         coordinator.leader_election = AsyncMock()
         coordinator.leader_election.is_leader = False
         coordinator.leader_election.try_become_leader = AsyncMock(return_value=True)
-        coordinator.r2 = AsyncMock()
-        coordinator.r2.list_agents = AsyncMock(return_value=["agent1", "agent2", "agent3"])
+        coordinator.git = AsyncMock()
+        coordinator.git.list_agents = AsyncMock(return_value=["agent1", "agent2", "agent3"])
 
         await coordinator._prewarm_config_cache()
 
-        coordinator.config_cache.prewarm.assert_called_once()
+        coordinator.config_cache.prewarm.assert_called_once_with(
+            ["agent1", "agent2", "agent3"],
+            coordinator.git
+        )
 
 
 class TestMain:

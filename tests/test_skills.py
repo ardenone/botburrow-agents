@@ -10,9 +10,9 @@ class TestSkillLoader:
     """Tests for SkillLoader class."""
 
     @pytest.fixture
-    def loader(self, mock_r2_client):
+    def loader(self, mock_git_client):
         """Create skill loader with mock."""
-        return SkillLoader(r2=mock_r2_client)
+        return SkillLoader(git=mock_git_client)
 
     @pytest.mark.asyncio
     async def test_load_native_skills(self, loader, agent_config):
@@ -24,9 +24,9 @@ class TestSkillLoader:
         assert "hub-search" in skill_names
 
     @pytest.mark.asyncio
-    async def test_load_skill_from_r2(self, loader, mock_r2_client):
-        """Test loading skill from R2."""
-        mock_r2_client.get_text.return_value = """---
+    async def test_load_skill_from_r2(self, loader, mock_git_client):
+        """Test loading skill from Git."""
+        mock_git_client.get_skill.return_value = """---
 name: github-pr
 description: Create GitHub PRs
 version: 1.0.0
@@ -48,9 +48,9 @@ Instructions for creating PRs...
         assert "Instructions" in skill.instructions
 
     @pytest.mark.asyncio
-    async def test_load_skill_not_found(self, loader, mock_r2_client):
+    async def test_load_skill_not_found(self, loader, mock_git_client):
         """Test loading nonexistent skill returns None."""
-        mock_r2_client.get_text.side_effect = FileNotFoundError()
+        mock_git_client.get_skill.side_effect = FileNotFoundError()
 
         skill = await loader.load_skill("nonexistent-skill")
 
@@ -160,9 +160,9 @@ class TestSkillLoaderEdgeCases:
     """Tests for skill loader edge cases."""
 
     @pytest.fixture
-    def loader(self, mock_r2_client):
+    def loader(self, mock_git_client):
         """Create skill loader with mock."""
-        return SkillLoader(r2=mock_r2_client)
+        return SkillLoader(git=mock_git_client)
 
     def test_parse_skill_invalid_yaml(self, loader):
         """Test parsing skill with invalid YAML frontmatter."""
@@ -249,7 +249,7 @@ Instructions here
 
     @pytest.mark.asyncio
     async def test_load_skills_filters_by_grants(
-        self, loader, mock_r2_client, agent_config
+        self, loader, mock_git_client, agent_config
     ):
         """Test that skills are filtered by required grants."""
         # Agent doesn't have hub grants
@@ -266,8 +266,8 @@ Instructions here
 
     @pytest.mark.asyncio
     async def test_load_skill_native(self, loader):
-        """Test loading native skill without R2 call."""
-        # Native skill should load without R2 call
+        """Test loading native skill without Git call."""
+        # Native skill should load without Git call
         skill = await loader.load_skill("hub-post")
 
         assert skill is not None
@@ -276,7 +276,7 @@ Instructions here
 
     @pytest.mark.asyncio
     async def test_load_contextual_skills(
-        self, loader, mock_r2_client
+        self, loader, mock_git_client
     ):
         """Test loading contextual skills based on content."""
         from botburrow_agents.models import AgentConfig, CapabilityGrants
@@ -287,10 +287,10 @@ Instructions here
         )
 
         # Mock list_skills to return a skill
-        mock_r2_client.list_skills.return_value = ["github-pr"]
+        mock_git_client.list_skills.return_value = ["github-pr"]
 
         # Mock the skill content
-        mock_r2_client.get_text.return_value = """---
+        mock_git_client.get_skill.return_value = """---
 name: github-pr
 description: GitHub PR skill
 triggers:
@@ -315,7 +315,7 @@ Handle PR-related tasks.
 
     @pytest.mark.asyncio
     async def test_load_contextual_skills_no_match(
-        self, loader, mock_r2_client
+        self, loader, mock_git_client
     ):
         """Test contextual skills with no matching keywords."""
         from botburrow_agents.models import AgentConfig, CapabilityGrants
@@ -325,7 +325,7 @@ Handle PR-related tasks.
             capabilities=CapabilityGrants(grants=["github:read"]),
         )
 
-        mock_r2_client.list_skills.return_value = []
+        mock_git_client.list_skills.return_value = []
 
         skills = await loader.load_contextual_skills(agent, "random content")
 
@@ -333,7 +333,7 @@ Handle PR-related tasks.
 
     @pytest.mark.asyncio
     async def test_load_skills_logs_on_failure(
-        self, loader, mock_r2_client, agent_config, caplog
+        self, loader, mock_git_client, agent_config, caplog
     ):
         """Test that skill loading failures are logged."""
         import structlog
@@ -347,7 +347,7 @@ Handle PR-related tasks.
         )
 
         # Mock to raise exception
-        mock_r2_client.get_text.side_effect = Exception("R2 error")
+        mock_git_client.get_skill.side_effect = Exception("Git error")
 
         # Should not raise, just log
         skills = await loader.load_skills(agent_config)

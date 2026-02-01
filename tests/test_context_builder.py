@@ -15,9 +15,9 @@ class TestContextBuilder:
     """Tests for ContextBuilder class."""
 
     @pytest.fixture
-    def context_builder(self, mock_hub_client, mock_r2_client):
+    def context_builder(self, mock_hub_client, mock_git_client):
         """Create context builder with mocks."""
-        return ContextBuilder(hub=mock_hub_client, r2=mock_r2_client)
+        return ContextBuilder(hub=mock_hub_client, git=mock_git_client)
 
     @pytest.mark.asyncio
     async def test_build_for_notification(

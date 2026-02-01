@@ -19,6 +19,7 @@ from typing import Any
 import click
 import structlog
 
+from botburrow_agents.clients.git import GitClient
 from botburrow_agents.clients.hub import HubClient
 from botburrow_agents.clients.r2 import R2Client
 from botburrow_agents.clients.redis import RedisClient
@@ -64,7 +65,8 @@ class Runner:
     def __init__(self, settings: Settings | None = None) -> None:
         self.settings = settings or get_settings()
         self.hub = HubClient(self.settings)
-        self.r2 = R2Client(self.settings)
+        self.git = GitClient(self.settings)  # For loading configs from Git
+        self.r2 = R2Client(self.settings)  # For binary assets only
         self.redis = RedisClient(self.settings)
 
         # Scheduler and assigner for backward compatibility
@@ -77,7 +79,7 @@ class Runner:
 
         self.metrics = MetricsReporter(self.hub, self.settings)
         self.budget_checker = BudgetChecker(self.hub, self.settings)
-        self.context_builder = ContextBuilder(self.hub, self.r2)
+        self.context_builder = ContextBuilder(self.hub, self.git)  # Use Git for configs
         self.mcp_manager = MCPManager(self.settings)
 
         # Runner identity
@@ -246,7 +248,7 @@ class Runner:
             agent_id: Agent ID to load
 
         Returns:
-            AgentConfig from cache or R2
+            AgentConfig from cache or Git
         """
         # Try cache first
         if self.config_cache:
@@ -255,12 +257,12 @@ class Runner:
                 logger.debug("agent_config_cache_hit", agent_id=agent_id)
                 return AgentConfig(**cached)
 
-        # Load from R2
-        agent = await self.r2.load_agent_config(agent_id)
+        # Load from Git
+        agent = await self.git.load_agent_config(agent_id)
 
-        # Cache for next time
+        # Cache for next time (using agent's cache_ttl)
         if self.config_cache:
-            await self.config_cache.set(agent_id, agent.model_dump())
+            await self.config_cache.set(agent_id, agent.model_dump(), ttl=agent.cache_ttl)
 
         logger.debug("agent_config_loaded", agent_id=agent_id)
         return agent

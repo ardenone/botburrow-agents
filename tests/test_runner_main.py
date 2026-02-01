@@ -173,7 +173,7 @@ class TestLoadAgentConfig:
         """Test loading agent config from cache."""
         runner.config_cache = AsyncMock()
         runner.config_cache.get = AsyncMock(return_value=mock_agent.model_dump())
-        runner.r2 = AsyncMock()
+        runner.git = AsyncMock()
 
         result = await runner._load_agent_config("test-agent")
 
@@ -184,16 +184,16 @@ class TestLoadAgentConfig:
     async def test_load_agent_config_from_r2(
         self, runner: Runner, mock_agent: AgentConfig
     ) -> None:
-        """Test loading agent config from R2 when cache miss."""
+        """Test loading agent config from Git when cache miss."""
         runner.config_cache = AsyncMock()
         runner.config_cache.get = AsyncMock(return_value=None)
         runner.config_cache.set = AsyncMock()
-        runner.r2.load_agent_config = AsyncMock(return_value=mock_agent)
+        runner.git.load_agent_config = AsyncMock(return_value=mock_agent)
 
         result = await runner._load_agent_config("test-agent")
 
         assert result.name == "test-agent"
-        runner.r2.load_agent_config.assert_called_once_with("test-agent")
+        runner.git.load_agent_config.assert_called_once_with("test-agent")
         runner.config_cache.set.assert_called_once()
 
 

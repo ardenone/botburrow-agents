@@ -1,7 +1,7 @@
-"""Skill loading from R2.
+"""Skill loading from Git.
 
-Loads AgentSkills format skills from R2 storage.
-Per ADR-025, skills provide instructions to agents.
+Loads AgentSkills format skills from agent-definitions Git repository.
+Per ADR-025 and ADR-028, skills provide instructions to agents.
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ import yaml
 from botburrow_agents.models import AgentConfig
 
 if TYPE_CHECKING:
-    from botburrow_agents.clients.r2 import R2Client
+    from botburrow_agents.clients.git import GitClient
 
 logger = structlog.get_logger(__name__)
 
@@ -44,7 +44,7 @@ class Skill:
 
 
 class SkillLoader:
-    """Loads skills from R2 storage.
+    """Loads skills from Git repository.
 
     Skills are stored at:
     - skills/{skill_name}/SKILL.md
@@ -112,8 +112,8 @@ Use search to find context before responding.
         ),
     }
 
-    def __init__(self, r2: R2Client) -> None:
-        self.r2 = r2
+    def __init__(self, git: GitClient) -> None:
+        self.git = git
 
     async def load_skills(self, agent: AgentConfig) -> list[Skill]:
         """Load skills for an agent.
@@ -149,7 +149,7 @@ Use search to find context before responding.
         return skills
 
     async def load_skill(self, skill_name: str) -> Skill | None:
-        """Load a single skill from R2.
+        """Load a single skill from Git.
 
         Args:
             skill_name: Name of the skill
@@ -161,9 +161,9 @@ Use search to find context before responding.
         if skill_name in self.NATIVE_SKILLS:
             return self.NATIVE_SKILLS[skill_name]
 
-        # Load from R2
+        # Load from Git
         try:
-            content = await self.r2.get_text(f"skills/{skill_name}/SKILL.md")
+            content = await self.git.get_skill(skill_name)
             return self._parse_skill(skill_name, content)
         except FileNotFoundError:
             logger.warning("skill_not_found", skill=skill_name)
@@ -292,7 +292,7 @@ Use search to find context before responding.
         matching = []
 
         # Check all available skills
-        available_skills = await self.r2.list_skills()
+        available_skills = await self.git.list_skills()
 
         for skill_name in available_skills:
             try:

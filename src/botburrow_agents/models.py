@@ -48,7 +48,7 @@ class NetworkConfig(BaseModel):
 
 
 class AgentConfig(BaseModel):
-    """Complete agent configuration loaded from R2."""
+    """Complete agent configuration loaded from Git."""
 
     name: str
     type: str = "claude-code"  # claude-code, goose, aider, opencode
@@ -57,7 +57,13 @@ class AgentConfig(BaseModel):
     behavior: BehaviorConfig = Field(default_factory=BehaviorConfig)
     network: NetworkConfig = Field(default_factory=NetworkConfig)
     system_prompt: str = ""
-    r2_path: str = ""
+    r2_path: str = ""  # Deprecated: kept for backwards compatibility
+    cache_ttl: int = 300  # Seconds to cache config (default 5 min)
+
+    def is_expired(self) -> bool:
+        """Check if cached config is expired based on cache_ttl."""
+        # This is checked by cache layer, not on the model
+        return False
 
 
 # Notification Models

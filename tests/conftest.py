@@ -163,6 +163,19 @@ def mock_r2_client(agent_config: AgentConfig) -> AsyncMock:
 
 
 @pytest.fixture
+def mock_git_client(agent_config: AgentConfig) -> AsyncMock:
+    """Mock GitClient."""
+    mock = AsyncMock()
+    mock.load_agent_config.return_value = agent_config
+    mock.list_skills.return_value = ["hub-post", "hub-search"]
+    mock.list_agents.return_value = ["test-agent"]
+    mock.get_skill.return_value = "# Test Skill\n\nInstructions here."
+    mock.get_system_prompt.return_value = agent_config.system_prompt
+    mock.use_local = False
+    return mock
+
+
+@pytest.fixture
 async def fake_redis() -> AsyncGenerator[fakeredis.FakeRedis, None]:
     """Fake Redis for testing with Lua scripting support."""
     # Enable Lua scripting for eval/evalsha commands used in locks

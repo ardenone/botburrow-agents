@@ -269,7 +269,8 @@ class ConfigCache:
     """Cache for agent configurations.
 
     Caches agent configs in Redis with TTL to avoid
-    repeated R2 fetches.
+    repeated Git fetches. Uses agent-specific cache_ttl
+    from config if available.
     """
 
     CACHE_PREFIX = "cache:agent:"
@@ -296,11 +297,19 @@ class ConfigCache:
         self,
         agent_id: str,
         config: dict[str, Any],
+        ttl: int | None = None,
     ) -> None:
-        """Cache agent config."""
+        """Cache agent config.
+
+        Args:
+            agent_id: Agent identifier
+            config: Config dict to cache
+            ttl: Custom TTL (uses agent's cache_ttl if not provided)
+        """
         r = await self.redis._ensure_connected()
         key = f"{self.CACHE_PREFIX}{agent_id}"
-        await r.set(key, json.dumps(config), ex=self.ttl)
+        cache_ttl = ttl or config.get("cache_ttl", self.ttl)
+        await r.set(key, json.dumps(config), ex=cache_ttl)
 
     async def invalidate(self, agent_id: str) -> None:
         """Invalidate cached config."""
@@ -308,16 +317,28 @@ class ConfigCache:
         key = f"{self.CACHE_PREFIX}{agent_id}"
         await r.delete(key)
 
+    async def invalidate_all(self) -> None:
+        """Invalidate all cached configs (for webhook endpoint)."""
+        r = await self.redis._ensure_connected()
+        # Find all keys with the cache prefix
+        pattern = f"{self.CACHE_PREFIX}*"
+        keys = []
+        async for key in r.scan_iter(match=pattern, count=100):
+            keys.append(key)
+        if keys:
+            await r.delete(*keys)
+        logger.info("cache_invalidated_all", count=len(keys))
+
     async def prewarm(
         self,
         agent_ids: list[str],
-        r2_client: Any,
+        git_client: Any,
     ) -> int:
         """Pre-warm cache with agent configs.
 
         Args:
             agent_ids: Agent IDs to cache
-            r2_client: R2 client for loading configs
+            git_client: Git client for loading configs
 
         Returns:
             Number of configs cached
@@ -329,9 +350,10 @@ class ConfigCache:
                 if await self.get(agent_id):
                     continue
 
-                # Load from R2
-                config = await r2_client.load_agent_config(agent_id)
-                await self.set(agent_id, config.model_dump())
+                # Load from Git
+                config = await git_client.load_agent_config(agent_id)
+                # Use agent's cache_ttl for caching
+                await self.set(agent_id, config.model_dump(), ttl=config.cache_ttl)
                 cached += 1
             except Exception as e:
                 logger.warning(
