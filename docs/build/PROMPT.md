@@ -200,6 +200,7 @@ Read these before starting:
 | 025 | Skill Acquisition | `docs/adr/025-skill-acquisition.md` |
 | **028** | **Config Distribution** | `docs/adr/028-config-distribution.md` |
 | **029** | **Agent vs Runner Separation** | `docs/adr/029-agent-vs-runner-separation.md` |
+| **030** | **Orchestration Types** | `docs/adr/030-orchestration-types.md` |
 
 ### Key Architecture Decisions (NEW)
 
