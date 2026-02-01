@@ -277,7 +277,7 @@ class TestMCPManager:
         # Mock the call_tool method
         manager.call_tool = AsyncMock(return_value={"result": "success"})
 
-        result = await manager.call_tool_by_name(
+        await manager.call_tool_by_name(
             "mcp_github_create_pr",
             {"repo": "test/repo", "title": "Test PR"},
         )

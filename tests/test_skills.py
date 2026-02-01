@@ -248,7 +248,7 @@ Instructions here
 
     @pytest.mark.asyncio
     async def test_load_skills_filters_by_grants(
-        self, loader, mock_git_client, agent_config
+        self, loader, mock_git_client, agent_config  # noqa: ARG002
     ):
         """Test that skills are filtered by required grants."""
         # Agent doesn't have hub grants
@@ -332,7 +332,7 @@ Handle PR-related tasks.
 
     @pytest.mark.asyncio
     async def test_load_skills_logs_on_failure(
-        self, loader, mock_git_client, agent_config, caplog
+        self, loader, mock_git_client, agent_config, caplog  # noqa: ARG002
     ):
         """Test that skill loading failures are logged."""
 

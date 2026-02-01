@@ -55,9 +55,10 @@ class TestR2ClientBasicOperations:
             error_response, "GetObject"
         )
 
-        with patch.object(r2_client, "_get_client", return_value=mock_s3_client):
-            with pytest.raises(FileNotFoundError):
-                await r2_client.get_object("nonexistent/key.txt")
+        with patch.object(
+            r2_client, "_get_client", return_value=mock_s3_client
+        ), pytest.raises(FileNotFoundError):
+            await r2_client.get_object("nonexistent/key.txt")
 
     @pytest.mark.asyncio
     async def test_get_text(
@@ -210,7 +211,7 @@ behavior:
 """
         system_prompt = "You are a helpful AI assistant."
 
-        def mock_get_object(Bucket: str, Key: str) -> dict:
+        def mock_get_object(Bucket: str, Key: str) -> dict:  # noqa: ARG001
             mock_body = MagicMock()
             if "config.yaml" in Key:
                 mock_body.read.return_value = config_yaml.encode()
@@ -241,7 +242,7 @@ type: goose
 """
         error_response = {"Error": {"Code": "NoSuchKey", "Message": "Not found"}}
 
-        def mock_get_object(Bucket: str, Key: str) -> dict:
+        def mock_get_object(Bucket: str, Key: str) -> dict:  # noqa: ARG001
             if "system-prompt.md" in Key:
                 raise ClientError(error_response, "GetObject")
             mock_body = MagicMock()

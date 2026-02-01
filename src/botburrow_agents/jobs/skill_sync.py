@@ -187,8 +187,8 @@ class SkillSync:
                         cast(dict, stats)["skipped"] += 1
                         continue
 
-                    # Parse YAML frontmatter if present
-                    skill_meta = self._parse_skill_frontmatter(content, filename)
+                    # Parse YAML frontmatter if present (metadata can be used for cataloging)
+                    self._parse_skill_frontmatter(content, filename)
 
                     # Upload to R2
                     skill_key = f"skills/{source}/{filename}"

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -261,10 +262,8 @@ class TestMetricsCollector:
 
         # Cancel the task
         task.cancel()
-        try:
+        with contextlib.suppress(asyncio.CancelledError):
             await task
-        except asyncio.CancelledError:
-            pass
 
         # Verify get_queue_stats was called
         mock_queue.get_queue_stats.assert_called()
@@ -278,10 +277,8 @@ class TestMetricsCollector:
 
         # Cancel the task
         task.cancel()
-        try:
+        with contextlib.suppress(asyncio.CancelledError):
             await task
-        except asyncio.CancelledError:
-            pass
 
         # Should complete without error
 
@@ -311,10 +308,8 @@ class TestMetricsCollector:
         await asyncio.sleep(0.2)
 
         task.cancel()
-        try:
+        with contextlib.suppress(asyncio.CancelledError):
             await task
-        except asyncio.CancelledError:
-            pass
 
         # Should have been called multiple times despite error
         assert call_count >= 2

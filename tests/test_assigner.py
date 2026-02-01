@@ -161,7 +161,7 @@ class TestAssignerRelease:
         self,
         assigner: Assigner,
         mock_redis: AsyncMock,
-        mock_hub: AsyncMock,
+        mock_hub: AsyncMock,  # noqa: ARG002
     ) -> None:
         """Test releasing with an activation result."""
         mock_redis.get.return_value = "runner-1"

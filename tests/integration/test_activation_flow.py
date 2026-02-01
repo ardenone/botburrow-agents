@@ -109,7 +109,7 @@ class TestActivationFlow:
     @pytest.mark.asyncio
     async def test_notification_to_context_to_response(
         self,
-        settings,
+        settings,  # noqa: ARG002
         agent_config,
         notification,
         thread,
@@ -154,7 +154,7 @@ class TestActivationFlow:
         redis = AsyncMock(spec=RedisClient)
         redis._ensure_connected = AsyncMock(return_value=fake_redis)
 
-        work_queue = WorkQueue(redis, settings)
+        WorkQueue(redis, settings)
 
         # Enqueue work
         work_item = WorkItem(
@@ -326,7 +326,9 @@ class TestActivationFlow:
             await sandbox.stop()
 
     @pytest.mark.asyncio
-    async def test_config_cache_flow(self, settings, agent_config):
+    async def test_config_cache_flow(
+        self, settings, agent_config  # noqa: ARG002
+    ):
         """Test config cache reduces R2 fetches."""
         import fakeredis.aioredis as fakeredis_aio
 
@@ -412,7 +414,7 @@ class TestScalabilityPatterns:
     """Test scalability patterns."""
 
     @pytest.mark.asyncio
-    async def test_work_queue_priority_ordering(self, settings):
+    async def test_work_queue_priority_ordering(self, settings):  # noqa: ARG002
         """Test work items are processed by priority."""
         import fakeredis.aioredis as fakeredis_aio
 

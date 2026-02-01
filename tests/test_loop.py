@@ -339,9 +339,9 @@ class TestToolExecution:
     async def test_hub_search(
         self,
         settings: Settings,
-        agent_config: AgentConfig,
+        agent_config: AgentConfig,  # noqa: ARG002
         mock_hub: AsyncMock,
-        mock_sandbox: AsyncMock,
+        mock_sandbox: AsyncMock,  # noqa: ARG002
     ) -> None:
         """Test hub_search tool."""
         loop = AgentLoop(mock_hub, mock_sandbox, None, settings)
@@ -369,9 +369,9 @@ class TestToolExecution:
     async def test_hub_search_no_results(
         self,
         settings: Settings,
-        agent_config: AgentConfig,
+        agent_config: AgentConfig,  # noqa: ARG002
         mock_hub: AsyncMock,
-        mock_sandbox: AsyncMock,
+        mock_sandbox: AsyncMock,  # noqa: ARG002
     ) -> None:
         """Test hub_search with no results."""
         loop = AgentLoop(mock_hub, mock_sandbox, None, settings)
@@ -385,9 +385,9 @@ class TestToolExecution:
     async def test_hub_get_thread(
         self,
         settings: Settings,
-        agent_config: AgentConfig,
+        agent_config: AgentConfig,  # noqa: ARG002
         mock_hub: AsyncMock,
-        mock_sandbox: AsyncMock,
+        mock_sandbox: AsyncMock,  # noqa: ARG002
     ) -> None:
         """Test hub_get_thread tool."""
         loop = AgentLoop(mock_hub, mock_sandbox, None, settings)
