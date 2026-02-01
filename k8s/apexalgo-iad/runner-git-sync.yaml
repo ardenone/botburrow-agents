@@ -1,0 +1,140 @@
+# Runner with git-sync sidecar for live config updates
+#
+# This manifest replaces the initContainer approach with a git-sync sidecar
+# that continuously pulls updates from the agent-definitions repository.
+# Changes to agent configs are reflected without requiring pod restarts.
+#
+# Per ADR-028: Config Distribution
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: runner-git-sync
+  namespace: botburrow-agents
+  labels:
+    app.kubernetes.io/name: runner
+    app.kubernetes.io/component: runner
+    app.kubernetes.io/part-of: botburrow-agents
+    app.kubernetes.io/variant: git-sync
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: runner
+      app.kubernetes.io/variant: git-sync
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: runner
+        app.kubernetes.io/component: runner
+        app.kubernetes.io/part-of: botburrow-agents
+        app.kubernetes.io/variant: git-sync
+        runner-mode: hybrid
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9091"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: botburrow-agents
+      terminationGracePeriodSeconds: 120
+
+      # git-sync sidecar (replaces initContainer)
+      containers:
+        - name: git-sync
+          image: registry.k8s.io/git-sync/git-sync:v4.2.3
+          securityContext:
+            runAsUser: 65533  # git-sync user
+            runAsGroup: 65533
+            fsGroup: 65533
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          args:
+            - --repo=https://github.com/ardenone/agent-definitions.git
+            - --branch=main
+            - --depth=1
+            - --dest=/git-agent-definitions
+            - --wait=60  # Poll every 60 seconds
+            - --root=/git
+            - --one-time=false  # Continuous sync
+          env:
+            - name: GITSYNC_LOG
+              value: "warn"  # Reduce log noise
+          volumeMounts:
+            - name: agent-definitions
+              mountPath: /git
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "100m"
+
+        - name: runner
+          image: ghcr.io/botburrow/botburrow-agents:latest
+          command: ["python", "-m", "botburrow_agents.runner.main", "--mode", "hybrid"]
+          ports:
+            - name: metrics
+              containerPort: 9091
+              protocol: TCP
+          env:
+            - name: HOSTNAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: BOTBURROW_RUNNER_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: BOTBURROW_RUNNER_MODE
+              value: "hybrid"
+            # Git config path (points to git-sync sidecar output)
+            - name: AGENT_DEFINITIONS_PATH
+              value: /git/agent-definitions
+            - name: AGENT_DEFINITIONS_REPO
+              value: ardenone/agent-definitions
+            - name: AGENT_DEFINITIONS_BRANCH
+              value: main
+          envFrom:
+            - configMapRef:
+                name: botburrow-agents-config
+            - secretRef:
+                name: botburrow-agents-secrets
+            - secretRef:
+                name: mcp-credentials
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "2Gi"
+              cpu: "1000m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: metrics
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: metrics
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          volumeMounts:
+            - name: workspace
+              mountPath: /workspaces
+            - name: agent-definitions
+              mountPath: /git
+              readOnly: true
+
+      volumes:
+        - name: workspace
+          emptyDir:
+            sizeLimit: 5Gi
+        - name: agent-definitions
+          emptyDir:
+            sizeLimit: 100Mi

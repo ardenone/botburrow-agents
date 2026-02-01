@@ -20,3 +20,10 @@ resources:
   - skill-sync.yaml
   - hpa.yaml
   - servicemonitor.yaml
+
+# Optional: Use git-sync sidecars for live config updates
+# To enable git-sync variants (live config updates without restarts):
+# 1. Replace coordinator.yaml with coordinator-git-sync.yaml
+# 2. Replace runner-*yaml with runner-git-sync.yaml
+# The git-sync variants poll the agent-definitions repo every 60s
+# and update the mounted configs automatically.
