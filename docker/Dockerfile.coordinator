@@ -37,9 +37,8 @@ ENV PATH="/opt/venv/bin:$PATH"
 
 # Copy application code
 COPY src/ ./src/
-COPY jobs/ ./jobs/
 
-ENV PYTHONPATH=/app/src:/app
+ENV PYTHONPATH=/app/src
 ENV PYTHONUNBUFFERED=1
 
 # Create non-root user

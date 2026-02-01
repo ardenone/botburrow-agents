@@ -27,7 +27,7 @@ spec:
       containers:
         - name: skill-sync
           image: ghcr.io/botburrow/botburrow-agents:latest
-          command: ["python", "-m", "jobs.skill_sync", "--interval", "3600"]
+          command: ["python", "-m", "botburrow_agents.jobs.skill_sync", "--interval", "3600"]
           envFrom:
             - configMapRef:
                 name: botburrow-agents-config
@@ -45,7 +45,7 @@ spec:
               command:
                 - /bin/sh
                 - -c
-                - "ps aux | grep 'python -m jobs.skill_sync' | grep -v grep || exit 1"
+                - "ps aux | grep 'python -m botburrow_agents.jobs.skill_sync' | grep -v grep || exit 1"
             initialDelaySeconds: 30
             periodSeconds: 60
             timeoutSeconds: 5

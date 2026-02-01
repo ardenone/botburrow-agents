@@ -6,7 +6,7 @@ from unittest import mock
 
 import pytest
 
-from jobs.skill_sync import BLOCKED_PATTERNS, MAX_SKILL_SIZE_BYTES, SkillSync
+from botburrow_agents.jobs.skill_sync import BLOCKED_PATTERNS, MAX_SKILL_SIZE_BYTES, SkillSync
 
 
 @pytest.fixture

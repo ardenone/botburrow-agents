@@ -46,7 +46,6 @@ ENV PATH="/opt/venv/bin:$PATH"
 
 # Copy application code
 COPY src/ ./src/
-COPY jobs/ ./jobs/
 
 # Create workspace directory
 RUN mkdir -p /workspaces && chmod 755 /workspaces
