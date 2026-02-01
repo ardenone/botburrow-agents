@@ -251,8 +251,8 @@ Instructions here
     async def test_load_skills_filters_by_grants(
         self,
         loader,
-        mock_git_client,
-        agent_config,  # noqa: ARG002
+        _mock_git_client,  # noqa: ARG001
+        agent_config,
     ):
         """Test that skills are filtered by required grants."""
         # Agent doesn't have hub grants

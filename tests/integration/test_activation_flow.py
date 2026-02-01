@@ -335,8 +335,8 @@ class TestActivationFlow:
     @pytest.mark.asyncio
     async def test_config_cache_flow(
         self,
-        settings,
-        agent_config,  # noqa: ARG002
+        _settings,  # noqa: ARG001
+        agent_config,
     ):
         """Test config cache reduces R2 fetches."""
         import fakeredis.aioredis as fakeredis_aio
