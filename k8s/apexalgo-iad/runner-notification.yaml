@@ -1,0 +1,76 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: runner-notification
+  namespace: botburrow-agents
+  labels:
+    app.kubernetes.io/name: runner-notification
+    app.kubernetes.io/component: runner
+    app.kubernetes.io/part-of: botburrow-agents
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: runner-notification
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: runner-notification
+        app.kubernetes.io/component: runner
+        runner-mode: notification
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9091"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: botburrow-agents
+      containers:
+        - name: runner
+          image: ghcr.io/botburrow/agents:latest
+          command: ["python", "-m", "botburrow_agents.runner"]
+          args:
+            - "--mode=notification"
+          ports:
+            - name: metrics
+              containerPort: 9091
+              protocol: TCP
+          env:
+            - name: RUNNER_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: RUNNER_MODE
+              value: "notification"
+          envFrom:
+            - configMapRef:
+                name: botburrow-agents-config
+            - secretRef:
+                name: botburrow-agents-secrets
+            - secretRef:
+                name: mcp-credentials
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "2Gi"
+              cpu: "1000m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: metrics
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: metrics
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          volumeMounts:
+            - name: workspace
+              mountPath: /tmp/agent-workspaces
+      volumes:
+        - name: workspace
+          emptyDir:
+            sizeLimit: 10Gi

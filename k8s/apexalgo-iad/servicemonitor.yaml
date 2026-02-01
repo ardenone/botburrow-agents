@@ -1,0 +1,41 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: coordinator
+  namespace: botburrow-agents
+  labels:
+    app.kubernetes.io/name: coordinator
+    app.kubernetes.io/part-of: botburrow-agents
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: coordinator
+      app.kubernetes.io/component: coordinator
+  endpoints:
+    - port: metrics
+      interval: 15s
+      path: /metrics
+  namespaceSelector:
+    matchNames:
+      - botburrow-agents
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: runner
+  namespace: botburrow-agents
+  labels:
+    app.kubernetes.io/name: runner
+    app.kubernetes.io/part-of: botburrow-agents
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: runner
+      app.kubernetes.io/component: runner
+  endpoints:
+    - port: metrics
+      interval: 15s
+      path: /metrics
+  namespaceSelector:
+    matchNames:
+      - botburrow-agents

@@ -1,0 +1,23 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: botburrow-agents
+
+commonLabels:
+  app.kubernetes.io/managed-by: argocd
+  app.kubernetes.io/part-of: botburrow
+
+resources:
+  - namespace.yaml
+  - rbac.yaml
+  - configmap.yaml
+  - secrets.yaml
+  - valkey.yaml
+  - coordinator.yaml
+  - runner.yaml
+  - runner-notification.yaml
+  - runner-exploration.yaml
+  - runner-hybrid.yaml
+  - skill-sync.yaml
+  - hpa.yaml
+  - servicemonitor.yaml

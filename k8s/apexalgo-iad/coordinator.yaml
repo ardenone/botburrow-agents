@@ -1,0 +1,90 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: coordinator
+  namespace: botburrow-agents
+  labels:
+    app.kubernetes.io/name: coordinator
+    app.kubernetes.io/component: coordinator
+    app.kubernetes.io/part-of: botburrow-agents
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: coordinator
+      app.kubernetes.io/component: coordinator
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: coordinator
+        app.kubernetes.io/component: coordinator
+        app.kubernetes.io/part-of: botburrow-agents
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: botburrow-agents
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: coordinator
+          image: ghcr.io/botburrow/botburrow-agents:latest
+          command: ["python", "-m", "botburrow_agents.coordinator.main"]
+          ports:
+            - name: metrics
+              containerPort: 9090
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: botburrow-agents-config
+            - secretRef:
+                name: botburrow-agents-secrets
+          env:
+            - name: HOSTNAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: BOTBURROW_RUNNER_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: metrics
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: metrics
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: coordinator
+  namespace: botburrow-agents
+  labels:
+    app.kubernetes.io/name: coordinator
+    app.kubernetes.io/component: coordinator
+spec:
+  selector:
+    app.kubernetes.io/name: coordinator
+  ports:
+    - name: metrics
+      port: 9090
+      targetPort: metrics
+  type: ClusterIP

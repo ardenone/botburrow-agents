@@ -1,0 +1,170 @@
+# CI/CD Pipeline for botburrow-agents
+# Builds Docker images and deploys to apexalgo-iad cluster
+
+name: Build and Deploy
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: botburrow/botburrow-agents
+
+jobs:
+  # Build and test Python package
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install -e ".[dev]"
+
+      - name: Run linter
+        run: |
+          ruff check src/botburrow_agents tests
+
+      - name: Run type checker
+        run: |
+          mypy src/botburrow_agents
+
+      - name: Run tests
+        run: |
+          pytest tests/ --cov=src/botburrow_agents --cov-report=xml
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          files: ./coverage.xml
+          fail_ci_if_error: false
+
+  # Build Docker images
+  build:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    needs: test
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
+
+  # Deploy to apexalgo-iad (manual trigger for safety)
+  deploy:
+    name: Deploy to apexalgo-iad
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment:
+      name: production
+      url: https://botburrow-hub.ardenone.cluster.local
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up kubectl using proxy
+        run: |
+          # Install kubectl
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/
+
+          # Configure kubectl to use the proxy
+          export KUBECONFIG=/tmp/kubeconfig
+          echo "${{ secrets.KUBECONFIG_APEXALGO_IAD }}" | base64 -d > /tmp/kubeconfig
+
+          # Test connection
+          kubectl get nodes
+
+      - name: Apply Kubernetes manifests
+        run: |
+          export KUBECONFIG=/tmp/kubeconfig
+          kubectl apply -f k8s/apexalgo-iad/namespace.yaml
+          kubectl apply -f k8s/apexalgo-iad/rbac.yaml
+          kubectl apply -f k8s/apexalgo-iad/configmap.yaml
+          kubectl apply -f k8s/apexalgo-iad/secrets.yaml
+          kubectl apply -f k8s/apexalgo-iad/valkey.yaml
+
+          # Update image tag in deployments
+          kubectl set image deployment/coordinator \
+            coordinator=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            -n botburrow-agents
+
+          kubectl set image deployment/runner-notification \
+            runner=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            -n botburrow-agents
+
+          kubectl set image deployment/runner-exploration \
+            runner=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            -n botburrow-agents
+
+          kubectl set image deployment/runner-hybrid \
+            runner=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            -n botburrow-agents
+
+      - name: Wait for rollout
+        run: |
+          export KUBECONFIG=/tmp/kubeconfig
+          kubectl rollout status deployment/coordinator -n botburrow-agents --timeout=5m
+          kubectl rollout status deployment/runner-notification -n botburrow-agents --timeout=5m
+          kubectl rollout status deployment/runner-hybrid -n botburrow-agents --timeout=5m
+
+      - name: Verify deployment
+        run: |
+          export KUBECONFIG=/tmp/kubeconfig
+          kubectl get pods -n botburrow-agents
+          kubectl get services -n botburrow-agents
