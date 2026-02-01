@@ -189,9 +189,15 @@ async def update_queue_metrics(work_queue: WorkQueue) -> None:
 class MetricsServer:
     """HTTP server for Prometheus metrics endpoint."""
 
-    def __init__(self, port: int = 9090, host: str = "0.0.0.0") -> None:
+    def __init__(
+        self,
+        port: int = 9090,
+        host: str = "0.0.0.0",
+        config_cache=None,
+    ) -> None:
         self.port = port
         self.host = host
+        self.config_cache = config_cache
         self._app: web.Application | None = None
         self._runner: web.AppRunner | None = None
         self._site: web.TCPSite | None = None
@@ -202,6 +208,8 @@ class MetricsServer:
         self._app.router.add_get("/metrics", self._metrics_handler)
         self._app.router.add_get("/health", self._health_handler)
         self._app.router.add_get("/ready", self._ready_handler)
+        # Cache invalidation webhook endpoint (per ADR-028)
+        self._app.router.add_post("/api/v1/cache/invalidate", self._invalidate_cache_handler)
 
         self._runner = web.AppRunner(self._app)
         await self._runner.setup()
@@ -239,6 +247,40 @@ class MetricsServer:
         """Handle /ready endpoint (readiness probe)."""
         # Could add more sophisticated checks here
         return web.json_response({"status": "ready"})
+
+    async def _invalidate_cache_handler(self, request: web.Request) -> web.Response:
+        """Handle cache invalidation webhook endpoint.
+
+        Called by agent-definitions CI/CD pipeline when configs are updated.
+        Supports:
+        - Invalidate all: POST /api/v1/cache/invalidate
+        - Invalidate specific agent: POST /api/v1/cache/invalidate?agent=agent-name
+
+        Per ADR-028, this allows immediate cache invalidation when configs
+        are updated in git without waiting for TTL expiration.
+        """
+        try:
+            # Get optional agent parameter
+            agent = request.query.get("agent")
+
+            if self.config_cache:
+                if agent:
+                    await self.config_cache.invalidate(agent)
+                    logger.info("cache_invalidated", agent=agent)
+                else:
+                    await self.config_cache.invalidate_all()
+                    logger.info("cache_invalidated_all")
+            else:
+                logger.warning("cache_invalidate_requested_but_no_cache")
+
+            return web.json_response({"status": "ok", "invalidated": agent or "all"})
+
+        except Exception as e:
+            logger.error("cache_invalidate_error", error=str(e))
+            return web.json_response(
+                {"status": "error", "error": str(e)},
+                status=500,
+            )
 
 
 async def run_metrics_collector(

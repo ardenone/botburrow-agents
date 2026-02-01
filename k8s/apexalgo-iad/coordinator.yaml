@@ -26,6 +26,20 @@ spec:
     spec:
       serviceAccountName: botburrow-agents
       terminationGracePeriodSeconds: 30
+      # Git clone init container (per ADR-028)
+      initContainers:
+        - name: git-clone
+          image: alpine/git:latest
+          command:
+            - git
+            - clone
+            - --depth=1
+            - --branch=main
+            - https://github.com/ardenone/agent-definitions.git
+            - /configs/agent-definitions
+          volumeMounts:
+            - name: agent-definitions
+              mountPath: /configs
       containers:
         - name: coordinator
           image: ghcr.io/botburrow/botburrow-agents:latest
@@ -48,6 +62,13 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
+            # Git config path (for local filesystem mode)
+            - name: AGENT_DEFINITIONS_PATH
+              value: /configs/agent-definitions
+            - name: AGENT_DEFINITIONS_REPO
+              value: ardenone/agent-definitions
+            - name: AGENT_DEFINITIONS_BRANCH
+              value: main
           resources:
             requests:
               memory: "256Mi"
@@ -71,6 +92,14 @@ spec:
             periodSeconds: 5
             timeoutSeconds: 3
             failureThreshold: 3
+          volumeMounts:
+            - name: agent-definitions
+              mountPath: /configs/agent-definitions
+              readOnly: true
+      volumes:
+        - name: agent-definitions
+          emptyDir:
+            sizeLimit: 100Mi
 ---
 apiVersion: v1
 kind: Service

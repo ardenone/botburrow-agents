@@ -2,7 +2,7 @@
 
 ## Status
 
-**Accepted** (Supersedes R2 sync in ADR-014)
+**Accepted & Implemented** (Supersedes R2 sync in ADR-014)
 
 ## Context
 
@@ -41,12 +41,14 @@ Agent configurations (YAML, Markdown) need to be available to botburrow-agents r
 │  botburrow-agents (Runtime)                                      │
 │                                                                  │
 │  Reads configs via:                                             │
-│  • Git clone (init container or sidecar)                        │
-│  • GitHub raw URLs (with local cache)                           │
+│  • Git clone (init container) ✅ IMPLEMENTED                    │
+│  • GitHub raw URLs (with local cache) ✅ IMPLEMENTED           │
 │                                                                  │
 │  Caches configs in:                                             │
 │  • Local filesystem (per-pod)                                   │
-│  • Redis/Valkey (shared cache)                                  │
+│  • Redis/Valkey (shared cache) ✅ IMPLEMENTED                   │
+│  • Agent-specific TTL ✅ IMPLEMENTED                             │
+│  • Webhook for cache invalidation ✅ IMPLEMENTED                │
 └─────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────┐

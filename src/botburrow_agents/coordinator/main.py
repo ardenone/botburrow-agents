@@ -81,8 +81,8 @@ class Coordinator:
         self.config_cache: ConfigCache | None = None
         self.leader_election: LeaderElection | None = None
 
-        # Observability
-        self.metrics_server = MetricsServer(port=9090)
+        # Observability (created after config cache is initialized)
+        self.metrics_server: MetricsServer | None = None
 
         self._running = False
         self._shutdown_event = asyncio.Event()
@@ -102,6 +102,9 @@ class Coordinator:
         self.work_queue = WorkQueue(self.redis, self.settings)
         self.config_cache = ConfigCache(self.redis)
         self.leader_election = LeaderElection(self.redis, self.instance_id)
+
+        # Create metrics server with config cache for webhook endpoint
+        self.metrics_server = MetricsServer(port=9090, config_cache=self.config_cache)
 
         # Start metrics server
         await self.metrics_server.start()
