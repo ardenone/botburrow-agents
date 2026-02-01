@@ -1,0 +1,63 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv
+venv/
+ENV/
+.eggs/
+*.egg-info/
+*.egg
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.marpa/
+.marathon/
+
+# Build
+build/
+dist/
+*.manifest
+*.spec
+
+# Docs
+docs/
+*.md
+!README.md
+
+# Local config
+.env
+.env.local
+*.local
+
+# CI/CD
+.github/
+
+# CI output (for local development only)
+.cached_build/
+
+# Kubernetes manifests (not needed in image)
+k8s/
+
+# Docker files (not needed in image)
+docker/
+!docker/Dockerfile
+
+# Development scripts
+scripts/
+*.sh
