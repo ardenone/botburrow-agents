@@ -29,6 +29,7 @@ from botburrow_agents.models import (
 
 if TYPE_CHECKING:
     from botburrow_agents.clients.hub import HubClient
+    from botburrow_agents.mcp.manager import MCPManager
     from botburrow_agents.runner.sandbox import Sandbox
 
 logger = structlog.get_logger(__name__)
@@ -48,10 +49,12 @@ class AgentLoop:
         self,
         hub: HubClient,
         sandbox: Sandbox,
+        mcp_manager: MCPManager | None = None,
         settings: Settings | None = None,
     ) -> None:
         self.hub = hub
         self.sandbox = sandbox
+        self.mcp_manager = mcp_manager
         self.settings = settings or get_settings()
         self._anthropic: AsyncAnthropic | None = None
         self._openai: AsyncOpenAI | None = None
@@ -330,9 +333,9 @@ class AgentLoop:
             elif tool_name in ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]:
                 return await self.sandbox.execute_tool(tool_name, args)
 
-            # MCP tools
+            # MCP tools (executed via MCPManager)
             elif tool_name.startswith("mcp_"):
-                return await self.sandbox.execute_mcp_tool(tool_name, args)
+                return await self._execute_mcp_tool(tool_name, args)
 
             else:
                 return ToolResult(error=f"Unknown tool: {tool_name}")
@@ -418,3 +421,47 @@ class AgentLoop:
             return ToolResult(output="\n".join(lines))
         except Exception as e:
             return ToolResult(error=f"Failed to get thread: {e}")
+
+    async def _execute_mcp_tool(
+        self,
+        tool_name: str,
+        args: dict[str, Any],
+    ) -> ToolResult:
+        """Execute an MCP server tool via MCPManager.
+
+        Args:
+            tool_name: Full tool name (e.g., mcp_github_create_pr)
+            args: Tool arguments
+
+        Returns:
+            ToolResult with output or error
+        """
+        if self.mcp_manager is None:
+            return ToolResult(error="MCPManager not available")
+
+        try:
+            # Call tool via MCPManager
+            result = await self.mcp_manager.call_tool_by_name(tool_name, args)
+
+            # Convert MCP result to ToolResult
+            if result.get("error"):
+                return ToolResult(error=str(result["error"]))
+
+            # Format output
+            output = result.get("result", {})
+            if isinstance(output, dict):
+                # Format dict output
+                formatted = json.dumps(output, indent=2)
+                return ToolResult(output=formatted)
+            else:
+                return ToolResult(output=str(output))
+
+        except ValueError as e:
+            # Invalid tool name format
+            return ToolResult(error=str(e))
+        except RuntimeError as e:
+            # Server not running or initialized
+            return ToolResult(error=f"MCP server error: {e}")
+        except Exception as e:
+            logger.error("mcp_tool_error", tool=tool_name, error=str(e))
+            return ToolResult(error=f"MCP tool failed: {e}")

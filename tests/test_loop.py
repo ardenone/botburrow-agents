@@ -128,6 +128,14 @@ def mock_sandbox() -> AsyncMock:
     return mock
 
 
+@pytest.fixture
+def mock_mcp_manager() -> AsyncMock:
+    """Mock MCPManager."""
+    mock = AsyncMock()
+    mock.call_tool_by_name.return_value = {"result": "MCP result"}
+    return mock
+
+
 class TestAgentLoop:
     """Tests for AgentLoop class."""
 
@@ -140,7 +148,7 @@ class TestAgentLoop:
         mock_sandbox: AsyncMock,
     ) -> None:
         """Test loop returns direct response when no tools called."""
-        loop = AgentLoop(mock_hub, mock_sandbox, settings)
+        loop = AgentLoop(mock_hub, mock_sandbox, None, settings)
 
         # Mock LLM returning a text response
         with patch.object(loop, "_reason", new_callable=AsyncMock) as mock_reason:
@@ -166,7 +174,7 @@ class TestAgentLoop:
         mock_sandbox: AsyncMock,
     ) -> None:
         """Test loop handles tool call then final response."""
-        loop = AgentLoop(mock_hub, mock_sandbox, settings)
+        loop = AgentLoop(mock_hub, mock_sandbox, None, settings)
 
         # First call returns tool use, second returns text
         call_count = 0
@@ -210,7 +218,7 @@ class TestAgentLoop:
         """Test loop stops at max iterations."""
         settings.max_iterations = 3
         agent_config.behavior.max_iterations = 3
-        loop = AgentLoop(mock_hub, mock_sandbox, settings)
+        loop = AgentLoop(mock_hub, mock_sandbox, None, settings)
 
         # Always return tool calls (never complete)
         with patch.object(loop, "_reason", new_callable=AsyncMock) as mock_reason:
@@ -238,7 +246,7 @@ class TestAgentLoop:
         mock_sandbox: AsyncMock,
     ) -> None:
         """Test loop stops on fatal tool error."""
-        loop = AgentLoop(mock_hub, mock_sandbox, settings)
+        loop = AgentLoop(mock_hub, mock_sandbox, None, settings)
 
         with patch.object(loop, "_reason", new_callable=AsyncMock) as mock_reason:
             mock_reason.return_value = Action(
@@ -267,7 +275,7 @@ class TestAgentLoop:
         mock_sandbox: AsyncMock,
     ) -> None:
         """Test loop handles LLM errors gracefully."""
-        loop = AgentLoop(mock_hub, mock_sandbox, settings)
+        loop = AgentLoop(mock_hub, mock_sandbox, None, settings)
 
         with patch.object(loop, "_reason", new_callable=AsyncMock) as mock_reason:
             mock_reason.side_effect = Exception("API rate limit")
@@ -290,7 +298,7 @@ class TestToolExecution:
         mock_sandbox: AsyncMock,
     ) -> None:
         """Test hub_post with reply_to."""
-        loop = AgentLoop(mock_hub, mock_sandbox, settings)
+        loop = AgentLoop(mock_hub, mock_sandbox, None, settings)
 
         result = await loop._hub_post(
             agent_config,
@@ -313,7 +321,7 @@ class TestToolExecution:
         mock_sandbox: AsyncMock,
     ) -> None:
         """Test hub_post creating new post."""
-        loop = AgentLoop(mock_hub, mock_sandbox, settings)
+        loop = AgentLoop(mock_hub, mock_sandbox, None, settings)
 
         result = await loop._hub_post(
             agent_config,
@@ -336,7 +344,7 @@ class TestToolExecution:
         mock_sandbox: AsyncMock,
     ) -> None:
         """Test hub_search tool."""
-        loop = AgentLoop(mock_hub, mock_sandbox, settings)
+        loop = AgentLoop(mock_hub, mock_sandbox, None, settings)
         mock_hub.search.return_value = [
             Post(
                 id="post-1",
@@ -366,7 +374,7 @@ class TestToolExecution:
         mock_sandbox: AsyncMock,
     ) -> None:
         """Test hub_search with no results."""
-        loop = AgentLoop(mock_hub, mock_sandbox, settings)
+        loop = AgentLoop(mock_hub, mock_sandbox, None, settings)
         mock_hub.search.return_value = []
 
         result = await loop._hub_search({"query": "nonexistent"})
@@ -382,7 +390,7 @@ class TestToolExecution:
         mock_sandbox: AsyncMock,
     ) -> None:
         """Test hub_get_thread tool."""
-        loop = AgentLoop(mock_hub, mock_sandbox, settings)
+        loop = AgentLoop(mock_hub, mock_sandbox, None, settings)
         mock_hub.get_thread.return_value = Thread(
             root=Post(
                 id="post-123",
@@ -417,7 +425,7 @@ class TestToolExecution:
         mock_sandbox: AsyncMock,
     ) -> None:
         """Test executing core tools (Read, Write, etc.)."""
-        loop = AgentLoop(mock_hub, mock_sandbox, settings)
+        loop = AgentLoop(mock_hub, mock_sandbox, None, settings)
         mock_sandbox.execute_tool.return_value = ToolResult(
             output="file contents here"
         )
@@ -439,10 +447,11 @@ class TestToolExecution:
         agent_config: AgentConfig,
         mock_hub: AsyncMock,
         mock_sandbox: AsyncMock,
+        mock_mcp_manager: AsyncMock,
     ) -> None:
         """Test executing MCP tools."""
-        loop = AgentLoop(mock_hub, mock_sandbox, settings)
-        mock_sandbox.execute_mcp_tool.return_value = ToolResult(output="GitHub data")
+        loop = AgentLoop(mock_hub, mock_sandbox, mock_mcp_manager, settings)
+        mock_mcp_manager.call_tool_by_name.return_value = {"result": "GitHub data"}
 
         result = await loop._execute_tool(
             agent_config,
@@ -454,8 +463,32 @@ class TestToolExecution:
         )
 
         assert result.error is None
-        assert result.output == "GitHub data"
-        mock_sandbox.execute_mcp_tool.assert_called_once()
+        assert "GitHub data" in result.output
+        mock_mcp_manager.call_tool_by_name.assert_called_once_with(
+            "mcp_github_list_prs", {"repo": "owner/repo"}
+        )
+
+    async def test_execute_mcp_tool_no_manager(
+        self,
+        settings: Settings,
+        agent_config: AgentConfig,
+        mock_hub: AsyncMock,
+        mock_sandbox: AsyncMock,
+    ) -> None:
+        """Test executing MCP tools when MCPManager is None."""
+        loop = AgentLoop(mock_hub, mock_sandbox, None, settings)
+
+        result = await loop._execute_tool(
+            agent_config,
+            ToolCall(
+                id="call-1",
+                name="mcp_github_list_prs",
+                arguments={"repo": "owner/repo"},
+            ),
+        )
+
+        assert result.error is not None
+        assert "MCPManager not available" in result.error
 
     async def test_unknown_tool(
         self,
@@ -465,7 +498,7 @@ class TestToolExecution:
         mock_sandbox: AsyncMock,
     ) -> None:
         """Test handling unknown tool."""
-        loop = AgentLoop(mock_hub, mock_sandbox, settings)
+        loop = AgentLoop(mock_hub, mock_sandbox, None, settings)
 
         result = await loop._execute_tool(
             agent_config,
@@ -487,7 +520,7 @@ class TestLLMIntegration:
         mock_sandbox: AsyncMock,
     ) -> None:
         """Test Anthropic Claude reasoning."""
-        loop = AgentLoop(mock_hub, mock_sandbox, settings)
+        loop = AgentLoop(mock_hub, mock_sandbox, None, settings)
 
         # Mock Anthropic client
         mock_response = MagicMock()
@@ -515,7 +548,7 @@ class TestLLMIntegration:
         mock_sandbox: AsyncMock,
     ) -> None:
         """Test Anthropic Claude with tool use."""
-        loop = AgentLoop(mock_hub, mock_sandbox, settings)
+        loop = AgentLoop(mock_hub, mock_sandbox, None, settings)
 
         mock_tool_use = MagicMock()
         mock_tool_use.type = "tool_use"
@@ -552,7 +585,7 @@ class TestLLMIntegration:
         # Switch to OpenAI provider
         agent_config.brain.provider = "openai"
         agent_config.brain.model = "gpt-4o"
-        loop = AgentLoop(mock_hub, mock_sandbox, settings)
+        loop = AgentLoop(mock_hub, mock_sandbox, None, settings)
 
         mock_usage = MagicMock()
         mock_usage.total_tokens = 150
@@ -588,7 +621,7 @@ class TestLLMIntegration:
     ) -> None:
         """Test unsupported LLM provider."""
         agent_config.brain.provider = "unsupported"
-        loop = AgentLoop(mock_hub, mock_sandbox, settings)
+        loop = AgentLoop(mock_hub, mock_sandbox, None, settings)
 
         with pytest.raises(ValueError, match="Unsupported LLM provider"):
             await loop._reason(agent_config, context)
@@ -606,7 +639,7 @@ class TestContextManagement:
         mock_sandbox: AsyncMock,
     ) -> None:
         """Test context iteration tracking."""
-        loop = AgentLoop(mock_hub, mock_sandbox, settings)
+        loop = AgentLoop(mock_hub, mock_sandbox, None, settings)
 
         with patch.object(loop, "_reason", new_callable=AsyncMock) as mock_reason:
             # Two tool calls, then final response
@@ -644,7 +677,7 @@ class TestContextManagement:
         mock_sandbox: AsyncMock,
     ) -> None:
         """Test token counting in context."""
-        loop = AgentLoop(mock_hub, mock_sandbox, settings)
+        loop = AgentLoop(mock_hub, mock_sandbox, None, settings)
 
         # Token count should accumulate
         async def mock_reason_with_tokens(
@@ -667,7 +700,7 @@ class TestContextManagement:
         mock_sandbox: AsyncMock,
     ) -> None:
         """Test that tool results are added to context."""
-        loop = AgentLoop(mock_hub, mock_sandbox, settings)
+        loop = AgentLoop(mock_hub, mock_sandbox, None, settings)
 
         call_count = 0
         saved_context: Context | None = None

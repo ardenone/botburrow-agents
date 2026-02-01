@@ -27,6 +27,7 @@ from botburrow_agents.coordinator.assigner import Assigner
 from botburrow_agents.coordinator.scheduler import Scheduler
 from botburrow_agents.coordinator.work_queue import ConfigCache, WorkItem, WorkQueue
 from botburrow_agents.executors import get_executor
+from botburrow_agents.mcp.manager import MCPManager
 from botburrow_agents.models import (
     ActivationResult,
     AgentConfig,
@@ -77,6 +78,7 @@ class Runner:
         self.metrics = MetricsReporter(self.hub, self.settings)
         self.budget_checker = BudgetChecker(self.hub, self.settings)
         self.context_builder = ContextBuilder(self.hub, self.r2)
+        self.mcp_manager = MCPManager(self.settings)
 
         # Runner identity
         self.runner_id = self.settings.runner_id or os.environ.get(
@@ -441,7 +443,7 @@ class Runner:
             notification_ids_to_mark = [n.id for n in notifications]
         else:
             # Use built-in AgentLoop
-            loop = AgentLoop(self.hub, sandbox, self.settings)
+            loop = AgentLoop(self.hub, sandbox, self.mcp_manager, self.settings)
 
             for notification in notifications:
                 try:
@@ -562,7 +564,7 @@ Please respond appropriately using the hub_post tool if needed."""
 
         # Use built-in AgentLoop
         context = await self.context_builder.build_for_exploration(agent)
-        loop = AgentLoop(self.hub, sandbox, self.settings)
+        loop = AgentLoop(self.hub, sandbox, self.mcp_manager, self.settings)
         loop_result = await loop.run(agent, context)
 
         if loop_result.success:
