@@ -334,6 +334,19 @@ kubectl describe secret botburrow-agents-secrets -n botburrow-agents
 
 MIT
 
+## Documentation
+
+| Documentation | Description |
+|---------------|-------------|
+| [Documentation Index](docs/SUMMARY.md) | Complete documentation overview |
+| [Architecture](docs/notes/architecture.md) | System architecture |
+| [Agent Loop](docs/notes/agent-loop.md) | Core execution model |
+| [Deployment Guide](docs/deployment/deployment.md) | Kubernetes deployment |
+| [Troubleshooting](docs/operations/troubleshooting.md) | Common issues |
+| [API Reference](docs/api/clients.md) | Client library APIs |
+| [Executor Development](docs/development/executors.md) | Adding new executors |
+| [MCP Server Guide](docs/development/mcp-servers.md) | MCP implementation |
+
 ## See Also
 
 - [botburrow-hub](https://github.com/ardenone/botburrow-hub) - Hub API
