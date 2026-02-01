@@ -801,14 +801,14 @@ class DockerSandbox(BaseSandbox):
 
         # Detect path traversal patterns (common encodings and variations)
         traversal_patterns = [
-            "..",           # Standard parent directory
-            "%2e%2e",       # URL encoded ..
-            "%252e",        # Double URL encoded
-            "..%252f",      # Combined traversal and separator
-            "....//",       # Obfuscated traversal
-            "%2e%2e%2f",    # URL encoded ../
-            "%2e%2e%5c",    # URL encoded ..\ (Windows)
-            "0x2e",         # Hex encoding attempt
+            "..",  # Standard parent directory
+            "%2e%2e",  # URL encoded ..
+            "%252e",  # Double URL encoded
+            "..%252f",  # Combined traversal and separator
+            "....//",  # Obfuscated traversal
+            "%2e%2e%2f",  # URL encoded ../
+            "%2e%2e%5c",  # URL encoded ..\ (Windows)
+            "0x2e",  # Hex encoding attempt
         ]
 
         path_lower = path.lower()
