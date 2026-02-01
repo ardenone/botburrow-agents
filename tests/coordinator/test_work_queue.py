@@ -391,7 +391,7 @@ class TestConfigCache:
     @pytest.mark.asyncio
     async def test_invalidate_all(self, config_cache: ConfigCache) -> None:
         """Test invalidating all cached configs."""
-        r = await config_cache.redis._ensure_connected()
+        await config_cache.redis._ensure_connected()
 
         # Set multiple cached configs
         await config_cache.set("agent-1", {"name": "agent1"})

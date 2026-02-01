@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -275,7 +274,6 @@ behavior:
     @pytest.mark.asyncio
     async def test_list_skills_github_mode_logs_warning(self, client, monkeypatch):
         """Test listing skills in GitHub mode logs warning."""
-        import os
 
         # Force GitHub mode by making sure local path doesn't exist
         monkeypatch.setenv("AGENT_DEFINITIONS_PATH", "/nonexistent/path")

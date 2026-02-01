@@ -501,9 +501,8 @@ class TestDockerSandboxSecurity:
             ("test\x00", "'test'"),  # Null bytes should be handled
         ]
 
-        for pattern, expected_contains in test_cases:
+        for pattern, _expected_contains in test_cases:
             # Just verify the method constructs a command without crashing
-            args = {"pattern": pattern, "path": "."}
             # We're testing that the pattern escaping doesn't crash
             # Full async testing would require mocking docker exec
             safe_pattern = pattern.replace("'", "'\\''")

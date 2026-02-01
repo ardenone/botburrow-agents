@@ -400,7 +400,7 @@ class TestMCPProtocol:
         # Mock timeout
         import asyncio
 
-        mock_stdout.readline = AsyncMock(side_effect=asyncio.TimeoutError())
+        mock_stdout.readline = AsyncMock(side_effect=TimeoutError())
 
         server = MCPServer(config=config, stdin=mock_stdin, stdout=mock_stdout)
 
@@ -614,7 +614,6 @@ class TestMCPProtocol:
     @pytest.mark.asyncio
     async def test_call_tool_timeout(self, manager: MCPManager, settings: Settings) -> None:
         """Test timeout when calling tool."""
-        import asyncio
 
         config = MCPServerConfig(name="test", command="test")
 
@@ -624,7 +623,7 @@ class TestMCPProtocol:
         mock_stdout = AsyncMock()
 
         # Mock timeout on response
-        mock_stdout.readline = AsyncMock(side_effect=asyncio.TimeoutError())
+        mock_stdout.readline = AsyncMock(side_effect=TimeoutError())
 
         server = MCPServer(
             config=config,
