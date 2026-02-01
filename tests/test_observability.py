@@ -343,3 +343,83 @@ class TestPrometheusMetricDefinitions:
     def test_token_metrics_exist(self) -> None:
         """Test token consumption metrics are defined."""
         assert TOKENS_CONSUMED is not None
+
+
+class TestCacheInvalidationWebhook:
+    """Tests for cache invalidation webhook endpoint."""
+
+    @pytest.fixture
+    def mock_config_cache(self) -> AsyncMock:
+        """Create mock config cache."""
+        cache = AsyncMock()
+        return cache
+
+    @pytest.fixture
+    def server_with_cache(self, mock_config_cache: AsyncMock) -> MetricsServer:
+        """Create test metrics server with config cache."""
+        return MetricsServer(port=19091, host="127.0.0.1", config_cache=mock_config_cache)
+
+    async def test_invalidate_all_cache(self, server_with_cache: MetricsServer) -> None:
+        """Test invalidating all cached configs."""
+        await server_with_cache.start()
+
+        try:
+            # Create mock request without agent parameter
+            mock_request = MagicMock()
+            mock_request.query = {}
+
+            response = await server_with_cache._invalidate_cache_handler(mock_request)
+
+            assert response.status == 200
+            server_with_cache.config_cache.invalidate_all.assert_called_once()
+        finally:
+            await server_with_cache.stop()
+
+    async def test_invalidate_specific_agent_cache(self, server_with_cache: MetricsServer) -> None:
+        """Test invalidating a specific agent's cache."""
+        await server_with_cache.start()
+
+        try:
+            # Create mock request with agent parameter
+            mock_request = MagicMock()
+            mock_request.query.get.return_value = "test-agent-1"
+
+            response = await server_with_cache._invalidate_cache_handler(mock_request)
+
+            assert response.status == 200
+            server_with_cache.config_cache.invalidate.assert_called_once_with("test-agent-1")
+        finally:
+            await server_with_cache.stop()
+
+    async def test_invalidate_cache_without_config_cache(self) -> None:
+        """Test cache invalidation when no config cache is configured."""
+        server = MetricsServer(port=19092, host="127.0.0.1", config_cache=None)
+        await server.start()
+
+        try:
+            mock_request = MagicMock()
+            mock_request.query = {}
+
+            # Should not raise
+            response = await server._invalidate_cache_handler(mock_request)
+
+            assert response.status == 200
+        finally:
+            await server.stop()
+
+    async def test_invalidate_cache_handles_error(self, server_with_cache: MetricsServer) -> None:
+        """Test that cache invalidation errors are handled gracefully."""
+        # Make cache raise an error
+        server_with_cache.config_cache.invalidate_all.side_effect = Exception("Cache error")
+
+        await server_with_cache.start()
+
+        try:
+            mock_request = MagicMock()
+            mock_request.query = {}
+
+            response = await server_with_cache._invalidate_cache_handler(mock_request)
+
+            assert response.status == 500
+        finally:
+            await server_with_cache.stop()
