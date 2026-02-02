@@ -1,5 +1,5 @@
 # CI/CD Pipeline for botburrow-agents
-# Builds Docker images and deploys to apexalgo-iad cluster
+# Builds Docker images and pushes to Docker Hub
 
 name: Build and Deploy
 
@@ -9,10 +9,10 @@ on:
     tags: ['v*']
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ardenone/botburrow-agents
+  IMAGE_NAME: botburrow-agents
 
 jobs:
   # Build and test Python package
@@ -59,9 +59,7 @@ jobs:
     name: Build Docker Images
     runs-on: ubuntu-latest
     needs: test
-    permissions:
-      contents: read
-      packages: write
+    if: github.event_name != 'pull_request'
 
     steps:
       - name: Checkout
@@ -70,119 +68,31 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to GHCR
+      - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=sha,prefix={{branch}}-
-            type=raw,value=latest,enable={{is_default_branch}}
+      - name: Determine version
+        id: version
+        run: |
+          SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
+          echo "tag=${SHORT_SHA}" >> $GITHUB_OUTPUT
+          echo "Version tag: ${SHORT_SHA}"
 
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
           context: .
           file: docker/Dockerfile
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          push: true
+          tags: |
+            docker.io/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.tag }}
+            docker.io/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest
+          labels: |
+            org.opencontainers.image.version=${{ steps.version.outputs.tag }}
+            org.opencontainers.image.revision=${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64
-
-  # Deploy to apexalgo-iad (requires KUBECONFIG_APEXALGO_IAD secret)
-  deploy:
-    name: Deploy to apexalgo-iad
-    runs-on: ubuntu-latest
-    needs: build
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    environment:
-      name: production
-      url: https://botburrow-hub.ardenone.cluster.local
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Check if secret is set
-        id: check-secret
-        run: |
-          if [ -z "${{ secrets.KUBECONFIG_APEXALGO_IAD }}" ]; then
-            echo "Secret KUBECONFIG_APEXALGO_IAD not set, skipping deployment"
-            echo "secret_set=false" >> $GITHUB_OUTPUT
-          else
-            echo "Secret KUBECONFIG_APEXALGO_IAD is set"
-            echo "secret_set=true" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Set up kubectl using proxy
-        if: steps.check-secret.outputs.secret_set == 'true'
-        run: |
-          # Install kubectl
-          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-          chmod +x kubectl
-          sudo mv kubectl /usr/local/bin/
-
-          # Configure kubectl to use the proxy
-          export KUBECONFIG=/tmp/kubeconfig
-          echo "${{ secrets.KUBECONFIG_APEXALGO_IAD }}" | base64 -d > /tmp/kubeconfig
-
-          # Test connection
-          kubectl get nodes
-
-      - name: Apply Kubernetes manifests
-        if: steps.check-secret.outputs.secret_set == 'true'
-        env:
-          KUBECONFIG: /tmp/kubeconfig
-        run: |
-          kubectl apply -f k8s/apexalgo-iad/namespace.yaml
-          kubectl apply -f k8s/apexalgo-iad/rbac.yaml
-          kubectl apply -f k8s/apexalgo-iad/configmap.yaml
-          kubectl apply -f k8s/apexalgo-iad/secrets.yaml
-          kubectl apply -f k8s/apexalgo-iad/valkey.yaml
-
-          # Update image tag in deployments
-          kubectl set image deployment/coordinator \
-            coordinator=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:main \
-            -n botburrow-agents || true
-
-          kubectl set image deployment/runner-notification \
-            runner=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:main \
-            -n botburrow-agents || true
-
-          kubectl set image deployment/runner-exploration \
-            runner=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:main \
-            -n botburrow-agents || true
-
-          kubectl set image deployment/runner-hybrid \
-            runner=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:main \
-            -n botburrow-agents || true
-
-      - name: Wait for rollout
-        if: steps.check-secret.outputs.secret_set == 'true'
-        env:
-          KUBECONFIG: /tmp/kubeconfig
-        run: |
-          kubectl rollout status deployment/coordinator -n botburrow-agents --timeout=5m || true
-          kubectl rollout status deployment/runner-notification -n botburrow-agents --timeout=5m || true
-          kubectl rollout status deployment/runner-hybrid -n botburrow-agents --timeout=5m || true
-
-      - name: Verify deployment
-        if: steps.check-secret.outputs.secret_set == 'true'
-        env:
-          KUBECONFIG: /tmp/kubeconfig
-        run: |
-          kubectl get pods -n botburrow-agents
-          kubectl get services -n botburrow-agents
