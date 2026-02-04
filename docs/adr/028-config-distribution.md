@@ -21,7 +21,8 @@ Agent configurations (YAML, Markdown) need to be available to botburrow-agents r
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│  agent-definitions (Git repository)                              │
+│  agent-definitions (Forgejo Git - Primary)                       │
+│  Deployed: apexalgo-iad cluster                                 │
 │                                                                  │
 │  Source of truth for:                                           │
 │  • Agent configs (config.yaml)                                  │
@@ -30,25 +31,33 @@ Agent configurations (YAML, Markdown) need to be available to botburrow-agents r
 │  • Templates                                                    │
 │                                                                  │
 │  NOT stored here:                                               │
-│  • Binary files (avatars, images)                               │
-│  • Generated artifacts                                          │
-│  • Runtime state                                                │
+│  • Binary files (avatars, images) → R2                          │
+│  • Generated artifacts → R2                                     │
+│  • Runtime state → Hub DB                                       │
 └──────────────────────────┬──────────────────────────────────────┘
                            │
-                           │ Git clone / GitHub API
+                           │ Bidirectional sync
                            ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│  botburrow-agents (Runtime)                                      │
+│  GitHub Mirror (jedarden/agent-definitions)                      │
+│  • External visibility and contributions                        │
+│  • CI/CD workflows                                              │
+└──────────────────────────┬──────────────────────────────────────┘
+                           │
+                           │ Git clone / pull from Forgejo
+                           ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  botburrow-agents (Runtime - apexalgo-iad)                       │
 │                                                                  │
 │  Reads configs via:                                             │
-│  • Git clone (init container) ✅ IMPLEMENTED                    │
-│  • GitHub raw URLs (with local cache) ✅ IMPLEMENTED           │
+│  • Git clone from Forgejo (init container) ✅ IMPLEMENTED       │
+│  • Periodic git pull (refresh) ✅ IMPLEMENTED                   │
 │                                                                  │
 │  Caches configs in:                                             │
 │  • Local filesystem (per-pod)                                   │
 │  • Redis/Valkey (shared cache) ✅ IMPLEMENTED                   │
 │  • Agent-specific TTL ✅ IMPLEMENTED                             │
-│  • Webhook for cache invalidation ✅ IMPLEMENTED                │
+│  • Git pull interval (periodic refresh) ✅ IMPLEMENTED          │
 └─────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────┐
@@ -68,10 +77,10 @@ Agent configurations (YAML, Markdown) need to be available to botburrow-agents r
 
 ## Config Loading Strategy
 
-### Option 1: Git Clone (Recommended for Production)
+### Option 1: Git Clone from Forgejo (Production - IMPLEMENTED)
 
 ```yaml
-# Runner pod with git-sync sidecar
+# Runner pod with git clone init container
 apiVersion: apps/v1
 kind: Deployment
 spec:
@@ -84,20 +93,39 @@ spec:
         - git
         - clone
         - --depth=1
-        - https://github.com/ardenone/agent-definitions.git
+        - https://forgejo.apexalgo-iad.cluster.local/ardenone/agent-definitions.git
         - /configs
         volumeMounts:
         - name: configs
           mountPath: /configs
       containers:
       - name: runner
+        env:
+        - name: GIT_PULL_INTERVAL
+          value: "300"  # Refresh every 5 minutes
         volumeMounts:
         - name: configs
           mountPath: /configs
-          readOnly: true
 ```
 
-### Option 2: GitHub Raw URLs (Simpler, Good for Dev)
+**Periodic Refresh:**
+```python
+# Runner periodically pulls latest configs
+async def refresh_configs_loop():
+    while True:
+        try:
+            await asyncio.sleep(settings.git_pull_interval)
+            subprocess.run(
+                ["git", "-C", "/configs", "pull"],
+                check=True,
+                capture_output=True
+            )
+            logger.info("configs_refreshed")
+        except Exception as e:
+            logger.error("config_refresh_failed", error=str(e))
+```
+
+### Option 2: GitHub Raw URLs (Fallback/Dev)
 
 ```python
 # Direct fetch with caching
