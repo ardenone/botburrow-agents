@@ -12,49 +12,65 @@ Agent configurations (YAML, Markdown) need to be available to botburrow-agents r
 - R2 is for binary files not suitable for git
 - Syncing creates duplication and complexity
 - Git already provides versioning, history, and access control
+- Different organizations/teams may want separate git repositories
+- Users should be able to choose their git provider (Forgejo, GitHub, GitLab, etc.)
 
 ## Decision
 
-**Agent configs are read directly from git. R2 is only for binary assets.**
+**Agent configs are read directly from user-configured git repositories (supports multiple sources). R2 is only for binary assets. Runners clone and periodically refresh from all configured git sources.**
 
 ## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│  agent-definitions (Forgejo Git - Primary)                       │
-│  Deployed: apexalgo-iad cluster                                 │
+│  AGENT DEFINITION SOURCES (User-configurable)                   │
 │                                                                  │
-│  Source of truth for:                                           │
+│  Repository 1 (e.g., Forgejo - Internal)                        │
+│  └─→ https://forgejo.example.com/org/agent-definitions.git      │
+│      ├── agents/ (claude-coder-1, devops-agent)                 │
+│      ├── skills/                                                │
+│      └── templates/                                             │
+│                                                                  │
+│  Repository 2 (e.g., GitHub - Public)                           │
+│  └─→ https://github.com/org/public-agents.git                   │
+│      ├── agents/ (research-agent, social-agent)                 │
+│      └── skills/                                                │
+│                                                                  │
+│  Repository 3 (e.g., GitLab - Team)                             │
+│  └─→ https://gitlab.com/team/specialized-agents.git             │
+│      └── agents/ (data-analyst)                                 │
+│                                                                  │
+│  Each repository contains:                                      │
 │  • Agent configs (config.yaml)                                  │
 │  • System prompts (system-prompt.md)                            │
 │  • Skill definitions (SKILL.md)                                 │
 │  • Templates                                                    │
 │                                                                  │
-│  NOT stored here:                                               │
+│  NOT stored in git:                                             │
 │  • Binary files (avatars, images) → R2                          │
 │  • Generated artifacts → R2                                     │
 │  • Runtime state → Hub DB                                       │
 └──────────────────────────┬──────────────────────────────────────┘
                            │
-                           │ Bidirectional sync
-                           ▼
-┌─────────────────────────────────────────────────────────────────┐
-│  GitHub Mirror (jedarden/agent-definitions)                      │
-│  • External visibility and contributions                        │
-│  • CI/CD workflows                                              │
-└──────────────────────────┬──────────────────────────────────────┘
-                           │
-                           │ Git clone / pull from Forgejo
+                           │ Git clone / pull (all configured repos)
                            ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │  botburrow-agents (Runtime - apexalgo-iad)                       │
 │                                                                  │
+│  Configuration: repos.json or AGENT_REPOS env var              │
+│  [                                                              │
+│    {"url": "https://forgejo.example.com/...", "path": "/r1"},  │
+│    {"url": "https://github.com/...", "path": "/r2"},           │
+│    {"url": "git@gitlab.com:...", "path": "/r3"}                │
+│  ]                                                              │
+│                                                                  │
 │  Reads configs via:                                             │
-│  • Git clone from Forgejo (init container) ✅ IMPLEMENTED       │
-│  • Periodic git pull (refresh) ✅ IMPLEMENTED                   │
+│  • Git clone (all repos in init containers) ✅ IMPLEMENTED      │
+│  • Periodic git pull (refresh all) ✅ IMPLEMENTED               │
+│  • Config source lookup from Hub DB ✅ NEEDED                   │
 │                                                                  │
 │  Caches configs in:                                             │
-│  • Local filesystem (per-pod)                                   │
+│  • Local filesystem (/configs/r1, /r2, /r3)                    │
 │  • Redis/Valkey (shared cache) ✅ IMPLEMENTED                   │
 │  • Agent-specific TTL ✅ IMPLEMENTED                             │
 │  • Git pull interval (periodic refresh) ✅ IMPLEMENTED          │
@@ -77,52 +93,179 @@ Agent configurations (YAML, Markdown) need to be available to botburrow-agents r
 
 ## Config Loading Strategy
 
-### Option 1: Git Clone from Forgejo (Production - IMPLEMENTED)
+### Multi-Repository Configuration
+
+Runners are configured with multiple git sources via ConfigMap or environment variable:
 
 ```yaml
-# Runner pod with git clone init container
+# ConfigMap with repository list
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: agent-repos
+  namespace: botburrow-agents
+data:
+  repos.json: |
+    [
+      {
+        "name": "internal-agents",
+        "url": "https://forgejo.apexalgo-iad.cluster.local/ardenone/agent-definitions.git",
+        "branch": "main",
+        "clone_path": "/configs/internal",
+        "auth_type": "none"
+      },
+      {
+        "name": "public-agents",
+        "url": "https://github.com/jedarden/agent-definitions.git",
+        "branch": "main",
+        "clone_path": "/configs/public",
+        "auth_type": "token",
+        "auth_secret": "github-token"
+      },
+      {
+        "name": "team-agents",
+        "url": "git@gitlab.com:myteam/specialized-agents.git",
+        "branch": "main",
+        "clone_path": "/configs/team",
+        "auth_type": "ssh",
+        "auth_secret": "gitlab-ssh-key"
+      }
+    ]
+```
+
+### Option 1: Git Clone (Production - Multi-Repo)
+
+```yaml
+# Runner pod with multiple git clone init containers
 apiVersion: apps/v1
 kind: Deployment
 spec:
   template:
     spec:
       initContainers:
-      - name: git-clone
+      # Clone repo 1 (Forgejo - internal)
+      - name: git-clone-internal
         image: alpine/git
         command:
-        - git
-        - clone
-        - --depth=1
-        - https://forgejo.apexalgo-iad.cluster.local/ardenone/agent-definitions.git
-        - /configs
+        - sh
+        - -c
+        - |
+          git clone --depth=1 --branch=main \
+            https://forgejo.apexalgo-iad.cluster.local/ardenone/agent-definitions.git \
+            /configs/internal
         volumeMounts:
         - name: configs
           mountPath: /configs
+
+      # Clone repo 2 (GitHub - public)
+      - name: git-clone-public
+        image: alpine/git
+        env:
+        - name: GIT_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: github-token
+              key: token
+        command:
+        - sh
+        - -c
+        - |
+          git clone --depth=1 --branch=main \
+            https://$GIT_TOKEN@github.com/jedarden/agent-definitions.git \
+            /configs/public
+        volumeMounts:
+        - name: configs
+          mountPath: /configs
+
+      # Clone repo 3 (GitLab - SSH)
+      - name: git-clone-team
+        image: alpine/git
+        command:
+        - sh
+        - -c
+        - |
+          mkdir -p ~/.ssh
+          cp /secrets/ssh-key ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan gitlab.com >> ~/.ssh/known_hosts
+          git clone --depth=1 --branch=main \
+            git@gitlab.com:myteam/specialized-agents.git \
+            /configs/team
+        volumeMounts:
+        - name: configs
+          mountPath: /configs
+        - name: gitlab-ssh-key
+          mountPath: /secrets
+
       containers:
       - name: runner
         env:
+        - name: AGENT_REPOS_CONFIG
+          value: /etc/config/repos.json
         - name: GIT_PULL_INTERVAL
           value: "300"  # Refresh every 5 minutes
         volumeMounts:
         - name: configs
           mountPath: /configs
+        - name: agent-repos
+          mountPath: /etc/config
+
+      volumes:
+      - name: configs
+        emptyDir: {}
+      - name: agent-repos
+        configMap:
+          name: agent-repos
+      - name: gitlab-ssh-key
+        secret:
+          secretName: gitlab-ssh-key
 ```
 
-**Periodic Refresh:**
+**Periodic Refresh (All Repos):**
 ```python
-# Runner periodically pulls latest configs
-async def refresh_configs_loop():
-    while True:
-        try:
-            await asyncio.sleep(settings.git_pull_interval)
-            subprocess.run(
-                ["git", "-C", "/configs", "pull"],
-                check=True,
-                capture_output=True
-            )
-            logger.info("configs_refreshed")
-        except Exception as e:
-            logger.error("config_refresh_failed", error=str(e))
+# In botburrow-agents/src/botburrow_agents/config_loader.py
+
+import json
+from pathlib import Path
+
+class MultiRepoConfigLoader:
+    def __init__(self, repos_config_path: str):
+        with open(repos_config_path) as f:
+            self.repos = json.load(f)
+
+    async def refresh_all_repos(self):
+        """Pull latest changes from all configured repos."""
+        for repo in self.repos:
+            try:
+                await asyncio.sleep(settings.git_pull_interval)
+                result = subprocess.run(
+                    ["git", "-C", repo["clone_path"], "pull"],
+                    check=True,
+                    capture_output=True,
+                    timeout=30
+                )
+                logger.info("repo_refreshed", repo=repo["name"])
+            except Exception as e:
+                logger.error("repo_refresh_failed", repo=repo["name"], error=str(e))
+
+    def find_agent_config(self, agent_name: str, config_source: str) -> Path:
+        """Find agent config in the correct repository."""
+        # Match by config_source URL
+        for repo in self.repos:
+            if self._urls_match(repo["url"], config_source):
+                config_path = Path(repo["clone_path"]) / "agents" / agent_name / "config.yaml"
+                if config_path.exists():
+                    return config_path
+
+        # Fallback: search all repos
+        for repo in self.repos:
+            config_path = Path(repo["clone_path"]) / "agents" / agent_name / "config.yaml"
+            if config_path.exists():
+                logger.warning("agent_found_without_source_match",
+                             agent=agent_name, repo=repo["name"])
+                return config_path
+
+        raise FileNotFoundError(f"Config for {agent_name} not found in any repo")
 ```
 
 ### Option 2: GitHub Raw URLs (Fallback/Dev)
@@ -224,20 +367,106 @@ jobs:
             -H "Authorization: Bearer $WEBHOOK_KEY"
 ```
 
+## Authentication Methods
+
+### None (Public Repos)
+
+```yaml
+{
+  "url": "https://github.com/public/agents.git",
+  "auth_type": "none"
+}
+```
+
+### Token (HTTPS with Personal Access Token)
+
+```yaml
+{
+  "url": "https://github.com/org/private-agents.git",
+  "auth_type": "token",
+  "auth_secret": "github-token"  # Kubernetes secret name
+}
+```
+
+```yaml
+# Kubernetes Secret
+apiVersion: v1
+kind: Secret
+metadata:
+  name: github-token
+type: Opaque
+stringData:
+  token: "ghp_xxxxxxxxxxxx"
+```
+
+### SSH Key (Git over SSH)
+
+```yaml
+{
+  "url": "git@gitlab.com:org/agents.git",
+  "auth_type": "ssh",
+  "auth_secret": "gitlab-ssh-key"
+}
+```
+
+```yaml
+# Kubernetes Secret
+apiVersion: v1
+kind: Secret
+metadata:
+  name: gitlab-ssh-key
+type: Opaque
+stringData:
+  id_rsa: |
+    -----BEGIN OPENSSH PRIVATE KEY-----
+    ...
+    -----END OPENSSH PRIVATE KEY-----
+```
+
+### Basic Auth (Username/Password)
+
+```yaml
+{
+  "url": "https://git.internal.com/agents.git",
+  "auth_type": "basic",
+  "auth_secret": "git-basic-auth"
+}
+```
+
+```yaml
+# Kubernetes Secret
+apiVersion: v1
+kind: Secret
+metadata:
+  name: git-basic-auth
+type: Opaque
+stringData:
+  username: "bot-user"
+  password: "secret-password"
+```
+
 ## Consequences
 
 ### Positive
-- Simpler architecture (no R2 sync for text files)
-- Configs are always in git (single source of truth)
-- Standard git workflow for config changes
-- No sync lag or consistency issues
+- **Flexible source configuration** - Users choose git provider and hosting
+- **Multi-repo support** - Different teams/orgs can manage separately
+- **No vendor lock-in** - Works with any git provider (Forgejo, GitHub, GitLab, Gitea, Bitbucket, etc.)
+- **Standard git workflow** - Familiar tools and processes
+- **No sync lag** - Direct git pull, no intermediate sync layer
+- **Mixed public/private** - Can combine public and private repos
+- **Multiple auth methods** - Supports HTTPS tokens, SSH keys, basic auth
 
 ### Negative
-- Runners need git access or GitHub API access
-- Cache invalidation requires webhook or polling
-- Slightly more complex runner init
+- **More complex configuration** - Multiple repos need individual setup
+- **Authentication management** - Different repos may need different auth methods
+- **Increased storage** - Multiple repos cloned on each runner pod
+- **Multiple init containers** - One per repo slows pod startup
+- **Credential sprawl** - Many secrets to manage
 
 ### Mitigations
-- Git clone is a one-time init cost
-- Cache TTL handles most freshness needs
-- Webhook for immediate invalidation when needed
+- **Default to single repo** - Simple deployments still simple
+- **Centralized secret management** - All auth secrets in Kubernetes
+- **Shallow clones** - Use `--depth=1` to minimize storage
+- **Parallel init** - Init containers run sequentially but can be optimized
+- **Secret rotation** - Standard Kubernetes secret rotation practices
+- **Config validation** - Validate repos.json before deployment
