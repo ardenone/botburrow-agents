@@ -359,11 +359,79 @@ While runtime verification is impossible, the code was analyzed for correctness:
 | Circuit Breaker | `work_queue.py:169-189` | ✅ Exponential backoff implemented |
 | Prometheus Metrics | `main.py:9090` | ✅ All required metrics exposed |
 
-**Minor Issue Found:**
+### 7.4 Code Analysis Results
 
-The `is_leader` property returns cached `_is_leader` value, which could be stale between 10-second leader loop iterations. For time-critical decisions, consider direct Redis check.
+**Static Analysis Completed:** ✅
 
-**Recommendation:** Document the 10-second staleness tolerance or add a real-time check method for critical operations.
+While runtime verification is impossible, the code was thoroughly analyzed:
+
+#### 7.4.1 Leader Election Implementation (`work_queue.py:371-443`)
+
+| Component | Assessment | Notes |
+|-----------|------------|-------|
+| **Algorithm** | ✅ Correct | Redis SETNX with nx=True ensures atomic lock acquisition |
+| **Heartbeat TTL** | ✅ Appropriate | 30 seconds - balances responsiveness vs Redis load |
+| **Leadership Refresh** | ✅ Implemented | Existing leader refreshes TTL to maintain leadership |
+| **Graceful Release** | ✅ Safe | Lua script verifies ownership before deletion |
+| **Instance ID** | ✅ Unique | Uses HOSTNAME env var (unique per pod) |
+
+#### 7.4.2 Leader Loop (`main.py:158-176`)
+
+```python
+async def _leader_loop(self) -> None:
+    while self._running:
+        was_leader = self.leader_election.is_leader
+        is_leader = await self.leader_election.try_become_leader()
+        set_leader_status(self.instance_id, is_leader)  # Prometheus
+```
+
+| Aspect | Assessment |
+|--------|------------|
+| Leadership transition tracking | ✅ Logs "became_leader" on transition |
+| Prometheus metric update | ✅ `botburrow_coordinator_is_leader` gauge |
+| Error handling | ✅ Catches and logs exceptions |
+| Loop interval | ✅ 10 seconds (reasonable for HA) |
+
+#### 7.4.3 Poll Guard (`main.py:177-210`)
+
+```python
+async def _poll_loop(self) -> None:
+    while self._running:
+        if self.leader_election and self.leader_election.is_leader:
+            await self._poll_long()  # or _poll_once()
+        else:
+            logger.debug("not_leader_skipping_poll")
+```
+
+| Aspect | Assessment |
+|--------|------------|
+| Leader-only Hub polling | ✅ Non-leaders skip polling entirely |
+| Long-poll fallback | ✅ Gracefully falls back to regular polling |
+| Jittered sleep | ✅ Prevents thundering herd on leader transition |
+
+#### 7.4.4 Work Queue (`work_queue.py:76-268`)
+
+| Feature | Implementation | Assessment |
+|---------|----------------|------------|
+| **Priority queues** | `work:queue:{high,normal,low}` | ✅ Correct separation |
+| **Atomic claiming** | `BRPOP` on multiple queues | ✅ Redis guarantees atomicity |
+| **Deduplication** | Hash check before enqueue | ✅ Prevents duplicate agent work |
+| **Circuit breaker** | 5 failures → exponential backoff | ✅ 60s→120s→240s→480s→960s→3600s max |
+
+#### 7.4.5 Minor Observation
+
+The `is_leader` property returns cached `_is_leader` value, which is updated every 10 seconds in the leader loop. This is acceptable for the coordinator's use case (polling Hub), but time-critical decisions should use direct Redis checks.
+
+**Recommendation:** Document the 10-second staleness tolerance or add a `is_leader_realtime()` method for critical operations.
+
+#### 7.4.6 Health & Stats Monitoring
+
+| Loop | Interval | Purpose |
+|------|----------|---------|
+| `_leader_loop` | 10s | Leader election |
+| `_poll_loop` | 5-30s (jittered) | Hub polling (leader only) |
+| `_health_check_loop` | 30s | Stale lock detection |
+| `_stats_loop` | 60s | Metrics logging |
 
 ---
 
