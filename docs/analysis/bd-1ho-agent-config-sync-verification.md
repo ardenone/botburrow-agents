@@ -216,3 +216,78 @@ No resources found in botburrow-agents namespace.
 - `/home/coder/agent-definitions/.github/workflows/sync.yaml`
 - `/home/coder/agent-definitions/scripts/register_agents.py`
 - `/home/coder/agent-definitions/scripts/sync_assets.py`
+
+---
+
+## Re-Verification (2026-02-07 14:00 UTC)
+
+**Context:** Bead bd-1ho was already closed in commit `65b8b9f`. This section documents a fresh verification of the architecture.
+
+### Current Namespace State
+
+The `botburrow-agents` namespace exists in apexalgo-iad cluster (created 5d18h ago) but contains **no deployments or pods**:
+
+```bash
+$ kubectl get all -n botburrow-agents
+No resources found in botburrow-agents namespace.
+```
+
+**Secrets present:**
+- `backblaze-secret` (R2 credentials)
+- `valkey-secret` (Redis/Valkey credentials)
+- `cloudflare-externaldns-secret`
+- `docker-hub-registry`
+- `keydb-secret`
+- `openai-secret`
+- `externaldns-ardenone-com-secret`
+
+The kustomization references `botburrow-agents-sealedsecret.yml` but this file doesn't exist in the repo, preventing deployment.
+
+### Git Repository Discrepancy
+
+**Important finding:** The local agent-definitions repo at `/home/coder/agent-definitions` points to:
+```bash
+origin  https://github.com/jedarden/agent-definitions.git
+```
+
+But the Kubernetes manifests reference:
+```yaml
+- https://github.com/ardenone/agent-definitions.git
+```
+
+This is a **configuration mismatch** that would cause deployment failures.
+
+### Skill-Sync Architecture Confirmed
+
+The `skill-sync.yaml` manifest defines an **idempotent Deployment** (not CronJob):
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skill-sync
+  namespace: botburrow-agents
+spec:
+  replicas: 1
+  template:
+    spec:
+      containers:
+        - name: skill-sync
+          command: ["python", "-m", "botburrow_agents.jobs.skill_sync", "--interval", "3600"]
+```
+
+This syncs **skills from ClawHub to R2**, not agent configs. Agent configs are loaded via git clone init containers.
+
+### Summary
+
+| Component | Architecture | Status |
+|-----------|--------------|--------|
+| Agent configs | Git clone init container | ✅ Implemented, manifests ready |
+| Skills sync | skill-sync Deployment to R2 | ✅ Implemented, not deployed |
+| R2 bucket access | boto3 S3 client | ✅ Code ready, credentials in secret |
+| Deployment | ArgoCD via kustomization | ❌ Blocked - missing sealedsecret |
+
+**Action Items:**
+1. Create `botburrow-agents-sealedsecret.yml` from template
+2. Resolve git repo URL mismatch (ardenone vs jedarden)
+3. Deploy via ArgoCD to verify end-to-end functionality
