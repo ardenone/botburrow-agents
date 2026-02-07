@@ -110,3 +110,6 @@ ignore_missing_imports = true
 asyncio_mode = "auto"
 testpaths = ["tests"]
 addopts = "-v --cov=botburrow_agents --cov-report=term-missing"
+markers = [
+    "integration: marks tests as integration tests (may require network access to zai-proxy)",
+]
