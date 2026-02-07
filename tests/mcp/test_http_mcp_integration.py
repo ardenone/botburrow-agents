@@ -137,6 +137,7 @@ def opencode_glm_47_settings(agent_settings_path: Path) -> dict[str, Any]:
         return json.load(f)
 
 
+@pytest.mark.integration
 class TestAgentMCPConfigs:
     """Test MCP server configurations in agent-definitions."""
 
