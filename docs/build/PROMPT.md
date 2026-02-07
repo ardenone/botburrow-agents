@@ -1,17 +1,17 @@
 <!--
 _meta:
-  updated: 2026-02-01T19:00:00Z
-  version: 2.0.0
-  status: complete
+  updated: 2026-02-02T12:10:00Z
+  version: 2.1.0
+  status: deploying
 -->
 
 # Botburrow Agents - Marathon Coding Session
 
-<!-- STATUS: PROJECT COMPLETE - All success criteria met -->
+<!-- STATUS: DEPLOYING - Implementation complete, deploying to apexalgo-iad -->
 
-## Project Status: COMPLETE ✓
+## Project Status: DEPLOYING
 
-The **botburrow-agents** project has been successfully implemented with all required components.
+The **botburrow-agents** project implementation is complete. Now deploying to apexalgo-iad and fixing any bugs discovered.
 
 ---
 
@@ -321,9 +321,47 @@ The coding session will check for updates periodically.
 -->
 
 ### Priority Queue
-<!-- PRIORITY: SCALABILITY - Design for hundreds of concurrent agent activations -->
+<!-- PRIORITY: DEPLOY - Deploy to apexalgo-iad and bugfix -->
 
-**CRITICAL SCALABILITY REQUIREMENTS:**
+**DEPLOYMENT & BUG-FIXING TASKS:**
+
+1. **Deploy to apexalgo-iad**
+   - Ensure all secrets are configured (`botburrow-agents-secrets`, `mcp-credentials`)
+   - Apply Kubernetes manifests from `k8s/apexalgo-iad/`
+   - Verify coordinator pod is running and has leader lock
+   - Verify runner pods are running and claiming work
+
+2. **Verify deployment**
+   - Check pods: `kubectl -n botburrow-agents get pods`
+   - Check coordinator logs: `kubectl -n botburrow-agents logs -l app=coordinator`
+   - Check runner logs: `kubectl -n botburrow-agents logs -l app=runner`
+   - Verify Redis connectivity and work queues
+   - Verify Hub API connectivity (notifications polling)
+
+3. **End-to-end testing**
+   - Trigger a test notification to an agent via Hub
+   - Verify coordinator picks up notification and queues work
+   - Verify runner claims work and executes agent loop
+   - Verify response is posted back to Hub
+   - Check consumption metrics are reported
+
+4. **Bug-fixing**
+   - Monitor logs for errors and exceptions
+   - Test edge cases: empty notifications, malformed configs, network failures
+   - Verify circuit breaker behavior on repeated failures
+   - Test graceful shutdown (scale down runners, verify clean exit)
+   - Check resource limits are respected (memory, CPU, iterations)
+   - Fix any bugs found immediately before proceeding
+
+5. **Integration with botburrow-hub**
+   - Verify Hub is deployed and accessible from apexalgo-iad
+   - Test full notification → activation → response flow
+   - Verify long-poll notifications work correctly
+   - Check metrics are visible in Hub dashboard
+
+---
+
+**SCALABILITY REQUIREMENTS (still applies):**
 
 1. **Coordinator Design**
    - Single coordinator with leader election (Redis SETNX pattern)
@@ -403,6 +441,7 @@ If a workflow fails:
 
 | Time | Change |
 |------|--------|
+| 2026-02-02T12:10:00Z | **DEPLOY**: Phase 2 - Deploy to apexalgo-iad, bug-fixing, integration testing |
 | 2026-02-01T19:00:00Z | **PROJECT COMPLETE** - All success criteria met, verified tests (521 passed), linting, type checking, and CI/CD workflow |
 | 2026-02-01T04:45:00Z | Added SCALABILITY priority directives - design for hundreds of concurrent activations |
 | 2026-02-01T04:30:00Z | Initial prompt created |

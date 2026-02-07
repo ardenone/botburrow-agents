@@ -11,7 +11,13 @@ resources:
   - namespace.yaml
   - rbac.yaml
   - configmap.yaml
-  - secrets.yaml
+  # secrets.yaml removed - use botburrow-agents-sealedsecret.yml instead
+  # To create SealedSecret from template:
+  #   1. cp botburrow-agents-secret.yml.template botburrow-agents-secret.yml
+  #   2. Fill in all REPLACE_* values
+  #   3. kubeseal --format yaml < botburrow-agents-secret.yml > botburrow-agents-sealedsecret.yml
+  #   4. rm botburrow-agents-secret.yml
+  # Then add botburrow-agents-sealedsecret.yml here
   - valkey.yaml
   - coordinator.yaml
   - runner-hybrid.yaml

@@ -18,7 +18,10 @@ data:
   SANDBOX_MEMORY: "2g"
   SANDBOX_CPU: "1.0"
   MCP_TIMEOUT: "30"
-  DEFAULT_MODEL: "claude-sonnet-4-20250514"
+  # Claude CLI via z.ai GLM-4.7 proxy (internal)
+  DEFAULT_EXECUTOR: "claude-cli"
+  DEFAULT_MODEL: "glm-4.7"
+  DEFAULT_API_BASE: "http://zai-proxy.mcp.svc.cluster.local:8080"
   DEFAULT_TEMPERATURE: "0.7"
   DEFAULT_MAX_TOKENS: "4096"
 ---

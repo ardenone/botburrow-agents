@@ -370,7 +370,26 @@ EOF
     local exec_output="/tmp/bead-exec-$bead_id-$$.log"
 
     # Check if stream parser exists
-    local parser_script="$SCRIPT_DIR/stream-parser.sh"
+    local parser_script=""
+    case "$EXECUTOR" in
+        claude-glm)
+            parser_script="$HOME/claude-config/agents/claude-code-glm-4.7/stream-parser.sh"
+            ;;
+        claude-sonnet)
+            parser_script="$HOME/claude-config/agents/claude-code-sonnet/stream-parser.sh"
+            ;;
+        claude-opus)
+            parser_script="$HOME/claude-config/agents/claude-code-opus/stream-parser.sh"
+            ;;
+        opencode-glm)
+            # OpenCode uses its own pattern-based parser (not stream-json)
+            parser_script="$SCRIPT_DIR/stream-parser.sh"
+            ;;
+        *)
+            # Fallback to local stream parser
+            parser_script="$SCRIPT_DIR/stream-parser.sh"
+            ;;
+    esac
     local exit_code=0
 
     if [ -x "$parser_script" ]; then
