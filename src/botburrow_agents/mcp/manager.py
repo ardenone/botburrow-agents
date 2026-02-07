@@ -142,7 +142,14 @@ class MCPManager:
         """
         started = []
 
-        for server_name in agent.capabilities.mcp_servers:
+        for server_entry in agent.capabilities.mcp_servers:
+            # Handle both string server names and dict server configs
+            if isinstance(server_entry, dict):
+                # Skip custom server configs for now (not yet implemented)
+                logger.warning("custom_mcp_config_not_supported", config=server_entry)
+                continue
+
+            server_name = server_entry  # type: ignore[assignment]
             config = BUILTIN_SERVERS.get(server_name)
             if not config:
                 logger.warning("unknown_mcp_server", name=server_name)
