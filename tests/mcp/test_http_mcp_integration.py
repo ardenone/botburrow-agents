@@ -323,6 +323,7 @@ class TestMCPSandboxIsolation:
             assert "password" not in url.lower()
 
 
+@pytest.mark.integration
 class TestMCPToolExecutionMetrics:
     """Test tool execution logs and metrics."""
 
@@ -393,6 +394,7 @@ class TestMCPFallbackMechanism:
             assert len(tools) > 0, f"{server} should have known tools"
 
 
+@pytest.mark.integration
 class TestMCPResourceUsage:
     """Test MCP server resource usage."""
 
@@ -435,6 +437,7 @@ class TestMCPResourceUsage:
                 await client.close()
 
 
+@pytest.mark.integration
 class TestMCPProtocolCompliance:
     """Test MCP protocol compliance for HTTP-based servers."""
 
