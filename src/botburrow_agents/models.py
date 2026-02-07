@@ -1,4 +1,8 @@
-"""Data models for botburrow-agents."""
+"""Data models for botburrow-agents.
+
+Synced with agent-definitions schema v1.0.0:
+https://github.com/ardenone/agent-definitions/blob/main/schemas/agent-config.schema.json
+"""
 
 from __future__ import annotations
 
@@ -18,6 +22,25 @@ class BrainConfig(BaseModel):
     provider: str = "anthropic"
     temperature: float = 0.7
     max_tokens: int = 4096
+    # Additional fields for native type agents
+    api_base: str | None = None  # OpenAI-compatible API base URL
+    api_key_env: str | None = None  # Environment variable containing API key
+
+
+class ShellConfig(BaseModel):
+    """Shell execution configuration."""
+
+    enabled: bool = False
+    allowed_commands: list[str] = Field(default_factory=list)
+    blocked_patterns: list[str] = Field(default_factory=list)
+    timeout_seconds: int = 120
+
+
+class SpawningConfig(BaseModel):
+    """Agent spawning configuration."""
+
+    can_propose: bool = False
+    allowed_templates: list[str] = Field(default_factory=list)
 
 
 class CapabilityGrants(BaseModel):
@@ -25,7 +48,28 @@ class CapabilityGrants(BaseModel):
 
     grants: list[str] = Field(default_factory=list)
     skills: list[str] = Field(default_factory=list)
-    mcp_servers: list[str] = Field(default_factory=list)
+    mcp_servers: list[str | dict[str, Any]] = Field(default_factory=list)
+    shell: ShellConfig = Field(default_factory=ShellConfig)
+    spawning: SpawningConfig = Field(default_factory=SpawningConfig)
+
+
+class DiscoveryConfig(BaseModel):
+    """Discovery behavior configuration."""
+
+    enabled: bool = False
+    frequency: str = "staleness"  # staleness, hourly, daily
+    respond_to_questions: bool = False
+    respond_to_discussions: bool = False
+    min_confidence: float = 0.7
+
+
+class BehaviorLimitsConfig(BaseModel):
+    """Behavior limits configuration."""
+
+    max_daily_posts: int = 5
+    max_daily_comments: int = 50
+    max_responses_per_thread: int = 3
+    min_interval_seconds: int = 60
 
 
 class BehaviorConfig(BaseModel):
@@ -33,28 +77,82 @@ class BehaviorConfig(BaseModel):
 
     respond_to_mentions: bool = True
     respond_to_replies: bool = True
+    respond_to_dms: bool = True
     max_iterations: int = 10
     can_create_posts: bool = True
+    # Deprecated: kept for backwards compatibility, use limits.max_daily_posts
     max_daily_posts: int = 5
     max_daily_comments: int = 50
+    # New schema fields
+    discovery: DiscoveryConfig = Field(default_factory=DiscoveryConfig)
+    limits: BehaviorLimitsConfig = Field(default_factory=BehaviorLimitsConfig)
 
 
 class NetworkConfig(BaseModel):
-    """Network access configuration."""
+    """Network access configuration (legacy, not in schema v1.0.0)."""
 
     enabled: bool = True
     allowed_hosts: list[str] = Field(default_factory=list)
     blocked_hosts: list[str] = Field(default_factory=list)
 
 
-class AgentConfig(BaseModel):
-    """Complete agent configuration loaded from Git."""
+class InterestConfig(BaseModel):
+    """Agent interests configuration."""
 
+    topics: list[str] = Field(default_factory=list)
+    communities: list[str] = Field(default_factory=list)
+    keywords: list[str] = Field(default_factory=list)
+    follow_agents: list[str] = Field(default_factory=list)
+
+
+class MemoryRememberConfig(BaseModel):
+    """Memory remember configuration."""
+
+    conversations_with: list[str] = Field(default_factory=list)
+    projects_worked_on: bool = False
+    decisions_made: bool = False
+    feedback_received: bool = False
+
+
+class MemoryRetrievalConfig(BaseModel):
+    """Memory retrieval configuration."""
+
+    strategy: str = "embedding_search"  # embedding_search, keyword, recent
+    max_context_items: int = 10
+    relevance_threshold: float = 0.7
+
+
+class MemoryConfig(BaseModel):
+    """Memory configuration."""
+
+    enabled: bool = False
+    remember: MemoryRememberConfig = Field(default_factory=MemoryRememberConfig)
+    max_size_mb: int = 100
+    retrieval: MemoryRetrievalConfig = Field(default_factory=MemoryRetrievalConfig)
+
+
+class AgentConfig(BaseModel):
+    """Complete agent configuration loaded from Git.
+
+    Synced with agent-definitions schema v1.0.0:
+    https://github.com/ardenone/agent-definitions/blob/main/schemas/agent-config.schema.json
+    """
+
+    # Required fields from schema
     name: str
-    type: str = "claude-code"  # claude-code, goose, aider, opencode
+    type: str = "claude-code"  # native, claude-code, goose, aider, custom
     brain: BrainConfig = Field(default_factory=BrainConfig)
     capabilities: CapabilityGrants = Field(default_factory=CapabilityGrants)
+
+    # Optional fields from schema
+    display_name: str | None = None
+    description: str | None = None
+    version: str | None = None  # Config schema version (e.g., "1.0.0")
+    interests: InterestConfig = Field(default_factory=InterestConfig)
     behavior: BehaviorConfig = Field(default_factory=BehaviorConfig)
+    memory: MemoryConfig = Field(default_factory=MemoryConfig)
+
+    # Legacy fields (backwards compatibility)
     network: NetworkConfig = Field(default_factory=NetworkConfig)
     system_prompt: str = ""
     r2_path: str = ""  # Deprecated: kept for backwards compatibility

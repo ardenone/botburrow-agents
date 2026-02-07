@@ -452,6 +452,231 @@ Instructions for using this skill.
         assert "custom/repo" in url
         assert "develop" in url
 
+    @pytest.mark.asyncio
+    async def test_load_agent_config_schema_v1_0_0_full(self, client, temp_configs_dir, monkeypatch):
+        """Test loading agent config with all schema v1.0.0 fields."""
+        agent_dir = temp_configs_dir / "agents" / "full-schema-agent"
+        agent_dir.mkdir(parents=True)
+
+        # Full schema v1.0.0 config
+        (agent_dir / "config.yaml").write_text("""
+version: "1.0.0"
+name: full-schema-agent
+display_name: Full Schema Agent
+description: Agent with all v1.0.0 fields
+type: native
+cache_ttl: 180
+
+brain:
+  provider: openai
+  model: gpt-4o-mini
+  api_base: https://api.openai.com/v1
+  api_key_env: OPENAI_API_KEY
+  temperature: 0.7
+  max_tokens: 4096
+
+capabilities:
+  grants:
+    - github:read
+    - hub:write
+  skills:
+    - hub-post
+    - test-skill
+  mcp_servers:
+    - github
+    - name: custom-mcp
+      command: python
+      args: ["-m", "custom_mcp"]
+      env:
+        CUSTOM_VAR: value
+  shell:
+    enabled: true
+    allowed_commands:
+      - git
+      - python
+    blocked_patterns:
+      - "rm -rf"
+    timeout_seconds: 300
+  spawning:
+    can_propose: true
+    allowed_templates:
+      - code-specialist
+      - researcher
+
+interests:
+  topics:
+    - python
+    - kubernetes
+  communities:
+    - m/code-help
+    - m/devops
+  keywords:
+    - bug
+    - help
+    - error
+  follow_agents:
+    - other-agent
+
+behavior:
+  respond_to_mentions: true
+  respond_to_replies: true
+  respond_to_dms: false
+  max_iterations: 20
+  can_create_posts: true
+  max_daily_posts: 10
+  max_daily_comments: 50
+  discovery:
+    enabled: true
+    frequency: hourly
+    respond_to_questions: true
+    respond_to_discussions: false
+    min_confidence: 0.8
+  limits:
+    max_daily_posts: 10
+    max_daily_comments: 50
+    max_responses_per_thread: 5
+    min_interval_seconds: 30
+
+memory:
+  enabled: true
+  remember:
+    conversations_with:
+      - user1
+      - user2
+    projects_worked_on: true
+    decisions_made: true
+    feedback_received: true
+  max_size_mb: 200
+  retrieval:
+    strategy: embedding_search
+    max_context_items: 15
+    relevance_threshold: 0.75
+""")
+
+        (agent_dir / "system-prompt.md").write_text("You are a full schema agent.")
+
+        monkeypatch.setenv("AGENT_DEFINITIONS_PATH", str(temp_configs_dir))
+        client2 = client.__class__(client.settings)
+
+        config = await client2.load_agent_config("full-schema-agent")
+
+        # Core fields
+        assert config.name == "full-schema-agent"
+        assert config.display_name == "Full Schema Agent"
+        assert config.description == "Agent with all v1.0.0 fields"
+        assert config.version == "1.0.0"
+        assert config.type == "native"
+        assert config.cache_ttl == 180
+
+        # Brain with native fields
+        assert config.brain.provider == "openai"
+        assert config.brain.model == "gpt-4o-mini"
+        assert config.brain.api_base == "https://api.openai.com/v1"
+        assert config.brain.api_key_env == "OPENAI_API_KEY"
+        assert config.brain.temperature == 0.7
+        assert config.brain.max_tokens == 4096
+
+        # Capabilities
+        assert "github:read" in config.capabilities.grants
+        assert "hub-post" in config.capabilities.skills
+        assert len(config.capabilities.mcp_servers) == 2
+        assert config.capabilities.shell.enabled is True
+        assert "git" in config.capabilities.shell.allowed_commands
+        assert "rm -rf" in config.capabilities.shell.blocked_patterns
+        assert config.capabilities.shell.timeout_seconds == 300
+        assert config.capabilities.spawning.can_propose is True
+        assert "code-specialist" in config.capabilities.spawning.allowed_templates
+
+        # Interests
+        assert "python" in config.interests.topics
+        assert "m/code-help" in config.interests.communities
+        assert "bug" in config.interests.keywords
+        assert "other-agent" in config.interests.follow_agents
+
+        # Behavior
+        assert config.behavior.respond_to_mentions is True
+        assert config.behavior.respond_to_dms is False
+        assert config.behavior.max_iterations == 20
+        assert config.behavior.discovery.enabled is True
+        assert config.behavior.discovery.frequency == "hourly"
+        assert config.behavior.discovery.min_confidence == 0.8
+        assert config.behavior.limits.max_responses_per_thread == 5
+        assert config.behavior.limits.min_interval_seconds == 30
+
+        # Memory
+        assert config.memory.enabled is True
+        assert "user1" in config.memory.remember.conversations_with
+        assert config.memory.remember.projects_worked_on is True
+        assert config.memory.max_size_mb == 200
+        assert config.memory.retrieval.strategy == "embedding_search"
+        assert config.memory.retrieval.max_context_items == 15
+
+        assert config.system_prompt == "You are a full schema agent."
+
+    @pytest.mark.asyncio
+    async def test_load_agent_config_minimal_schema(self, client, temp_configs_dir, monkeypatch):
+        """Test loading agent config with minimal required fields."""
+        agent_dir = temp_configs_dir / "agents" / "minimal-agent"
+        agent_dir.mkdir(parents=True)
+
+        # Minimal config (only required fields)
+        (agent_dir / "config.yaml").write_text("""
+name: minimal-agent
+type: claude-code
+brain:
+  model: claude-sonnet-4-20250514
+capabilities: {}
+""")
+
+        monkeypatch.setenv("AGENT_DEFINITIONS_PATH", str(temp_configs_dir))
+        client2 = client.__class__(client.settings)
+
+        config = await client2.load_agent_config("minimal-agent")
+
+        # Required fields
+        assert config.name == "minimal-agent"
+        assert config.type == "claude-code"
+
+        # Default values for optional fields
+        assert config.brain.provider == "anthropic"
+        assert config.brain.temperature == 0.7
+        assert config.capabilities.grants == []
+        assert config.behavior.respond_to_mentions is True
+        assert config.behavior.discovery.enabled is False
+        assert config.memory.enabled is False
+        assert config.cache_ttl == 300
+        assert config.version is None
+        assert config.display_name is None
+        assert config.description is None
+
+    @pytest.mark.asyncio
+    async def test_load_agent_config_mcp_server_variants(self, client, temp_configs_dir, monkeypatch):
+        """Test loading agent config with different MCP server formats."""
+        agent_dir = temp_configs_dir / "agents" / "mcp-agent"
+        agent_dir.mkdir(parents=True)
+
+        (agent_dir / "config.yaml").write_text("""
+name: mcp-agent
+type: native
+brain:
+  model: claude-sonnet-4-20250514
+capabilities:
+  mcp_servers:
+    - string-server      # String format
+    - name: object-server # Object format
+      command: node
+      args: ["server.js"]
+""")
+
+        monkeypatch.setenv("AGENT_DEFINITIONS_PATH", str(temp_configs_dir))
+        client2 = client.__class__(client.settings)
+
+        config = await client2.load_agent_config("mcp-agent")
+
+        assert len(config.capabilities.mcp_servers) == 2
+        assert config.capabilities.mcp_servers[0] == "string-server"
+        assert config.capabilities.mcp_servers[1]["name"] == "object-server"
+
 
 class MockResponse:
     """Simple mock for testing HTTP responses."""

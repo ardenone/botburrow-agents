@@ -2,6 +2,9 @@
 
 Implements ADR-028: Load agent configs directly from git instead of R2.
 R2 is now only for binary assets (avatars, images).
+
+Synced with agent-definitions schema v1.0.0:
+https://github.com/ardenone/agent-definitions/blob/main/schemas/agent-config.schema.json
 """
 
 from __future__ import annotations
@@ -15,7 +18,20 @@ import structlog
 import yaml
 
 from botburrow_agents.config import Settings, get_settings
-from botburrow_agents.models import AgentConfig, BehaviorConfig, BrainConfig, CapabilityGrants
+from botburrow_agents.models import (
+    AgentConfig,
+    BehaviorConfig,
+    BehaviorLimitsConfig,
+    BrainConfig,
+    CapabilityGrants,
+    DiscoveryConfig,
+    InterestConfig,
+    MemoryConfig,
+    MemoryRememberConfig,
+    MemoryRetrievalConfig,
+    ShellConfig,
+    SpawningConfig,
+)
 
 logger = structlog.get_logger(__name__)
 
@@ -199,6 +215,8 @@ class GitClient:
     async def load_agent_config(self, agent_id: str) -> AgentConfig:
         """Load complete agent configuration.
 
+        Parses all fields from agent-definitions schema v1.0.0.
+
         Args:
             agent_id: Agent identifier
 
@@ -208,27 +226,96 @@ class GitClient:
         config_data = await self.get_agent_config(agent_id)
         system_prompt = await self.get_system_prompt(agent_id)
 
-        # Build AgentConfig
+        # Parse brain configuration
+        brain_data = config_data.get("brain", {})
         brain = BrainConfig(
-            model=config_data.get("brain", {}).get("model", "claude-sonnet-4-20250514"),
-            provider=config_data.get("brain", {}).get("provider", "anthropic"),
-            temperature=config_data.get("brain", {}).get("temperature", 0.7),
-            max_tokens=config_data.get("brain", {}).get("max_tokens", 4096),
+            model=brain_data.get("model", "claude-sonnet-4-20250514"),
+            provider=brain_data.get("provider", "anthropic"),
+            temperature=brain_data.get("temperature", 0.7),
+            max_tokens=brain_data.get("max_tokens", 4096),
+            api_base=brain_data.get("api_base"),
+            api_key_env=brain_data.get("api_key_env"),
         )
+
+        # Parse capabilities configuration
+        caps_data = config_data.get("capabilities", {})
+        shell_data = caps_data.get("shell", {})
+        spawning_data = caps_data.get("spawning", {})
 
         capabilities = CapabilityGrants(
-            grants=config_data.get("capabilities", {}).get("grants", []),
-            skills=config_data.get("capabilities", {}).get("skills", []),
-            mcp_servers=config_data.get("capabilities", {}).get("mcp_servers", []),
+            grants=caps_data.get("grants", []),
+            skills=caps_data.get("skills", []),
+            mcp_servers=caps_data.get("mcp_servers", []),
+            shell=ShellConfig(
+                enabled=shell_data.get("enabled", False),
+                allowed_commands=shell_data.get("allowed_commands", []),
+                blocked_patterns=shell_data.get("blocked_patterns", []),
+                timeout_seconds=shell_data.get("timeout_seconds", 120),
+            ),
+            spawning=SpawningConfig(
+                can_propose=spawning_data.get("can_propose", False),
+                allowed_templates=spawning_data.get("allowed_templates", []),
+            ),
         )
 
+        # Parse interests configuration
+        interests_data = config_data.get("interests", {})
+        interests = InterestConfig(
+            topics=interests_data.get("topics", []),
+            communities=interests_data.get("communities", []),
+            keywords=interests_data.get("keywords", []),
+            follow_agents=interests_data.get("follow_agents", []),
+        )
+
+        # Parse behavior configuration
+        behavior_data = config_data.get("behavior", {})
+        discovery_data = behavior_data.get("discovery", {})
+        limits_data = behavior_data.get("limits", {})
+
         behavior = BehaviorConfig(
-            respond_to_mentions=config_data.get("behavior", {}).get("respond_to_mentions", True),
-            respond_to_replies=config_data.get("behavior", {}).get("respond_to_replies", True),
-            max_iterations=config_data.get("behavior", {}).get("max_iterations", 10),
-            can_create_posts=config_data.get("behavior", {}).get("can_create_posts", True),
-            max_daily_posts=config_data.get("behavior", {}).get("max_daily_posts", 5),
-            max_daily_comments=config_data.get("behavior", {}).get("max_daily_comments", 50),
+            respond_to_mentions=behavior_data.get("respond_to_mentions", True),
+            respond_to_replies=behavior_data.get("respond_to_replies", True),
+            respond_to_dms=behavior_data.get("respond_to_dms", True),
+            max_iterations=behavior_data.get("max_iterations", 10),
+            can_create_posts=behavior_data.get("can_create_posts", True),
+            # Legacy fields for backwards compatibility
+            max_daily_posts=behavior_data.get("max_daily_posts", 5),
+            max_daily_comments=behavior_data.get("max_daily_comments", 50),
+            # New schema fields
+            discovery=DiscoveryConfig(
+                enabled=discovery_data.get("enabled", False),
+                frequency=discovery_data.get("frequency", "staleness"),
+                respond_to_questions=discovery_data.get("respond_to_questions", False),
+                respond_to_discussions=discovery_data.get("respond_to_discussions", False),
+                min_confidence=discovery_data.get("min_confidence", 0.7),
+            ),
+            limits=BehaviorLimitsConfig(
+                max_daily_posts=limits_data.get("max_daily_posts", 5),
+                max_daily_comments=limits_data.get("max_daily_comments", 50),
+                max_responses_per_thread=limits_data.get("max_responses_per_thread", 3),
+                min_interval_seconds=limits_data.get("min_interval_seconds", 60),
+            ),
+        )
+
+        # Parse memory configuration
+        memory_data = config_data.get("memory", {})
+        remember_data = memory_data.get("remember", {})
+        retrieval_data = memory_data.get("retrieval", {})
+
+        memory = MemoryConfig(
+            enabled=memory_data.get("enabled", False),
+            remember=MemoryRememberConfig(
+                conversations_with=remember_data.get("conversations_with", []),
+                projects_worked_on=remember_data.get("projects_worked_on", False),
+                decisions_made=remember_data.get("decisions_made", False),
+                feedback_received=remember_data.get("feedback_received", False),
+            ),
+            max_size_mb=memory_data.get("max_size_mb", 100),
+            retrieval=MemoryRetrievalConfig(
+                strategy=retrieval_data.get("strategy", "embedding_search"),
+                max_context_items=retrieval_data.get("max_context_items", 10),
+                relevance_threshold=retrieval_data.get("relevance_threshold", 0.7),
+            ),
         )
 
         return AgentConfig(
@@ -236,7 +323,13 @@ class GitClient:
             type=config_data.get("type", "claude-code"),
             brain=brain,
             capabilities=capabilities,
+            interests=interests,
             behavior=behavior,
+            memory=memory,
+            display_name=config_data.get("display_name"),
+            description=config_data.get("description"),
+            version=config_data.get("version"),
             system_prompt=system_prompt,
-            r2_path="",  # No longer using R2 for configs
+            cache_ttl=config_data.get("cache_ttl", 300),
+            r2_path="",  # Deprecated
         )
