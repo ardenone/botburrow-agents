@@ -103,6 +103,54 @@ TOKENS_CONSUMED = Counter(
     ["agent_id", "model", "direction"],  # direction: input/output
 )
 
+# Cost tracking
+ACTIVATION_COST = Counter(
+    "botburrow_activation_cost_usd_total",
+    "Total cost of activations in USD",
+    ["agent_id", "model"],
+)
+
+# Budget health metrics
+BUDGET_USED = Gauge(
+    "botburrow_budget_used_usd",
+    "Budget used in USD",
+    ["agent_id", "period"],  # period: daily, monthly
+)
+
+BUDGET_LIMIT = Gauge(
+    "botburrow_budget_limit_usd",
+    "Budget limit in USD",
+    ["agent_id", "period"],  # period: daily, monthly
+)
+
+BUDGET_HEALTH_RATIO = Gauge(
+    "botburrow_budget_health_ratio",
+    "Budget usage ratio (used/limit)",
+    ["agent_id", "period"],  # period: daily, monthly
+)
+
+# Queue wait time metrics
+QUEUE_WAIT_DURATION = Histogram(
+    "botburrow_queue_wait_seconds",
+    "Time work items spend waiting in queue before being claimed",
+    ["agent_id", "priority"],
+    buckets=(1, 5, 10, 30, 60, 120, 300, 600),
+)
+
+# Per-agent backoff state
+AGENT_BACKOFF_SECONDS = Gauge(
+    "botburrow_agent_backoff_seconds_remaining",
+    "Seconds remaining in circuit breaker backoff",
+    ["agent_id"],
+)
+
+# Activation retry counter
+ACTIVATION_RETRIES = Counter(
+    "botburrow_activation_retries_total",
+    "Total number of activation retries",
+    ["agent_id"],
+)
+
 
 def record_activation_start(runner_id: str) -> None:
     """Record activation starting."""
@@ -186,6 +234,51 @@ async def update_queue_metrics(work_queue: WorkQueue) -> None:
         QUEUE_AGENTS_IN_BACKOFF.set(stats["agents_in_backoff"])
     except Exception as e:
         logger.warning("metrics_update_error", error=str(e))
+
+
+def record_activation_cost(agent_id: str, model: str, cost_usd: float) -> None:
+    """Record activation cost in USD."""
+    ACTIVATION_COST.labels(agent_id=agent_id, model=model).inc(cost_usd)
+
+
+def record_budget_health(
+    agent_id: str,
+    daily_used: float,
+    daily_limit: float,
+    monthly_used: float,
+    monthly_limit: float,
+) -> None:
+    """Record budget health metrics."""
+    BUDGET_USED.labels(agent_id=agent_id, period="daily").set(daily_used)
+    BUDGET_LIMIT.labels(agent_id=agent_id, period="daily").set(daily_limit)
+    BUDGET_HEALTH_RATIO.labels(agent_id=agent_id, period="daily").set(
+        daily_used / daily_limit if daily_limit > 0 else 0
+    )
+    BUDGET_USED.labels(agent_id=agent_id, period="monthly").set(monthly_used)
+    BUDGET_LIMIT.labels(agent_id=agent_id, period="monthly").set(monthly_limit)
+    BUDGET_HEALTH_RATIO.labels(agent_id=agent_id, period="monthly").set(
+        monthly_used / monthly_limit if monthly_limit > 0 else 0
+    )
+
+
+def record_queue_wait_time(agent_id: str, priority: str, wait_seconds: float) -> None:
+    """Record queue wait time for a work item."""
+    QUEUE_WAIT_DURATION.labels(agent_id=agent_id, priority=priority).observe(wait_seconds)
+
+
+def record_agent_backoff(agent_id: str, backoff_seconds_remaining: float) -> None:
+    """Record per-agent backoff state."""
+    AGENT_BACKOFF_SECONDS.labels(agent_id=agent_id).set(backoff_seconds_remaining)
+
+
+def clear_agent_backoff(agent_id: str) -> None:
+    """Clear per-agent backoff metric."""
+    AGENT_BACKOFF_SECONDS.labels(agent_id=agent_id).set(0)
+
+
+def record_activation_retry(agent_id: str) -> None:
+    """Record an activation retry."""
+    ACTIVATION_RETRIES.labels(agent_id=agent_id).inc()
 
 
 class MetricsServer:
