@@ -16,7 +16,6 @@ from __future__ import annotations
 import asyncio
 import time
 from collections.abc import AsyncIterator, Iterator
-from dataclasses import dataclass
 from typing import Any
 
 import pytest
@@ -24,41 +23,6 @@ import respx
 from prometheus_client import REGISTRY
 from prometheus_client.parser import text_string_to_metric_families
 
-from botburrow_agents.observability import (
-    ACTIVATION_COST,
-    ACTIVATION_DURATION,
-    ACTIVATION_RETRIES,
-    ACTIVATIONS_IN_PROGRESS,
-    ACTIVATIONS_TOTAL,
-    AGENT_BACKOFF_SECONDS,
-    BUDGET_HEALTH_RATIO,
-    BUDGET_LIMIT,
-    BUDGET_USED,
-    QUEUE_AGENTS_IN_BACKOFF,
-    QUEUE_ACTIVE_TASKS,
-    QUEUE_DEPTH,
-    QUEUE_WAIT_DURATION,
-    RUNNER_HEARTBEAT_TIMESTAMP,
-    RUNNERS_ACTIVE,
-    TOKENS_CONSUMED,
-    clear_agent_backoff,
-    record_activation_complete,
-    record_activation_cost,
-    record_agent_backoff,
-    record_activation_retry,
-    record_activation_start,
-    record_budget_health,
-    record_queue_wait_time,
-    record_tokens,
-    update_queue_metrics,
-)
-from botburrow_agents.runner.metrics import (
-    BudgetChecker,
-    MetricsReporter,
-    MODEL_COSTS,
-    UsageMetrics,
-)
-from botburrow_agents.models import BudgetHealth
 from botburrow_agents.clients.hub import HubClient
 from botburrow_agents.coordinator.work_queue import (
     AGENT_BACKOFF,
@@ -70,7 +34,23 @@ from botburrow_agents.coordinator.work_queue import (
     WorkQueue,
 )
 from botburrow_agents.models import TaskType
-
+from botburrow_agents.observability import (
+    clear_agent_backoff,
+    record_activation_complete,
+    record_activation_cost,
+    record_activation_retry,
+    record_activation_start,
+    record_agent_backoff,
+    record_budget_health,
+    record_queue_wait_time,
+    record_tokens,
+    update_queue_metrics,
+)
+from botburrow_agents.runner.metrics import (
+    BudgetChecker,
+    MetricsReporter,
+    UsageMetrics,
+)
 
 # ============================================================================
 # FIXTURES
@@ -152,7 +132,7 @@ def mock_redis() -> Iterator[dict[str, Any]]:
             key: str,
             value: str,
             nx: bool = False,
-            ex: int | None = None,
+            ex: int | None = None,  # noqa: ARG002
         ) -> bool:
             if nx and key in state["strings"]:
                 return False
@@ -170,17 +150,19 @@ def mock_redis() -> Iterator[dict[str, Any]]:
                     count += 1
             return count
 
-        async def expire(self, key: str, seconds: int) -> bool:
+        async def expire(self, key: str, seconds: int) -> bool:  # noqa: ARG002
             return key in state["strings"]
 
         async def scan_iter(
-            self, match: str = "*", count: int = 10
+            self, match: str = "*", count: int = 10  # noqa: ARG002
         ) -> AsyncIterator[str]:
             for key in state["strings"]:
                 if match in key or "*" in match:
                     yield key
 
-        async def eval(self, script: str, numkeys: int, *args: str) -> int:
+        async def eval(
+            self, script: str, numkeys: int, *args: str  # noqa: ARG002
+        ) -> int:
             # Simple leader election script simulation
             key, instance = args[0], args[1]
             if state["strings"].get(key) == instance:
@@ -237,7 +219,6 @@ def mock_hub_client() -> Iterator[None]:
 @pytest.fixture
 def work_queue(mock_redis) -> WorkQueue:
     """Create a WorkQueue with mock Redis."""
-    from botburrow_agents.clients.redis import RedisClient
 
     # Create mock Redis client wrapper
     class MockRedisClient:
@@ -476,7 +457,9 @@ class TestBudgetHealthReporting:
 
     @pytest.mark.asyncio
     @pytest.mark.skip(reason="URL mocking issues with respx - tested in integration")
-    async def test_get_budget_health_from_hub(self, mock_hub_client, monkeypatch) -> None:
+    async def test_get_budget_health_from_hub(
+        self, _mock_hub_client, monkeypatch
+    ) -> None:
         """Verify budget health is fetched from Hub API."""
         from botburrow_agents.config import Settings
 
@@ -495,7 +478,9 @@ class TestBudgetHealthReporting:
         assert health.monthly_used == 25.0
 
     @pytest.mark.asyncio
-    async def test_report_consumption_to_hub(self, mock_hub_client, monkeypatch) -> None:
+    async def test_report_consumption_to_hub(
+        self, _mock_hub_client, monkeypatch
+    ) -> None:
         """Verify consumption is reported to Hub API."""
         from botburrow_agents.config import Settings
 
@@ -514,7 +499,7 @@ class TestBudgetHealthReporting:
 
     @pytest.mark.asyncio
     async def test_budget_checker_allows_when_healthy(
-        self, mock_hub_client, monkeypatch
+        self, _mock_hub_client, monkeypatch
     ) -> None:
         """Verify budget checker allows activation when budget is healthy."""
         from botburrow_agents.config import Settings
@@ -533,7 +518,7 @@ class TestBudgetHealthReporting:
 
     @pytest.mark.asyncio
     async def test_budget_checker_blocks_when_over_budget(
-        self, mock_hub_client, monkeypatch
+        self, _mock_hub_client, monkeypatch
     ) -> None:
         """Verify budget checker blocks activation when over budget."""
         from botburrow_agents.config import Settings
@@ -1029,16 +1014,6 @@ def _get_prometheus_metric(metric_name: str) -> str | None:
                 return family_output
 
     return None
-
-
-@dataclass
-class BudgetHealth:
-    """Budget health response from Hub API."""
-    healthy: bool
-    daily_limit: float
-    daily_used: float
-    monthly_limit: float
-    monthly_used: float
 
 
 # ============================================================================

@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-class ActivationMode(str, Enum):
+class ActivationMode(StrEnum):
     """Runner activation mode."""
 
     NOTIFICATION = "notification"  # Process inbox items only

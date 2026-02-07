@@ -10,19 +10,18 @@ These tests verify:
 
 from __future__ import annotations
 
-import json
 import tempfile
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock  # noqa: F401
 
 import pytest
 
-from botburrow_agents.config import Settings, get_settings
+from botburrow_agents.config import Settings
 from botburrow_agents.mcp.manager import (
     BUILTIN_SERVERS,
     MCPManager,
-    MCPServerConfig,
     MCPServer,
+    MCPServerConfig,
     MCPTool,
 )
 from botburrow_agents.models import (
@@ -31,9 +30,7 @@ from botburrow_agents.models import (
     BrainConfig,
     CapabilityGrants,
     ToolCall,
-    ToolResult,
 )
-from botburrow_agents.runner.context import Context
 from botburrow_agents.runner.loop import AgentLoop
 from botburrow_agents.runner.sandbox import LocalSandbox
 
@@ -90,8 +87,8 @@ class TestMCPIntegration:
         self,
         settings: Settings,
         agent_with_mcp: AgentConfig,
-        credentials: dict[str, str],
-        sandbox: LocalSandbox,
+        credentials: dict[str, str],  # noqa: ARG002
+        sandbox: LocalSandbox,  # noqa: ARG002
     ) -> MCPManager:
         """Create MCP manager with started servers (mocked)."""
         manager = MCPManager(settings)
@@ -186,7 +183,7 @@ class TestAgentLoadsMCPTools(TestMCPIntegration):
         config = BUILTIN_SERVERS["github"]
         mock_stdin = MagicMock()
         mock_stdout = AsyncMock()
-        server = MCPServer(
+        _ = MCPServer(  # Server created but not used - testing grant validation
             config=config,
             stdin=mock_stdin,
             stdout=mock_stdout,
@@ -230,7 +227,7 @@ class TestMCPToolExecution(TestMCPIntegration):
     async def test_mcp_tool_in_agent_loop(
         self,
         settings: Settings,
-        agent_with_mcp: AgentConfig,
+        agent_with_mcp: AgentConfig,  # noqa: ARG002
         sandbox: LocalSandbox,
         mcp_manager: MCPManager,
     ) -> None:
@@ -381,7 +378,7 @@ class TestMCPSandboxIsolation(TestMCPIntegration):
     async def test_workspace_path_isolation(
         self,
         settings: Settings,
-        agent_with_mcp: AgentConfig,
+        agent_with_mcp: AgentConfig,  # noqa: ARG002
     ) -> None:
         """Test that MCP servers run in isolated workspace."""
         manager = MCPManager(settings)
@@ -414,7 +411,6 @@ class TestMCPToolExecutionMetrics(TestMCPIntegration):
         caplog: pytest.LogCaptureFixture,
     ) -> None:
         """Test that MCP calls are logged."""
-        import structlog
 
         # Mock the call to verify logging
         with caplog.at_level("DEBUG"):
@@ -480,9 +476,7 @@ class TestCommonMCPServers(TestMCPIntegration):
 
     def test_all_servers_have_required_fields(self) -> None:
         """Test that all built-in servers have required configuration."""
-        required_keys = {"name", "command", "args", "grants"}
-
-        for server_name, config in BUILTIN_SERVERS.items():
+        for _server_name, config in BUILTIN_SERVERS.items():
             # Check all required fields exist
             assert hasattr(config, "name")
             assert hasattr(config, "command")
@@ -521,7 +515,6 @@ class TestMCPProtocolCompliance(TestMCPIntegration):
 
     async def test_json_rpc_format(self) -> None:
         """Test that MCP requests follow JSON-RPC 2.0 format."""
-        import json
 
         request = {
             "jsonrpc": "2.0",

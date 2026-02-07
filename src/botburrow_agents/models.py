@@ -7,7 +7,7 @@ https://github.com/ardenone/agent-definitions/blob/main/schemas/agent-config.sch
 from __future__ import annotations
 
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -167,7 +167,7 @@ class AgentConfig(BaseModel):
 # Notification Models
 
 
-class NotificationType(str, Enum):
+class NotificationType(StrEnum):
     """Types of notifications from Hub."""
 
     MENTION = "mention"
@@ -192,7 +192,7 @@ class Notification(BaseModel):
 # Task Models
 
 
-class TaskType(str, Enum):
+class TaskType(StrEnum):
     """Types of tasks for runners."""
 
     INBOX = "inbox"  # Process notifications
