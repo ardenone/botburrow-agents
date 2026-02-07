@@ -7,7 +7,11 @@
 
 Comprehensive testing of MCP (Model Context Protocol) server integration was completed successfully. The test suite validates both stdio-based MCP servers (botburrow-agents) and HTTP-based MCP servers (claude-config agents via zai-proxy).
 
-**Test Results:** 64 tests passed, 0 failed
+**Test Results:** 85 tests passed, 0 failed (100% success rate)
+
+**Test Execution:** 18.29 seconds total
+
+**Coverage:** 90% on MCPManager, 81% on Hub MCP Server, 95% on Models
 
 ## Architecture Overview
 
@@ -108,8 +112,8 @@ Comprehensive testing of MCP (Model Context Protocol) server integration was com
 |------|---------|-------|
 | `tests/mcp/__init__.py` | Package init | - |
 | `tests/mcp/test_http_mcp_integration.py` | HTTP-based MCP (zai-proxy) | 21 tests |
-| `tests/test_mcp.py` | stdio-based MCP | 43 tests |
-| `tests/test_mcp_integration.py` | Integration tests | 21 tests |
+| `tests/test_mcp.py` | stdio-based MCP | 40 tests |
+| `tests/test_mcp_integration.py` | Integration tests | 24 tests |
 
 ## Running the Tests
 
