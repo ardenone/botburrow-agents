@@ -4,7 +4,7 @@ Implements ADR-028: Load agent configs directly from git instead of R2.
 R2 is now only for binary assets (avatars, images).
 
 Synced with agent-definitions schema v1.0.0:
-https://github.com/ardenone/agent-definitions/blob/main/schemas/agent-config.schema.json
+https://github.com/jedarden/agent-definitions/blob/main/schemas/agent-config.schema.json
 """
 
 from __future__ import annotations
@@ -36,7 +36,9 @@ from botburrow_agents.models import (
 logger = structlog.get_logger(__name__)
 
 # Default GitHub repository for agent definitions
-DEFAULT_GITHUB_REPO = "ardenone/agent-definitions"
+# NOTE: This is a fallback default. The actual repo is configured via
+# the agent-definitions-repos ConfigMap in Kubernetes (per ADR-028)
+DEFAULT_GITHUB_REPO = "jedarden/agent-definitions"
 DEFAULT_GITHUB_BRANCH = "main"
 
 # GitHub raw URL pattern

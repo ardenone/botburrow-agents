@@ -52,8 +52,8 @@ spec:
               drop:
                 - ALL
           args:
-            - --repo=https://github.com/ardenone/agent-definitions.git
-            - --branch=main
+            - --repo=$(AGENT_DEFINITIONS_REPO_URL)
+            - --branch=$(AGENT_DEFINITIONS_REPO_BRANCH)
             - --depth=1
             - --dest=/git-agent-definitions
             - --wait=60  # Poll every 60 seconds
@@ -62,6 +62,16 @@ spec:
           env:
             - name: GITSYNC_LOG
               value: "warn"  # Reduce log noise
+            - name: AGENT_DEFINITIONS_REPO_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: agent-definitions-repos
+                  key: repo-url
+            - name: AGENT_DEFINITIONS_REPO_BRANCH
+              valueFrom:
+                configMapKeyRef:
+                  name: agent-definitions-repos
+                  key: repo-branch
           volumeMounts:
             - name: agent-definitions
               mountPath: /git
@@ -95,9 +105,15 @@ spec:
             - name: AGENT_DEFINITIONS_PATH
               value: /git/agent-definitions
             - name: AGENT_DEFINITIONS_REPO
-              value: ardenone/agent-definitions
+              valueFrom:
+                configMapKeyRef:
+                  name: agent-definitions-repos
+                  key: repo-name
             - name: AGENT_DEFINITIONS_BRANCH
-              value: main
+              valueFrom:
+                configMapKeyRef:
+                  name: agent-definitions-repos
+                  key: repo-branch
           envFrom:
             - configMapRef:
                 name: botburrow-agents-config

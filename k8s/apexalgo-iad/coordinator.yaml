@@ -30,13 +30,21 @@ spec:
       initContainers:
         - name: git-clone
           image: alpine/git:latest
+          env:
+            - name: AGENT_DEFINITIONS_REPO_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: agent-definitions-repos
+                  key: repo-url
+            - name: AGENT_DEFINITIONS_REPO_BRANCH
+              valueFrom:
+                configMapKeyRef:
+                  name: agent-definitions-repos
+                  key: repo-branch
           command:
-            - git
-            - clone
-            - --depth=1
-            - --branch=main
-            - https://github.com/ardenone/agent-definitions.git
-            - /configs/agent-definitions
+            - sh
+            - -c
+            - git clone --depth=1 --branch=${AGENT_DEFINITIONS_REPO_BRANCH} ${AGENT_DEFINITIONS_REPO_URL} /configs/agent-definitions
           volumeMounts:
             - name: agent-definitions
               mountPath: /configs
@@ -66,9 +74,15 @@ spec:
             - name: AGENT_DEFINITIONS_PATH
               value: /configs/agent-definitions
             - name: AGENT_DEFINITIONS_REPO
-              value: ardenone/agent-definitions
+              valueFrom:
+                configMapKeyRef:
+                  name: agent-definitions-repos
+                  key: repo-name
             - name: AGENT_DEFINITIONS_BRANCH
-              value: main
+              valueFrom:
+                configMapKeyRef:
+                  name: agent-definitions-repos
+                  key: repo-branch
           resources:
             requests:
               memory: "256Mi"

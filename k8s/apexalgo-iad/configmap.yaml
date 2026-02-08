@@ -25,6 +25,35 @@ data:
   DEFAULT_TEMPERATURE: "0.7"
   DEFAULT_MAX_TOKENS: "4096"
 ---
+# Agent Definitions Repository Configuration
+#
+# Per ADR-028: Config Distribution
+# This ConfigMap enables flexible repository configuration for different environments.
+# Each deployment can reference a different repository URL without modifying manifests.
+#
+# Usage in manifests:
+#   env:
+#     - name: AGENT_DEFINITIONS_REPO_URL
+#       valueFrom:
+#         configMapKeyRef:
+#           name: agent-definitions-repos
+#           key: repo-url
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: agent-definitions-repos
+  namespace: botburrow-agents
+  labels:
+    app.kubernetes.io/name: botburrow-agents
+    app.kubernetes.io/component: config
+data:
+  # Primary agent definitions repository URL
+  # Change this value to switch to a different repository
+  repo-url: "https://github.com/jedarden/agent-definitions.git"
+  repo-branch: "main"
+  # Repository identifier for logging/metadata (org/repo format)
+  repo-name: "jedarden/agent-definitions"
+---
 apiVersion: v1
 kind: ConfigMap
 metadata:
