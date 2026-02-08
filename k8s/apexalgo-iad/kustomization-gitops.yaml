@@ -42,6 +42,11 @@ commonLabels:
 
 # Resources in deployment order (sync waves ensure proper ordering)
 resources:
+  # Wave -1: SealedSecrets (must be deployed before other resources)
+  # Uncomment after creating the SealedSecret file:
+  # - botburrow-agents-sealedsecrets.yml
+  # See SECRET_SETUP.md for instructions on creating SealedSecrets
+
   # Wave 0: Infrastructure (RBAC, ConfigMap)
   - namespace.yaml
   - rbac.yaml
