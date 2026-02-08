@@ -1,0 +1,98 @@
+# =============================================================================
+# ARGOCD KUSTOMIZATION FOR BOTBURROW-AGENTS GITOPS
+# =============================================================================
+#
+# This kustomization applies all ArgoCD configuration for botburrow-agents.
+# It includes the namespace, installation manifest, and ApplicationSet.
+#
+# DEPLOYMENT (requires cluster-admin):
+#   kubectl apply -k k8s/apexalgo-iad/argocd/
+#
+# PREREQUISITES:
+#   - Cluster-admin access to apexalgo-iad
+#   - kubectl configured with cluster-admin context
+#
+# VERIFICATION:
+#   kubectl get pods -n argocd
+#   kubectl get applicationsets.argoproj.io -n argocd
+#
+# =============================================================================
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: argocd
+
+# Common labels
+commonLabels:
+  app.kubernetes.io/part-of: botburrow
+  managed-by: kustomize
+  cluster: apexalgo-iad
+
+# Resources in deployment order
+resources:
+  # ArgoCD namespace
+  - namespace.yaml
+
+  # Installation instructions (ConfigMap)
+  - install.yaml
+
+  # ApplicationSet for botburrow-agents
+  - applicationset.yaml
+
+  # Optional: IngressRoute for external access
+  # Uncomment if using Traefik with external DNS
+  # - ingress.yaml
+
+# =============================================================================
+# DEPLOYMENT STEPS
+# =============================================================================
+#
+# 1. Create ArgoCD namespace:
+#    kubectl apply -f namespace.yaml
+#
+# 2. Install ArgoCD (official manifest):
+#    kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+#
+# 3. Wait for ArgoCD to be ready:
+#    kubectl wait --for=condition=ready pod -l app.kubernetes.io/part-of=argocd -n argocd --timeout=300s
+#
+# 4. Apply this kustomization (creates ApplicationSet):
+#    kubectl apply -k k8s/apexalgo-iad/argocd/
+#
+# 5. Verify ApplicationSet:
+#    kubectl get applicationsets.argoproj.io -n argocd
+#    kubectl get applications.argoproj.io -n argocd
+#
+# =============================================================================
+# POST-DEPLOYMENT
+# =============================================================================
+#
+# Access ArgoCD UI:
+#   kubectl port-forward svc/argocd-server -n argocd 8080:443
+#   Open https://localhost:8080
+#
+# Get initial admin password:
+#   kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath='{.data.password}' | base64 -d
+#
+# Change admin password via UI or CLI:
+#   argocd login localhost:8080 --insecure --username admin --password <password>
+#   argocd account update-password
+#
+# =============================================================================
+# TROUBLESHOOTING
+# =============================================================================
+#
+# ApplicationSet not generating Applications:
+#   kubectl logs -n argocd -l app.kubernetes.io/name=argocd-applicationset-controller
+#
+# Application sync failing:
+#   kubectl get applications.argoproj.io -n argocd
+#   argocd app get --grpc-web botburrow-agents
+#   argocd app logs botburrow-agents
+#
+# Secrets not syncing:
+#   kubectl get secrets -n botburrow-agents
+#   # Verify SealedSecrets are applied before ApplicationSet syncs
+#
+# =============================================================================

@@ -1,0 +1,151 @@
+# =============================================================================
+# ARGOCD APPLICATIONSET FOR BOTBURROW-AGENTS
+# =============================================================================
+#
+# This ApplicationSet enables GitOps deployment of botburrow-agents to
+# the apexalgo-iad cluster via ArgoCD.
+#
+# DEPLOYMENT:
+#   kubectl apply -f k8s/apexalgo-iad/argocd/applicationset.yaml
+#
+# PREREQUISITES:
+#   - ArgoCD installed in argocd namespace
+#   - SealedSecrets controller installed
+#   - botburrow-agents secrets created (see botburrow-agents-sealedsecrets.yml)
+#
+# FEATURES:
+#   - Automated sync from main branch
+#   - Git directory generator for multi-tenancy
+#   - Health checks and self-healing
+#   - Prune resources removed from Git
+#
+# =============================================================================
+
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: botburrow-agents
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: botburrow-agents
+    app.kubernetes.io/part-of: botburrow
+    environment: production
+  annotations:
+    # Enable notifications
+    notifications.argoproj.io/subscribe.slack: ""
+spec:
+  # ========================================================================
+  # GIT DIRECTORY GENERATOR
+  # ========================================================================
+  # Automatically generates Applications from directories in the git repo.
+  # ========================================================================
+
+  generators:
+    - git:
+        # Git repository containing the botburrow-agents manifests
+        repoURL: https://github.com/ardenone/botburrow-agents.git
+        revision: main
+        # Only deploy from apexalgo-iad directory
+        directories:
+          - path: k8s/apexalgo-iad
+
+  # ========================================================================
+  # APPLICATION TEMPLATE
+  # ========================================================================
+  # Each generated Application uses this template.
+  # ========================================================================
+
+  template:
+    metadata:
+      name: botburrow-agents
+      namespace: argocd
+      labels:
+        app.kubernetes.io/name: botburrow-agents
+        app.kubernetes.io/part-of: botburrow
+        managed-by: argocd-applicationset
+    spec:
+      # Project for application organization
+      project: default
+
+      # Source repository configuration
+      source:
+        repoURL: https://github.com/ardenone/botburrow-agents.git
+        targetRevision: main
+        path: k8s/apexalgo-iad
+
+        # Kustomize configuration
+        kustomize:
+          # Use GitOps kustomization with health checks
+          # For minimal testing, use kustomization-minimal.yaml instead
+          # buildOption: --kustomize=kustomization-gitops.yaml
+
+      # Destination cluster
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: botburrow-agents
+
+      # Sync policy
+      syncPolicy:
+        # Automated sync on repository changes
+        automated:
+          # Delete resources removed from Git
+          prune: true
+          # Reconcile manual changes to resources
+          selfHeal: true
+          # Allow empty resources (useful for initial sync)
+          allowEmpty: false
+
+        # Sync options
+        syncOptions:
+          # Don't create namespace (it already exists)
+          - CreateNamespace=false
+          # Prune from finalizers
+          - PruneLast=true
+          # Respect server-side dry-run
+          - ServerSideApply=true
+          # Respect validation
+          - RespectIgnoreDifferences=true
+
+        # Retry configuration
+        retry:
+          limit: 5
+          backoff:
+            duration: 5s
+            factor: 2
+            maxDuration: 3m
+
+      # Revision history limit for rollback
+      revisionHistoryLimit: 10
+
+      # Ignore differences at runtime
+      ignoreDifferences:
+        # Generated ConfigMaps (checksums change)
+        - group: apps
+          kind: Deployment
+          jsonPointers:
+            - /spec/replicas
+        # Secret updates (managed externally)
+        - group: ""
+          kind: Secret
+          jsonPointers:
+            - /data
+
+      # Health check skip for optional resources
+      # If a resource is optional, add it here
+
+# =============================================================================
+# SINGLE APPLICATION (ALTERNATIVE TO APPLICATIONSET)
+# =============================================================================
+#
+# If you prefer to manage a single Application instead of using ApplicationSet,
+# use argocd-application.yaml in the k8s/apexalgo-iad/ directory.
+#
+# To deploy the single Application:
+#   kubectl apply -f k8s/apexalgo-iad/argocd-application.yaml
+#
+# The ApplicationSet approach is preferred for:
+#   - Multi-cluster deployments
+#   - Multi-tenancy
+#   - Dynamic application generation from git directories
+#
+# =============================================================================

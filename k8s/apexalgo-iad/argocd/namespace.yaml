@@ -1,0 +1,18 @@
+# =============================================================================
+# ARGOCD NAMESPACE
+# =============================================================================
+#
+# This namespace hosts ArgoCD deployment for the apexalgo-iad cluster.
+#
+# DEPLOYMENT:
+#   kubectl apply -f k8s/apexalgo-iad/argocd/namespace.yaml
+#
+# =============================================================================
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: argocd
+  labels:
+    app.kubernetes.io/name: argocd
+    app.kubernetes.io/part-of: argocd

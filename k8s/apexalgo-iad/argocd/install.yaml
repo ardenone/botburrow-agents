@@ -1,0 +1,152 @@
+# =============================================================================
+# ARGOCD INSTALLATION MANIFEST
+# =============================================================================
+#
+# This manifest installs ArgoCD in the apexalgo-iad cluster.
+# Source: https://github.com/argoproj/argo-cd
+#
+# DEPLOYMENT:
+#   kubectl apply -n argocd -f k8s/apexalgo-iad/argocd/install.yaml
+#
+# PREREQUISITES:
+#   - Namespace argocd must exist (see namespace.yaml)
+#   - Cluster-admin permissions required
+#
+# VERIFICATION:
+#   kubectl get pods -n argocd
+#   # All pods should be Running
+#
+# ACCESSING UI:
+#   kubectl port-forward svc/argocd-server -n argocd 8080:443
+#   # Open https://localhost:8080
+#   # Get password: kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath='{.data.password}' | base64 -d
+#
+# =============================================================================
+
+# Note: This is a placeholder reference to the official ArgoCD manifest.
+# In production, download the latest stable manifest:
+# curl -o install.yaml https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+#
+# For now, use the official manifest directly:
+# kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+
+# To customize ArgoCD installation, download the manifest and modify:
+# 1. Resource limits for your cluster size
+# 2. Service type (ClusterIP vs LoadBalancer)
+# 3. Ingress configuration
+# 4. Redis HA configuration
+# 5. Controller replicas
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-install-instructions
+  namespace: argocd
+  annotations:
+    description: "Instructions for installing ArgoCD in apexalgo-iad cluster"
+data:
+  install.md: |
+    # ArgoCD Installation for apexalgo-iad
+
+    ## Quick Install (Cluster Admin Required)
+
+    ```bash
+    # Step 1: Create namespace
+    kubectl apply -f k8s/apexalgo-iad/argocd/namespace.yaml
+
+    # Step 2: Install ArgoCD (latest stable)
+    kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+
+    # Step 3: Wait for pods to be ready
+    kubectl wait --for=condition=ready pod -l app.kubernetes.io/part-of=argocd -n argocd --timeout=300s
+
+    # Step 4: Get initial admin password
+    kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath='{.data.password}' | base64 -d
+
+    # Step 5: Access UI (port-forward)
+    kubectl port-forward svc/argocd-server -n argocd 8080:443
+    # Open https://localhost:8080
+    # Login with username: admin, password from step 4
+    ```
+
+    ## Installation via Downloaded Manifest
+
+    ```bash
+    # Download the manifest
+    curl -o argocd-install.yaml https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+
+    # Review and customize as needed
+    # Apply the manifest
+    kubectl apply -n argocd -f argocd-install.yaml
+    ```
+
+    ## Post-Installation Configuration
+
+    ```bash
+    # Install ArgoCD CLI
+    curl -sSL -o argocd-linux-amd64 https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+    chmod +x argocd-linux-amd64
+    sudo mv argocd-linux-amd64 /usr/local/bin/argocd
+
+    # Login to ArgoCD
+    argocd login localhost:8080 --insecure --username admin --password $(kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath='{.data.password}' | base64 -d)
+
+    # Change admin password
+    argocd account update-password
+    ```
+
+    ## Configure Ingress (Optional)
+
+    Create an IngressRoute for external access:
+    ```bash
+    kubectl apply -f k8s/apexalgo-iad/argocd/ingress.yaml
+    ```
+
+    ## Install ApplicationSet Controller
+
+    The ApplicationSet controller is included in the standard installation manifest.
+    Verify it's running:
+    ```bash
+    kubectl get deployment argocd-applicationset-controller -n argocd
+    ```
+
+## Verification Steps
+
+verify.sh: |
+  #!/bin/bash
+  set -e
+
+  echo "=== Verifying ArgoCD Installation ==="
+
+  # Check namespace exists
+  echo "Checking argocd namespace..."
+  kubectl get namespace argocd
+
+  # Check pods are running
+  echo "Checking ArgoCD pods..."
+  kubectl get pods -n argocd
+
+  # Check deployments
+  echo "Checking ArgoCD deployments..."
+  kubectl get deployments -n argocd
+
+  # Check services
+  echo "Checking ArgoCD services..."
+  kubectl get svc -n argocd
+
+  # Check ApplicationSet controller
+  echo "Checking ApplicationSet controller..."
+  kubectl get deployment argocd-applicationset-controller -n argocd
+
+  # Check CRDs
+  echo "Checking ArgoCD CRDs..."
+  kubectl get crd | grep argoproj.io
+
+  # Get initial admin password
+  echo ""
+  echo "=== Initial Admin Password ==="
+  kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath='{.data.password}' | base64 -d && echo
+
+  echo ""
+  echo "=== ArgoCD Installation Complete ==="
+  echo "Access UI: kubectl port-forward svc/argocd-server -n argocd 8080:443"

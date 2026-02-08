@@ -1,0 +1,61 @@
+# =============================================================================
+# ARGOCD INGRESSROUTE FOR EXTERNAL ACCESS
+# =============================================================================
+#
+# This IngressRoute exposes ArgoCD UI via Traefik on the apexalgo-iad cluster.
+# Update the host to match your domain.
+#
+# DEPLOYMENT:
+#   kubectl apply -f k8s/apexalgo-iad/argocd/ingress.yaml
+#
+# PREREQUISITES:
+#   - Traefik installed with IngressRoute CRD
+#   - DNS record pointing to Traefik ingress
+#   - SSL certificate configured in Traefik
+#
+# =============================================================================
+
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: argocd-server
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd
+    app.kubernetes.io/part-of: argocd
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`argocd.apexalgo.ardenone.com`)
+      kind: Rule
+      services:
+        - name: argocd-server
+          port: 443
+      # Uncomment for basic authentication (optional)
+      # middlewares:
+      #   - name: argocd-auth
+  tls:
+    certResolver: letsencrypt
+    # Or use a specific TLS certificate
+    # domains:
+    #   - main: argocd.apexalgo.ardenone.com
+
+# =============================================================================
+# OPTIONAL: BASIC AUTH MIDDLEWARE
+# =============================================================================
+#
+# If you want an additional layer of security, enable basic auth:
+#
+# apiVersion: traefik.io/v1alpha1
+# kind: Middleware
+# metadata:
+#   name: argocd-auth
+#   namespace: argocd
+# spec:
+#   basicAuth:
+#     # Generate with: htpasswd -nb user password
+#     users:
+#       - "admin:$apr1$xyz..."  # Replace with actual hash
+#
+# =============================================================================
