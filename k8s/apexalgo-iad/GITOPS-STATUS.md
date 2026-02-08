@@ -1,163 +1,148 @@
-# ArgoCD GitOps Deployment Status for botburrow-agents
+# ArgoCD GitOps Status Update for bd-3kh
 
-## Overview
+**Date**: 2026-02-08
+**Bead**: bd-3kh - Fix ArgoCD ApplicationSet sync for botburrow-agents deployment
+**Status**: In Progress - Pending ArgoCD sync verification
 
-This document tracks the status of the ArgoCD GitOps deployment for botburrow-agents as of 2026-02-08.
+## Summary of Investigation
 
-## Current Status: Ready for Deployment (Awaiting Credentials)
+### Architecture Discovery
 
-The GitOps infrastructure is fully prepared. The only remaining blocker is obtaining actual credential values to create the SealedSecrets.
+1. **ArgoCD Location**: ArgoCD is NOT installed in either ardenone-cluster or apexalgo-iad clusters. It runs externally and manages these clusters as remote destinations.
 
-## Infrastructure Checklist
+2. **ApplicationSet Location**: The ArgoCD ApplicationSet is configured in the `ardenone-cluster` repository:
+   - Path: `/home/coder/ardenone-cluster/cluster-configuration/apexalgo-iad/apexalgo-iad-applicationset.yml`
+   - Repository: https://github.com/ardenone/ardenone-cluster
 
-| Component | Status | Notes |
-|-----------|--------|-------|
-| ArgoCD Application Manifest | ✅ Ready | `k8s/apexalgo-iad/argocd-application.yaml` |
-| Kustomization for GitOps | ✅ Ready | `k8s/apexalgo-iad/kustomization-gitops.yaml` |
-| SealedSecret Template | ✅ Ready | `k8s/apexalgo-iad/botburrow-agents-sealedsecrets.yml.template` |
-| SealedSecret Controller | ✅ Running | Namespace: `sealed-secrets` |
-| Namespace | ✅ Exists | `botburrow-agents` (6d old) |
-| Documentation | ✅ Complete | `DEPLOYMENT-GITOPS.md`, `SECRET_SETUP.md` |
-| Creation Script | ✅ Ready | `scripts/create-sealedsecret.sh` |
-| **SealedSecret (with real values)** | ⏳ **BLOCKED** | Requires human input with credentials |
+3. **ApplicationSet Generator**: Uses Git directory generator to scan `cluster-configuration/apexalgo-iad/*` directories and creates Applications named `{{path.basename}}-ns-apexalgo-iad`
 
-## Required Credentials
+4. **Application Naming**: For `botburrow-agents` directory, the Application is named `botburrow-agents-ns-apexalgo-iad`
 
-To complete the deployment, the following credential values are needed:
+### Root Cause Analysis
 
-| Credential | Source | Required For |
-|------------|--------|--------------|
-| HUB_API_KEY | Botburrow Hub admin | Hub API access |
-| R2_ENDPOINT | Cloudflare R2 dashboard | Storage endpoint |
-| R2_ACCESS_KEY | Cloudflare R2 dashboard | Storage access |
-| R2_SECRET_KEY | Cloudflare R2 dashboard | Storage secret |
-| FORGEJO_USER | Forgejo | Git service account |
-| FORGEJO_TOKEN | https://forgejo.ardenone.com | Git operations |
-| GITHUB_USER | GitHub | GitHub username |
-| GITHUB_TOKEN | GitHub Settings → Developer settings | External repos |
-| GITHUB_PAT | GitHub Settings → Developer settings | MCP server |
-| BRAVE_API_KEY | https://brave.com/search/api/ | Web search |
-| ANTHROPIC_API_KEY | Anthropic Console | Optional (use z.ai proxy) |
+The botburrow-agents namespace exists with ArgoCD tracking annotations but contains zero resources. Investigation revealed:
 
-## Deployment Steps (When Credentials Available)
+1. **Namespace Created Successfully**: The namespace `botburrow-agents` exists in apexalgo-iad cluster with annotation:
+   ```
+   argocd.argoproj.io/tracking-id: botburrow-agents-ns-apexalgo-iad:/Namespace:/botburrow-agents
+   ```
+   This confirms ArgoCD ApplicationSet created the namespace.
 
-### Step 1: Create SealedSecret
+2. **Resources Not Deployed**: Despite the namespace existing, no other resources (Deployments, Services, etc.) are present.
 
-```bash
-# Copy and edit template with real values
-cp k8s/apexalgo-iad/botburrow-agents-sealedsecrets.yml.template /tmp/botburrow-agents-secrets.yml
-vi /tmp/botburrow-agents-secrets.yml  # Fill in all REPLACE_* values
+3. **Configuration Issues Found and Fixed**:
+   - **Issue 1**: A `kustomization.yaml` file was present in the directory, which is incompatible with ArgoCD's directory mode (where kustomization.yaml is treated as a regular resource and fails).
+     - **Fix**: Removed kustomization.yaml
 
-# Create SealedSecret
-kubeseal --format=yaml \
-  --controller-namespace=sealed-secrets \
-  --controller-name=sealed-secrets \
-  < /tmp/botburrow-agents-secrets.yml \
-  > k8s/apexalgo-iad/botburrow-agents-sealedsecrets.yml
+   - **Issue 2**: ServiceMonitor resources require `monitoring.coreos.com/v1` CRD which is not installed in apexalgo-iad cluster.
+     - **Fix**: Renamed servicemonitor.yaml to servicemonitor.yaml.disabled
 
-# Verify
-kubectl apply --dry-run=server -f k8s/apexalgo-iad/botburrow-agents-sealedsecrets.yml
+4. **SealedSecret Permission Issue**: The botburrow-agents-sealedsecret.yml exists but cannot be applied by the devpod-observer service account due to RBAC restrictions. This must be applied by ArgoCD (which has appropriate permissions).
 
-# Clean up
-rm /tmp/botburrow-agents-secrets.yml
+### Changes Made
 
-# Commit to Git
-git add k8s/apexalgo-iad/botburrow-agents-sealedsecrets.yml
-git commit -m "feat(bd-3e3): Add SealedSecret with production credentials"
-git push origin main
+**ardenone-cluster repository commits**:
+1. `f66d708d9` - Added kustomization.yaml (later reverted)
+2. `88cd29f47` - Added SealedSecret to kustomization resources (later reverted)
+3. `be819f30e` - Removed kustomization.yaml and disabled ServiceMonitor
+
+### Current State
+
+**Files in ardenone-cluster/cluster-configuration/apexalgo-iad/botburrow-agents/**:
+```
+botburrow-agents-sealedsecret.yml  # SealedSecret for botburrow-agents secrets
+configmap.yaml                      # ConfigMaps for configuration
+coordinator-git-sync.yaml          # Git-sync coordinator deployment
+coordinator.yaml                    # Coordinator deployment
+hpa.yaml                           # HorizontalPodAutoscaler resources
+namespace.yml                      # Namespace definition (already applied)
+rbac.yaml                          # RBAC (ServiceAccount, Role, RoleBinding)
+runner-exploration.yaml            # Exploration runner deployment
+runner-git-sync.yaml               # Git-sync runner deployment
+runner-hybrid.yaml                 # Hybrid runner deployment
+runner-notification.yaml           # Notification runner deployment
+skill-sync.yaml                    # Skill sync deployment
+valkey.yaml                        # Valkey (Redis) deployment and service
+servicemonitor.yaml.disabled       # Disabled (CRD not installed)
 ```
 
-### Step 2: Enable SealedSecret in Kustomization
+All remaining YAML files pass `kubectl --dry-run=client` validation.
 
-Uncomment the SealedSecret line in `kustomization-gitops.yaml`:
+### Verification Needed
 
-```yaml
-resources:
-  # Wave -1: SealedSecrets
-  - botburrow-agents-sealedsecrets.yml  # Uncomment this
-```
+Since ArgoCD is running externally and we don't have direct API access, the following needs to be verified:
 
-### Step 3: Apply ArgoCD Application
+1. **Check ArgoCD Application Status**:
+   ```bash
+   # From a system with ArgoCD CLI access:
+   argocd app get botburrow-agents-ns-apexalgo-iad
+   argocd app sync botburrow-agents-ns-apexalgo-iad
+   ```
 
-```bash
-kubectl apply -f k8s/apexalgo-iad/argocd-application.yaml
-```
+2. **Check Application Sync Status**:
+   - Verify the Application is not in an error state
+   - Check if there are any sync errors preventing resource deployment
+   - Verify the SealedSecret was applied successfully (it should create the `botburrow-agents-secrets` Secret)
 
-### Step 4: Monitor Deployment
+3. **Check Resource Status in apexalgo-iad**:
+   ```bash
+   export KUBECONFIG=/path/to/apexalgo-iad.kubeconfig
+   kubectl get all -n botburrow-agents
+   kubectl get sealedsecrets -n botburrow-agents
+   kubectl get secrets -n botburrow-agents
+   ```
 
-```bash
-# Watch sync status
-kubectl get application botburrow-agents -n argocd -w
+### Possible Remaining Issues
 
-# Check pods
-kubectl get pods -n botburrow-agents
-```
+1. **SealedSecret Controller**: Verify SealedSecret controller is running in apexalgo-iad cluster
+   ```bash
+   kubectl get pods -n sealed-secrets
+   ```
 
-## Related Beads
+2. **Application Sync Errors**: The ArgoCD Application might be in a failed state due to:
+   - Permission issues
+   - Invalid manifests
+   - Prerequisite resources not available
 
-| Bead ID | Title | Status | Notes |
-|---------|-------|--------|-------|
-| bd-3e3 | Create ArgoCD GitOps deployment | 🔄 In Progress | Infrastructure ready, blocked on credentials |
-| bd-2la | Create botburrow-agents-secrets and mcp-credentials | ⏳ Blocked | Human bead for cluster-admin to create secrets |
+3. **ArgoCD Sync Wave Issues**: Resources might be stuck waiting for dependencies
 
-## Architecture
+### Next Steps
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  GitOps Flow                                                   │
-│                                                                │
-│  GitHub (ardenone/botburrow-agents)                            │
-│  ├── k8s/apexalgo-iad/                                         │
-│  │   ├── argocd-application.yaml    ← ArgoCD Application       │
-│  │   ├── kustomization-gitops.yaml  ← GitOps Kustomization     │
-│  │   ├── botburrow-agents-sealedsecrets.yml ← Encrypted       │
-│  │   └── *.yaml                    → All manifests            │
-│  │                             ↓                               │
-│  │                     ArgoCD Sync                               │
-│  │                             ↓                               │
-│  └───────────────────────────────────────────────────────┐   │
-│                                                             │   │
-│  apexalgo-iad Cluster                                       │   │
-│  └── botburrow-agents namespace                             │   │
-│      ├── Secrets (decrypted by SealedSecrets)               │   │
-│      ├── Valkey (Redis)                                      │   │
-│      ├── Coordinator (2 replicas, leader election)           │   │
-│      ├── Runners (hybrid, notification, exploration)         │   │
-│      └── HPA, ServiceMonitor                                 │   │
-└─────────────────────────────────────────────────────────────┘
-```
+1. **Direct ArgoCD Access**: Need access to ArgoCD UI or CLI to check Application status and trigger manual sync if needed
 
-## Success Criteria
+2. **Manual Verification**: If ArgoCD still doesn't sync after fixes, manually apply resources:
+   ```bash
+   export KUBECONFIG=/path/to/apexalgo-iad.kubeconfig
+   kubectl apply -f /home/coder/ardenone-cluster/cluster-configuration/apexalgo-iad/botburrow-agents/
+   ```
 
-- [x] ArgoCD Application manifest created
-- [x] Kustomization configured for GitOps
-- [x] SealedSecret template available
-- [x] Documentation complete
-- [ ] SealedSecret created with real credentials
-- [ ] ArgoCD Application applied to cluster
-- [ ] All pods running successfully
+3. **Consider Alternative Approach**: If ArgoCD continues to have issues, the workaround deployment script (`scripts/deploy-workaround.sh`) can be used until ArgoCD is fixed.
 
-## Files Modified
+### Related Beads
 
-This GitOps setup was prepared as part of bead bd-3e3. Key files:
+- **bd-3kh**: Current bead - Fix ArgoCD ApplicationSet sync
+- **bd-1v9**: Original bead - Fix botburrow-agents deployment via ArgoCD
+- **bd-cni**: Workaround deployment - kubectl-based deployment script
+- **bd-3e3**: Infrastructure readiness and credential configuration
 
-- `k8s/apexalgo-iad/argocd-application.yaml` - ArgoCD Application manifest
-- `k8s/apexalgo-iad/kustomization-gitops.yaml` - GitOps Kustomization with SealedSecret placeholder
-- `k8s/apexalgo-iad/DEPLOYMENT-GITOPS.md` - Comprehensive deployment guide
-- `k8s/apexalgo-iad/SECRET_SETUP.md` - Secret creation instructions
-- `k8s/apexalgo-iad/scripts/create-sealedsecret.sh` - Automated SealedSecret creation
+### Files Modified
 
-## Next Steps
+1. `/home/coder/ardenone-cluster/cluster-configuration/apexalgo-iad/botburrow-agents/`:
+   - Removed: kustomization.yaml
+   - Renamed: servicemonitor.yaml → servicemonitor.yaml.disabled
 
-1. **Human Action**: Resolve bead bd-2la to provide actual credential values
-2. **Create SealedSecret**: Follow Step 1 above with real values
-3. **Enable in Kustomization**: Uncomment SealedSecret line
-4. **Apply ArgoCD Application**: Deploy via `kubectl apply -f argocd-application.yaml`
-5. **Verify**: Confirm all pods are running and healthy
+2. Commits pushed to ardenone-cluster repository:
+   - `f66d708d9`: feat(bd-3kh): Add kustomization.yaml to fix ArgoCD ApplicationSet sync
+   - `88cd29f47`: fix(bd-3kh): Add SealedSecret to kustomization resources
+   - `be819f30e`: fix(bd-3kh): Remove kustomization and disable ServiceMonitor for directory mode
 
-## Contact
+## Conclusion
 
-For questions or issues, refer to:
-- DEPLOYMENT-GITOPS.md - Detailed deployment instructions
-- SECRET_SETUP.md - Secret creation workflow
-- Bead bd-2la - Cluster-admin action for secrets
+The root cause of the ArgoCD sync failure was identified as incompatible resources (kustomization.yaml in directory mode, ServiceMonitor without CRD). These have been fixed and committed to the ardenone-cluster repository.
+
+However, without direct access to ArgoCD to verify the sync status and trigger a manual sync if needed, we cannot confirm that resources are being deployed. The next step requires either:
+1. Direct ArgoCD access to check/trigger sync
+2. Waiting for ArgoCD's automatic sync cycle (typically 3-5 minutes)
+3. Manual deployment using the workaround script if urgent
+
+The namespace exists with correct ArgoCD tracking annotations, indicating the ApplicationSet is functional. The fixes applied should resolve the sync issues.
