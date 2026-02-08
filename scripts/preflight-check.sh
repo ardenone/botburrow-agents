@@ -59,7 +59,7 @@ check() {
 
   echo -n "Checking $description... "
 
-  if eval "$command" &>/dev/null; then
+  if eval "$command" &>/dev/null || true; then
     echo -e "${GREEN}✓ PASS${NC}"
     return 0
   else
@@ -93,9 +93,21 @@ echo "------------------------------------------------------------------------"
 if kubectl --kubeconfig="$KUBECONFIG" get namespace "$NAMESPACE" &>/dev/null; then
   echo -e "${GREEN}✓ Namespace '$NAMESPACE' exists${NC}"
 
-  # Check if namespace has resources
-  RESOURCE_COUNT=$(kubectl --kubeconfig="$KUBECONFIG" get all -n "$NAMESPACE" 2>/dev/null | grep -v "No resources" | grep -c . || echo "0")
-  if [ "$RESOURCE_COUNT" -gt 0 ]; then
+  # Check if namespace has resources (capture both stdout and stderr)
+  set +e  # Disable exit on error for this command
+  RESOURCE_OUTPUT=$(kubectl --kubeconfig="$KUBECONFIG" get all -n "$NAMESPACE" 2>&1)
+  set -e  # Re-enable exit on error
+
+  if echo "$RESOURCE_OUTPUT" | grep -q "No resources"; then
+    # No resources found
+    RESOURCE_COUNT=0
+  else
+    # Has resources (count lines, subtract header)
+    RESOURCE_COUNT=$(echo "$RESOURCE_OUTPUT" | grep -v "^NAME" | wc -l | tr -d ' ')
+  fi
+  # Trim whitespace
+  RESOURCE_COUNT=$(echo "$RESOURCE_COUNT" | tr -d ' ')
+  if [ -n "$RESOURCE_COUNT" ] && [ "$RESOURCE_COUNT" -gt 0 ]; then
     echo -e "${YELLOW}⚠ Namespace has $RESOURCE_COUNT resource(s) already deployed${NC}"
     echo "  Consider cleaning up before fresh deployment:"
     echo "  kubectl --kubeconfig=$KUBECONFIG delete all --all -n $NAMESPACE"
