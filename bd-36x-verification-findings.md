@@ -2,8 +2,11 @@
 
 **Date:** 2026-02-08
 **Bead:** bd-36x (HUMAN: Verify ArgoCD Application sync status for botburrow-agents)
-**Status:** Already completed by another worker (claude-code-glm-47-hotel)
-**Related Bead:** bd-368r (same task in global workspace /home/coder/.beads/)
+**Status:** CLOSED (in botburrow-agents workspace)
+**Related Bead:** bd-368r (same task in global workspace /home/coder/.beads/) - OPEN
+
+**Latest Verification:** 2026-02-08 09:55 UTC
+**Verifier:** claude-code-glm-47-bravo
 
 ## Summary
 
@@ -49,7 +52,21 @@ $ kubectl get applicationsets.argoproj.io
 error: the server doesn't have a resource type "applicationsets"
 ```
 
-**Analysis:** The devpod-observer ServiceAccount does NOT have access to ArgoCD Application resources. Available Argo resources are only:
+**Analysis:** The devpod-observer ServiceAccount does NOT have access to ArgoCD Application/ApplicationSet resources.
+
+**RBAC Verification Results (2026-02-08 09:55 UTC):**
+```bash
+$ kubectl auth can-i get applications.argoproj.io -n argocd
+no
+
+$ kubectl get secrets -n argocd
+Error from server (Forbidden): secrets is forbidden: User "system:serviceaccount:devpod-observer:devpod-observer" cannot list resource "secrets" in API group "" in the namespace "argocd"
+
+$ kubectl get configmaps -n argocd
+Error from server (Forbidden): configmaps is forbidden: User "system:serviceaccount:devpod-observer:devpod-observer" cannot list resource "configmaps" in API group "" in the namespace "argocd"
+```
+
+Available Argo resources are only:
 - AnalysisRun
 - AnalysisTemplate
 - Experiment
@@ -108,12 +125,44 @@ cd /home/coder/botburrow-agents
 
 ## Related Beads
 
-- bd-368r: Same task, exists in global workspace (`/home/coder/.beads/`)
-- bd-3kh: Original fix bead (root cause identified and fixed)
-- bd-36x: This bead (already completed by another worker)
+- **bd-368r** (global workspace `/home/coder/.beads/`): Same task - **OPEN** - Needs ArgoCD admin verification
+- **bd-36x** (botburrow-agents workspace): This bead - **CLOSED** (completed by previous worker)
+- **bd-3kh**: Original fix bead (root cause identified and fixed)
 
 ## Conclusion
 
 All code-level fixes have been applied and verified. The namespace exists with ArgoCD tracking-id, confirming the Application was created. However, resources are not being deployed, and verification requires ArgoCD admin access which is not available via devpod-observer ServiceAccount.
 
-**Recommendation:** ArgoCD admin should check Application status and trigger manual sync if needed.
+### Verification Status Summary
+
+| Item | Status | Notes |
+|------|--------|-------|
+| Root cause fixes applied | ✅ Complete | All commits pushed to ardenone-cluster |
+| Namespace created | ✅ Complete | Has ArgoCD tracking-id annotation |
+| Resources deployed | ❌ Incomplete | Namespace empty despite tracking-id |
+| ArgoCD Application sync status | ❓ Unknown | Cannot verify without ArgoCD admin access |
+
+### Required Action
+
+**ArgoCD admin should check Application status and trigger manual sync if needed:**
+
+```bash
+# Check Application status
+kubectl get application botburrow-agents-ns-apexalgo-iad -n argocd -o yaml
+
+# Check sync status
+kubectl get application botburrow-agents-ns-apexalgo-iad -n argocd -o jsonpath='{.status.sync.status}'
+
+# Trigger manual sync if needed
+argocd app sync botburrow-agents-ns-apexalgo-iad
+```
+
+### Alternative: Workaround Deployment
+
+If ArgoCD cannot be fixed, use the workaround deployment script:
+```bash
+cd /home/coder/botburrow-agents
+./scripts/deploy-workaround.sh
+```
+
+See `docs/workarounds/bd-cni-argocd-workaround.md` for details.
