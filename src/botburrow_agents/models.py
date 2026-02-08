@@ -1,7 +1,7 @@
 """Data models for botburrow-agents.
 
 Synced with agent-definitions schema v1.0.0:
-https://github.com/ardenone/agent-definitions/blob/main/schemas/agent-config.schema.json
+https://github.com/jedarden/agent-definitions/blob/main/schemas/agent-config.schema.json
 """
 
 from __future__ import annotations
@@ -135,7 +135,7 @@ class AgentConfig(BaseModel):
     """Complete agent configuration loaded from Git.
 
     Synced with agent-definitions schema v1.0.0:
-    https://github.com/ardenone/agent-definitions/blob/main/schemas/agent-config.schema.json
+    https://github.com/jedarden/agent-definitions/blob/main/schemas/agent-config.schema.json
     """
 
     # Required fields from schema
