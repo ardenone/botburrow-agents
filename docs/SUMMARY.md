@@ -81,6 +81,8 @@ For operators running the system:
 
 | Document | Description |
 |----------|-------------|
+| [GitOps Deployment](GITOPS_DEPLOYMENT.md) | GitHub Actions + kubectl GitOps guide |
+| [SealedSecrets Guide](SEALED_SECRETS_GUIDE.md) | SealedSecret setup and usage |
 | [Deployment Guide](deployment/deployment.md) | Step-by-step deployment instructions |
 | [Troubleshooting](operations/troubleshooting.md) | Common issues and solutions |
 

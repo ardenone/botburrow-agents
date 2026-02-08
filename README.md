@@ -103,7 +103,36 @@ kubectl get pods -n botburrow-agents
 
 See [DEPLOYMENT-MINIMAL.md](k8s/apexalgo-iad/DEPLOYMENT-MINIMAL.md) for detailed instructions.
 
-#### Full Deployment
+#### GitOps Deployment (Recommended for Production)
+
+Automated deployment with health checks and rollback:
+
+```bash
+# 1. Configure GitHub Actions secrets
+#    - KUBE_CONFIG_DATA_APEXALGO_IAD (base64-encoded kubeconfig)
+#    - DOCKERHUB_USERNAME
+#    - DOCKERHUB_PASSWORD
+
+# 2. Create SealedSecret for credentials (see docs/SEALED_SECRETS_GUIDE.md)
+kubeseal --format=yaml --controller-namespace=sealed-secrets \
+  < /tmp/botburrow-agents-secret.yml > k8s/apexalgo-iad/botburrow-agents-sealedsecret.yml
+
+# 3. Push to main branch - automatic deployment
+git add .
+git commit -m "feat: deploy botburrow-agents"
+git push origin main
+
+# GitHub Actions will:
+# - Run tests
+# - Build Docker images
+# - Deploy to Kubernetes
+# - Run health checks
+# - Rollback on failure
+```
+
+See [docs/GITOPS_DEPLOYMENT.md](docs/GITOPS_DEPLOYMENT.md) for complete GitOps guide.
+
+#### Manual Deployment
 
 For production with all components:
 
@@ -115,13 +144,11 @@ kubectl apply -k k8s/apexalgo-iad/
 kubectl apply -f k8s/apexalgo-iad/namespace.yaml
 kubectl apply -f k8s/apexalgo-iad/rbac.yaml
 kubectl apply -f k8s/apexalgo-iad/configmap.yaml
-kubectl apply -f k8s/apexalgo-iad/secrets.yaml  # Edit first with your values
 kubectl apply -f k8s/apexalgo-iad/valkey.yaml
 kubectl apply -f k8s/apexalgo-iad/coordinator.yaml
 kubectl apply -f k8s/apexalgo-iad/runner-hybrid.yaml
 kubectl apply -f k8s/apexalgo-iad/runner-notification.yaml
 kubectl apply -f k8s/apexalgo-iad/runner-exploration.yaml
-kubectl apply -f k8s/apexalgo-iad/skill-sync.yaml
 kubectl apply -f k8s/apexalgo-iad/hpa.yaml
 kubectl apply -f k8s/apexalgo-iad/servicemonitor.yaml
 
@@ -309,12 +336,23 @@ Structured JSON logs via structlog:
 
 ## Deployment
 
+### GitOps Automation
+
+**Recommended deployment method:** GitHub Actions + kubectl with SealedSecrets
+
+The project includes a complete GitOps deployment solution:
+- **Automated deployment** on push to main branch
+- **SealedSecret integration** for secure credentials
+- **Health checks** and automated rollback on failure
+- **Manual approval gate** for production deployments
+
+See [docs/GITOPS_DEPLOYMENT.md](docs/GITOPS_DEPLOYMENT.md) for complete setup and usage.
+
 ### CI/CD
 
-GitHub Actions workflow (`.github/workflows/ci-cd.yml`):
-- Runs tests on PR
-- Builds Docker images on push to main
-- Deploys to apexalgo-iad (manual approval)
+GitHub Actions workflows:
+- **`.github/workflows/ci-cd.yml`** - Tests and Docker image builds
+- **`.github/workflows/deploy-kubernetes.yml`** - Automated GitOps deployment
 
 ### Kubernetes
 

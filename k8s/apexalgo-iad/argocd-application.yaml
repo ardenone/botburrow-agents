@@ -1,0 +1,157 @@
+# =============================================================================
+# ArgoCD Application for botburrow-agents
+# =============================================================================
+#
+# This manifest defines the ArgoCD Application for botburrow-agents in the
+# apexalgo-iad cluster. It enables GitOps-based deployment with automated
+# sync and health checks.
+#
+# DEPLOYMENT:
+#   kubectl apply -f k8s/apexalgo-iad/argocd-application.yaml
+#
+# PREREQUISITES:
+#   - ArgoCD installed in argocd namespace
+#   - SealedSecrets created and applied (see botburrow-agents-secrets-templates.yml)
+#   - Namespace already exists
+#
+# FEATURES:
+#   - Automated sync from main branch
+#   - Prune resources removed from Git
+#   - Self-heal on manual drift
+#   - Health checks for all resources
+#
+# =============================================================================
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: botburrow-agents
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: botburrow-agents
+    app.kubernetes.io/part-of: botburrow
+  annotations:
+    # Link to source repository
+    notifications.argoproj.io/subscribe.slack: ""
+spec:
+  # Project for application organization
+  project: default
+
+  # Source repository configuration
+  source:
+    # Update this to your fork/organization
+    repoURL: https://github.com/ardenone/botburrow-agents.git
+    targetRevision: main
+    path: k8s/apexalgo-iad
+
+    # Kustomize build options
+    kustomize:
+      # Use minimal kustomization for initial deployment
+      # Change to kustomization-full.yaml for production with all components
+      buildOption: --kustomize=kustomization-minimal.yaml
+
+    # Directory-level options
+    directory:
+      recurse: false
+      jsonnet:
+        extVars: []
+
+  # Destination cluster
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: botburrow-agents
+
+  # Sync policy
+  syncPolicy:
+    # Automated sync on repository changes
+    automated:
+      # Delete resources removed from Git
+      prune: true
+      # Reconcile manual changes to resources
+      selfHeal: true
+      # Allow empty resources (useful for initial sync)
+      allowEmpty: false
+
+    # Sync options
+    syncOptions:
+      # Create namespace if it doesn't exist
+      - CreateNamespace=false
+      # Prune last (after propagation)
+      - PrunePropagationPolicy=foreground
+      # Prune from finalizers
+      - PruneLast=true
+      # Respect server-side dry-run
+      - ServerSideApply=true
+
+    # Retry configuration
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+
+  # Revision history limit
+  revisionHistoryLimit: 10
+
+  # Health checks
+  healthCheck:
+    # Skip optional resources
+    skipValidation: false
+
+---
+# =============================================================================
+# Production Application (Full Deployment)
+# =============================================================================
+#
+# This is the production-ready configuration with all components enabled.
+# Apply this when ready to scale beyond minimal deployment.
+#
+# DEPLOYMENT:
+#   kubectl apply -f k8s/apexalgo-iad/argocd-application-production.yaml
+#
+# =============================================================================
+
+# apiVersion: argoproj.io/v1alpha1
+# kind: Application
+# metadata:
+#   name: botburrow-agents-production
+#   namespace: argocd
+#   labels:
+#     app.kubernetes.io/name: botburrow-agents
+#     app.kubernetes.io/part-of: botburrow
+#     environment: production
+# spec:
+#   project: default
+#
+#   source:
+#     repoURL: https://github.com/ardenone/botburrow-agents.git
+#     targetRevision: main
+#     path: k8s/apexalgo-iad
+#     kustomize:
+#       # Use full kustomization for production
+#       buildOption: --kustomize=kustomization-full.yaml
+#
+#   destination:
+#     server: https://kubernetes.default.svc
+#     namespace: botburrow-agents
+#
+#   syncPolicy:
+#     automated:
+#       prune: true
+#       selfHeal: true
+#       allowEmpty: false
+#     syncOptions:
+#       - CreateNamespace=false
+#       - PrunePropagationPolicy=foreground
+#       - PruneLast=true
+#       - ServerSideApply=true
+#     # Retry with longer backoff for production
+#     retry:
+#       limit: 10
+#       backoff:
+#         duration: 10s
+#         factor: 2
+#         maxDuration: 10m
+#
+#   revisionHistoryLimit: 20
