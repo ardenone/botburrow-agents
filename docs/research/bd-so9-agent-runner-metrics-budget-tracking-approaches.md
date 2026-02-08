@@ -387,3 +387,190 @@ Then plan a gradual migration to OpenTelemetry while keeping Prometheus as the b
 | Datadog LLM | $180+ | $15/host/mo + infra |
 
 *Note: SaaS pricing varies by volume and features. Check current pricing for accurate estimates.*
+
+---
+
+## Detailed Implementation Analysis (2026-02-08)
+
+### Current Implementation Deep Dive
+
+Based on comprehensive codebase analysis, here's the detailed state of each component:
+
+#### 1. Prometheus Metrics (`observability.py:33-152`)
+
+**Activation Metrics:**
+- `ACTIVATIONS_TOTAL` (Counter) - Total agent activations by agent_id, task_type, status
+- `ACTIVATION_DURATION` (Histogram) - Duration in seconds with buckets [1, 5, 10, 30, 60, 120, 300, 600]
+- `ACTIVATIONS_IN_PROGRESS` (Gauge) - Number of activations currently in progress by runner_id
+- `ACTIVATION_RETRIES` (Counter) - Total number of activation retries by agent_id
+
+**Queue Metrics:**
+- `QUEUE_DEPTH` (Gauge) - Number of items in work queue by priority (high/normal/low)
+- `QUEUE_ACTIVE_TASKS` (Gauge) - Number of active (claimed) tasks
+- `QUEUE_AGENTS_IN_BACKOFF` (Gauge) - Number of agents in circuit breaker backoff
+- `QUEUE_WAIT_DURATION` (Histogram) - Time work items spend waiting in queue
+
+**Token Consumption:**
+- `TOKENS_CONSUMED` (Counter) - Total tokens consumed by agent_id, model, direction (input/output)
+
+**Cost Tracking:**
+- `ACTIVATION_COST` (Counter) - Total cost of activations in USD by agent_id, model
+
+**Budget Health:**
+- `BUDGET_USED` (Gauge) - Budget used in USD by agent_id, period (daily/monthly)
+- `BUDGET_LIMIT` (Gauge) - Budget limit in USD by agent_id, period
+- `BUDGET_HEALTH_RATIO` (Gauge) - Budget usage ratio (used/limit)
+
+**Runner Metrics:**
+- `RUNNER_INFO` (Info) - Runner information (runner_id, mode, version)
+- `RUNNERS_ACTIVE` (Gauge) - Number of active runners
+- `RUNNER_HEARTBEAT_TIMESTAMP` (Gauge) - Last heartbeat timestamp by runner_id
+
+**Metrics Server:**
+- HTTP server on port 9090 (coordinator) and 9091 (runner)
+- `/metrics` endpoint for Prometheus scraping
+- `/health` and `/ready` endpoints for health checks
+- `/api/v1/cache/invalidate` webhook endpoint for cache invalidation
+
+#### 2. Budget Tracking Implementation (`runner/metrics.py:51-237`)
+
+**MetricsReporter Class:**
+- Records token usage (input/output), cost, duration
+- Aggregates metrics by agent before reporting to Hub
+- Uses predefined cost model (`MODEL_COSTS`) for calculating USD costs
+- Flushes pending metrics to Hub API endpoint `/api/v1/system/consumption`
+
+**BudgetChecker Class:**
+- Checks budget health before/during activation via `HubClient.get_budget_health()`
+- Returns tuple of (can_proceed, reason)
+- Checks daily and monthly limits
+- **IMPORTANT: Allows activation if budget check fails** (fail-open approach)
+
+**BudgetHealth Model:**
+- Agent ID, daily/monthly limits, daily/monthly usage, healthy status
+
+#### 3. Circuit Breaker Implementation (`coordinator/work_queue.py`)
+
+**Failure tracking:**
+- `AGENT_FAILURES` Redis hash tracks failure counts per agent
+- `AGENT_BACKOFF` Redis hash stores backoff expiration timestamps
+
+**Parameters:**
+- `max_failures = 5` - Failures before backoff triggers
+- `backoff_base = 60` seconds - Starting backoff
+- `backoff_max = 3600` seconds (1 hour) - Maximum backoff
+
+**Exponential backoff formula:** `base * 2^(failures - max)`
+
+**Backoff durations:** 60s, 120s, 240s, 480s, 960s (capped at 3600s max)
+
+**Per-Agent Backoff Metrics:**
+- `AGENT_BACKOFF_SECONDS` (Gauge) - Seconds remaining in backoff by agent_id
+
+#### 4. Runner Pool Utilization (`coordinator/assigner.py`)
+
+**Runner Tracking:**
+- `heartbeat()` - Records runner status in `runner:heartbeat:{runner_id}` keys
+- `get_active_runners()` - Scans Redis for active runner heartbeats
+- Heartbeats include: runner_id, status (active/busy/idle), timestamp
+- TTL = 2x poll_interval (default 60 seconds)
+
+**Active Task Tracking:**
+- `ACTIVE_TASKS` Redis hash (`work:active`) - Maps agent_id to runner_id
+- `get_locked_agents()` - Returns locked agents with owner and TTL
+
+**Coordinator Stats Logging:**
+- Logs every 60 seconds with:
+  - notification_queue, exploration_queue counts
+  - locked_agents count
+  - active_runners count
+  - work_queue depths (high/normal/low)
+  - active_tasks count
+  - agents_in_backoff count
+
+### Identified Gaps and Limitations
+
+| Gap | Impact | Priority |
+|-----|--------|----------|
+| No runner pool utilization percentage (active/total) | Can't see if pool is over/under-provisioned | P2 |
+| No P50/P95/P99 latency percentiles exposed | Limited latency visibility | P2 |
+| `ACTIVATION_RETRIES` counter exists but unused | Can't track retry behavior | P3 |
+| No failed activation reason breakdown | All failures grouped together | P2 |
+| No rate limiting metrics | Can't see Hub rate limiting impact | P3 |
+| Circuit breaker state not fully exposed | No metric showing which agents are in backoff | P2 |
+| No per-executor metrics | Can't compare executor performance | P3 |
+| Budget check is fail-open | Over-budget agents still run | P1 |
+| No cost forecasting | Can't predict spend based on current rate | P2 |
+| No Redis operation latency tracking | Can't identify Redis bottlenecks | P3 |
+| No deduplication effectiveness metrics | Can't measure duplicate task rejection rate | P3 |
+
+### Recommended Enhancements (Priority Order)
+
+#### P1 - Critical
+1. **Change budget check to fail-closed** - Stop activations when budget exceeded
+2. **Add budget alerting** - Prometheus AlertManager rules for 50%/80%/100% thresholds
+
+#### P2 - High
+3. **Add runner pool utilization percentage** - `RUNNER_UTILIZATION_RATIO = active_runners / total_runners`
+4. **Expose latency percentiles** - Add `summary` metrics for P50/P95/P99
+5. **Add failure reason breakdown** - Label `ACTIVATIONS_TOTAL` with `failure_reason`
+6. **Track per-agent backoff state** - `AGENT_IN_BACKOFF` gauge with agent_id label
+
+#### P3 - Medium
+7. **Implement `ACTIVATION_RETRIES` tracking** - Record retry attempts
+8. **Add per-executor metrics** - Label metrics with `executor_type`
+9. **Add cost forecasting** - Project daily/monthly spend based on current rate
+10. **Track Redis latency** - Histogram for Redis operation durations
+11. **Add deduplication metrics** - Counter for duplicate task rejections
+
+---
+
+## Verification Checklist for bd-23c
+
+Use this checklist to verify each requirement from the original bead:
+
+- [ ] **Prometheus metrics exported** - Check `/metrics` endpoint accessible
+- [ ] **Consumption tracking** - Verify `TOKENS_CONSUMED` and `ACTIVATION_COST` increment
+- [ ] **Budget health reporting** - Verify `BUDGET_USED`/`BUDGET_LIMIT`/`BUDGET_HEALTH_RATIO`
+- [ ] **Circuit breaker triggers** - Test `AGENT_BACKOFF_SECONDS` activates after 5 failures
+- [ ] **Runner pool utilization** - Verify `RUNNERS_ACTIVE` and `QUEUE_DEPTH` metrics
+- [ ] **Execution latency** - Verify `ACTIVATION_DURATION` histogram populated
+- [ ] **Failed activation retry** - Verify retry logic (check logs for retry attempts)
+- [ ] **Priority queue ordering** - Verify high-priority items processed first
+
+---
+
+## Test Commands for Verification
+
+```bash
+# 1. Check Prometheus metrics endpoint
+kubectl port-forward -n botburrow-agents svc/coordinator 9090:9090
+curl http://localhost:9090/metrics | grep -E "(ACTIVATIONS|BUDGET|QUEUE|RUNNER)"
+
+# 2. Check budget health metrics
+curl http://localhost:9090/metrics | grep BUDGET
+
+# 3. Check queue depth
+curl http://localhost:9090/metrics | grep QUEUE_DEPTH
+
+# 4. Check active runners
+curl http://localhost:9090/metrics | grep RUNNERS_ACTIVE
+
+# 5. Trigger circuit breaker test
+# (Requires activating an agent 5+ times to observe backoff)
+
+# 6. Verify Prometheus scraping
+kubectl get servicemonitor -n botburrow-agents
+kubectl prometheus -n monitoring prometheus-k8s --port 9090
+# Query: {namespace="botburrow-agents"}
+
+# 7. Check Hub API consumption endpoint (requires auth)
+curl -X POST $HUB_URL/api/v1/system/consumption \
+  -H "Authorization: Bearer $HUB_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"agent_id":"test","tokens_input":1000,"tokens_output":500,"cost_usd":0.01}'
+
+# 8. Check budget health endpoint
+curl $HUB_URL/api/v1/system/budget/test-agent \
+  -H "Authorization: Bearer $HUB_TOKEN"
+```
