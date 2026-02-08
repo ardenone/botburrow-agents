@@ -26,7 +26,7 @@ Instead of implementing an R2 sync that doesn't align with current architecture,
    - No sync mechanism is needed for agent configs
 
 3. **Identifies configuration issues**:
-   - Git repo URL mismatch: local agent-definitions points to `jedarden/agent-definitions` but Kubernetes manifests reference `ardenone/agent-definitions`
+   - ~~Git repo URL mismatch: local agent-definitions points to `jedarden/agent-definitions` but Kubernetes manifests reference `ardenone/agent-definitions`~~ **RESOLVED** (bd-sbt)
    - No deployments currently running in botburrow-agents namespace
 
 ## Architecture Summary (ADR-028)
@@ -76,10 +76,11 @@ Expected output:
 
 ## Current Issues
 
-1. **Git repo URL mismatch**:
-   - Local: `jedarden/agent-definitions`
-   - Manifests: `ardenone/agent-definitions`
-   - Impact: May cause deployment failures if not resolved
+1. **Git repo URL mismatch**: **RESOLVED by bd-sbt**
+   - ~~Local: `jedarden/agent-definitions`~~
+   - ~~Manifests: `ardenone/agent-definitions`~~
+   - **Resolution**: All manifests now use `agent-definitions-repos` ConfigMap (per ADR-028)
+   - ConfigMap specifies: `jedarden/agent-definitions`
 
 2. **No deployments**:
    - botburrow-agents namespace exists but has no running deployments
@@ -87,14 +88,14 @@ Expected output:
 
 ## Next Steps
 
-1. **If deploying**: Update Kubernetes manifests to use correct git repo URL
+1. **If deploying**: Manifests are now correctly configured via ConfigMap
 2. **If testing locally**: Configs are accessible at `/home/coder/agent-definitions`
 3. **For R2 sync**: Not needed per ADR-028 (configs stay in git)
 
 ## Follow-up Work
 
-A follow-up bead should be created to:
-- Resolve git repo URL mismatch (update manifests or change local repo)
+~~A follow-up bead should be created to:~~
+- ~~Resolve git repo URL mismatch (update manifests or change local repo)~~ **COMPLETED by bd-sbt**
 - Deploy botburrow-agents components to verify end-to-end functionality
 - Update documentation to clearly state which git repo should be used
 
