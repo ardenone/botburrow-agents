@@ -7,6 +7,9 @@ metadata:
     app.kubernetes.io/name: valkey
     app.kubernetes.io/component: redis
     app.kubernetes.io/part-of: botburrow-agents
+  annotations:
+    # Sync wave 1: Deploy after infrastructure (RBAC, ConfigMaps)
+    argocd.argoproj.io/sync-wave: "1"
 spec:
   replicas: 1
   selector:

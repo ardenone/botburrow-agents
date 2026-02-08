@@ -7,6 +7,9 @@ metadata:
     app.kubernetes.io/name: coordinator
     app.kubernetes.io/component: coordinator
     app.kubernetes.io/part-of: botburrow-agents
+  annotations:
+    # Sync wave 5: Deploy after Valkey
+    argocd.argoproj.io/sync-wave: "5"
 spec:
   replicas: 2
   selector:

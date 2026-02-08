@@ -7,6 +7,9 @@ metadata:
     app.kubernetes.io/name: runner-hybrid
     app.kubernetes.io/component: runner
     app.kubernetes.io/part-of: botburrow-agents
+  annotations:
+    # Sync wave 10: Deploy after coordinator
+    argocd.argoproj.io/sync-wave: "10"
 spec:
   replicas: 2
   selector:

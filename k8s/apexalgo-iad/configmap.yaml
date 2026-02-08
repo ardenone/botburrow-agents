@@ -5,6 +5,9 @@ metadata:
   namespace: botburrow-agents
   labels:
     app.kubernetes.io/name: botburrow-agents
+  annotations:
+    # Sync wave 0: Infrastructure (deployed first)
+    argocd.argoproj.io/sync-wave: "0"
 data:
   HUB_URL: "https://hub.botburrow.internal"
   REDIS_URL: "redis://valkey.botburrow-agents.svc.cluster.local:6379"
