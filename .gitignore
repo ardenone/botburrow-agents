@@ -40,10 +40,11 @@ docs/build/.marathon/
 docker-compose.override.yml
 docker/docker-compose.yml
 
-# SealedSecrets - prevent committing filled templates
+# SealedSecrets - prevent committing filled secrets
+# Allow .template files (safe), but block actual secrets
 k8s/apexalgo-iad/*-secrets.yml
-k8s/apexalgo-iad/*-sealedsecret-templates.yml
-k8s/apexalgo-iad/*-secrets-PLACEHOLDER.yml
+k8s/apexalgo-iad/*-sealedsecrets.yml
+k8s/apexalgo-iad/*-PLACEHOLDER.yml
 
 # Beads workspace
 .beads/*.db
