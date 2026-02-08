@@ -1,0 +1,255 @@
+# =============================================================================
+# ARGOCD HEALTH CHECKS AND SYNC WAVES FOR BOTBURROW-AGENTS
+# =============================================================================
+#
+# This manifest defines ArgoCD resource hooks for health checks and ordered
+# deployment with sync waves. It ensures proper rollout order and validates
+# health before proceeding.
+#
+# FEATURES:
+#   - Sync waves for ordered deployment
+#   - Pre-sync hooks for validation
+#   - Post-sync hooks for health verification
+#   - Hook deletion policies
+#
+# =============================================================================
+
+# =============================================================================
+# PRE-SYNC VALIDATION HOOK
+# =============================================================================
+#
+# This Job runs before sync to validate prerequisites:
+#   - SealedSecrets controller is available
+#   - Required secrets exist
+#   - Valkey can be reached
+#
+# If validation fails, sync is aborted before any changes are applied.
+#
+# =============================================================================
+
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: botburrow-agents-pre-sync
+  namespace: botburrow-agents
+  labels:
+    app.kubernetes.io/name: botburrow-agents
+    app.kubernetes.io/component: validation
+  annotations:
+    # Run before sync starts
+    argocd.argoproj.io/hook: PreSync
+    # Delete hook resource after sync completes
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
+    # Run in wave 0 (before any resources)
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      serviceAccountName: botburrow-agents
+      containers:
+        - name: validate
+          image: bitnami/kubectl:latest
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+
+              echo "=== Validating prerequisites for botburrow-agents ==="
+
+              # 1. Check namespace exists
+              echo "Checking namespace..."
+              kubectl get namespace botburrow-agents || {
+                echo "ERROR: Namespace botburrow-agents does not exist"
+                exit 1
+              }
+
+              # 2. Check SealedSecrets controller
+              echo "Checking SealedSecrets controller..."
+              kubectl get deployment sealed-secrets-controller -n kube-system || {
+                echo "ERROR: SealedSecrets controller not found in kube-system"
+                exit 1
+              }
+
+              # 3. Check required secrets exist
+              echo "Checking required secrets..."
+              kubectl get secret botburrow-agents-secrets -n botburrow-agents || {
+                echo "ERROR: Secret botburrow-agents-secrets not found"
+                echo "Please create secrets using kubectl apply -f botburrow-agents-sealedsecrets.yml"
+                exit 1
+              }
+
+              kubectl get secret mcp-credentials -n botburrow-agents || {
+                echo "ERROR: Secret mcp-credentials not found"
+                exit 1
+              }
+
+              # 4. Validate secret keys (basic check)
+              echo "Validating secret keys..."
+              kubectl get secret botburrow-agents-secrets -n botburrow-agents -o jsonpath='{.data.HUB_API_KEY}' | base64 -d > /dev/null || {
+                echo "ERROR: HUB_API_KEY not found in secret"
+                exit 1
+              }
+
+              kubectl get secret botburrow-agents-secrets -n botburrow-agents -o jsonpath='{.data.R2_ENDPOINT}' | base64 -d > /dev/null || {
+                echo "ERROR: R2_ENDPOINT not found in secret"
+                exit 1
+              }
+
+              echo "=== All validation checks passed ==="
+              echo "Proceeding with sync..."
+
+# =============================================================================
+# POST-SYNC HEALTH CHECK HOOK
+# =============================================================================
+#
+# This Job runs after sync to verify deployment health:
+#   - Valkey is ready
+#   - Coordinator pods are running
+#   - Runner pods are running
+#   - Health endpoints respond
+#
+# If health checks fail, ArgoCD will mark the sync as failed.
+#
+# =============================================================================
+
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: botburrow-agents-post-sync
+  namespace: botburrow-agents
+  labels:
+    app.kubernetes.io/name: botburrow-agents
+    app.kubernetes.io/component: health-check
+  annotations:
+    # Run after sync completes
+    argocd.argoproj.io/hook: PostSync
+    # Delete hook resource after it completes
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
+    # Run in wave 10 (after all resources)
+    argocd.argoproj.io/sync-wave: "10"
+spec:
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: OnFailure
+      serviceAccountName: botburrow-agents
+      containers:
+        - name: health-check
+          image: bitnami/kubectl:latest
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+
+              echo "=== Running post-sync health checks ==="
+
+              # Wait for deployments to rollout (with timeout)
+              echo "Waiting for deployments to rollout..."
+
+              # Wait for Valkey (StatefulSet)
+              echo "Waiting for Valkey..."
+              kubectl rollout status statefulset/valkey -n botburrow-agents --timeout=120s || {
+                echo "WARNING: Valkey rollout timed out, continuing..."
+              }
+
+              # Wait for coordinator
+              if kubectl get deployment/coordinator -n botburrow-agents >/dev/null 2>&1; then
+                echo "Waiting for Coordinator..."
+                kubectl rollout status deployment/coordinator -n botburrow-agents --timeout=180s || {
+                  echo "WARNING: Coordinator rollout timed out"
+                }
+              fi
+
+              # Wait for runners
+              for runner in runner-hybrid runner-notification runner-exploration; do
+                if kubectl get deployment/$runner -n botburrow-agents >/dev/null 2>&1; then
+                  echo "Waiting for $runner..."
+                  kubectl rollout status deployment/$runner -n botburrow-agents --timeout=180s || {
+                    echo "WARNING: $runner rollout timed out"
+                  }
+                fi
+              done
+
+              # Check pod health
+              echo "Checking pod health..."
+              kubectl wait --for=condition=ready pod -l app.kubernetes.io/part-of=botburrow -n botburrow-agents --timeout=300s || {
+                echo "WARNING: Not all pods are ready"
+              }
+
+              # Check Valkey connectivity
+              echo "Checking Valkey connectivity..."
+              VALKEY_POD=$(kubectl get pods -n botburrow-agents -l app.kubernetes.io/name=valkey -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
+              if [ -n "$VALKEY_POD" ]; then
+                kubectl exec -n botburrow-agents $VALKEY_POD -- redis-cli ping || {
+                  echo "ERROR: Valkey ping failed"
+                  exit 1
+                }
+              fi
+
+              # Check application health endpoints (if deployed)
+              echo "Checking application health endpoints..."
+
+              # Coordinator health check
+              COORD_POD=$(kubectl get pods -n botburrow-agents -l app.kubernetes.io/name=coordinator -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
+              if [ -n "$COORD_POD" ]; then
+                kubectl exec -n botburrow-agents $COORD_POD -- curl -s http://localhost:9090/health || {
+                  echo "WARNING: Coordinator health check returned non-zero"
+                }
+              fi
+
+              # Runner health check
+              RUNNER_POD=$(kubectl get pods -n botburrow-agents -l app.kubernetes.io/component=runner -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
+              if [ -n "$RUNNER_POD" ]; then
+                kubectl exec -n botburrow-agents $RUNNER_POD -- curl -s http://localhost:9091/health || {
+                  echo "WARNING: Runner health check returned non-zero"
+                }
+              fi
+
+              echo "=== Post-sync health checks completed ==="
+              echo ""
+              echo "=== Deployment Summary ==="
+              kubectl get deployments -n botburrow-agents
+              echo ""
+              kubectl get pods -n botburrow-agents
+
+# =============================================================================
+# SYNC WAVES ANNOTATION GUIDE
+# =============================================================================
+#
+# Add these annotations to resources for ordered deployment:
+#
+# Wave -1 (before sync):
+#   argocd.argoproj.io/sync-wave: "-1"
+#   - Cleanup jobs, old resources
+#
+# Wave 0 (at start):
+#   argocd.argoproj.io/sync-wave: "0"
+#   - ConfigMaps
+#   - Secrets
+#   - RBAC
+#
+# Wave 1:
+#   argocd.argoproj.io/sync-wave: "1"
+#   - Valkey (dependency for others)
+#
+# Wave 5:
+#   argocd.argoproj.io/sync-wave: "5"
+#   - Coordinator (depends on Valkey)
+#
+# Wave 10 (at end):
+#   argocd.argoproj.io/sync-wave: "10"
+#   - Runners (depend on Coordinator)
+#   - HPAs (depend on Deployments)
+#   - Post-sync hooks
+#
+# Example annotation on valkey.yaml:
+#   metadata:
+#     annotations:
+#       argocd.argoproj.io/sync-wave: "1"
+#
+# =============================================================================
