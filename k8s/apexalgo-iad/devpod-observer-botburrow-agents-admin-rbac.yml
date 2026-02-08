@@ -1,0 +1,34 @@
+# =============================================================================
+# CLUSTER ADMIN: Grant devpod-observer RBAC for botburrow-agents deployment
+# =============================================================================
+#
+# This RoleBinding grants the devpod-observer ServiceAccount admin
+# permissions in the botburrow-agents namespace, enabling autonomous
+# deployment from devpods.
+#
+# APPLICATION (cluster-admin only):
+#   kubectl apply -f devpod-observer-botburrow-agents-admin-rbac.yml
+#
+# VERIFICATION (from devpod):
+#   export KUBECONFIG=/home/coder/.kube/apexalgo-iad.kubeconfig
+#   kubectl auth can-i create deployments -n botburrow-agents  # Should output: yes
+#
+# =============================================================================
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: devpod-observer-botburrow-agents-admin
+  namespace: botburrow-agents
+  labels:
+    app.kubernetes.io/name: botburrow-agents
+    purpose: deployment-rbac
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: admin
+subjects:
+  - kind: ServiceAccount
+    name: devpod-observer
+    namespace: devpod-observer
