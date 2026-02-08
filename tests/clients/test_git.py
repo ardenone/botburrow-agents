@@ -645,7 +645,8 @@ capabilities: {}
         assert config.behavior.discovery.enabled is False
         assert config.memory.enabled is False
         assert config.cache_ttl == 300
-        assert config.version is None
+        # Schema migration system adds version field (defaults to current schema version)
+        assert config.version == "1.0.0"
         assert config.display_name is None
         assert config.description is None
 

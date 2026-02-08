@@ -18,19 +18,8 @@ import structlog
 import yaml
 
 from botburrow_agents.config import Settings, get_settings
-from botburrow_agents.models import (
-    AgentConfig,
-    BehaviorConfig,
-    BehaviorLimitsConfig,
-    BrainConfig,
-    CapabilityGrants,
-    DiscoveryConfig,
-    InterestConfig,
-    MemoryConfig,
-    MemoryRememberConfig,
-    MemoryRetrievalConfig,
-    ShellConfig,
-    SpawningConfig,
+from botburrow_agents.schema_migration import (
+    validate_and_migrate_agent_config,
 )
 
 logger = structlog.get_logger(__name__)
@@ -218,7 +207,8 @@ class GitClient:
         """Load complete agent configuration.
 
         Parses all fields from agent-definitions schema v1.0.0.
-        Uses Pydantic's model_validate to handle unknown fields gracefully.
+        Uses the schema migration system to handle version tracking and
+        provides warnings for unknown fields.
 
         Args:
             agent_id: Agent identifier
@@ -226,81 +216,26 @@ class GitClient:
         Returns:
             Fully populated AgentConfig
 
-        Note:
-            This is a workaround that uses Pydantic's flexible parsing to handle
-            schema changes without requiring manual field-by-field updates.
-            Unknown fields in the YAML are silently ignored (not causing errors).
-            For a proper solution, implement schema version tracking and migration.
+        Raises:
+            SchemaMigrationError: If config schema version is unsupported
+            ValueError: If config validation fails
         """
         config_data = await self.get_agent_config(agent_id)
         system_prompt = await self.get_system_prompt(agent_id)
 
-        # WORKAROUND: Use Pydantic's model_validate with ** unpacking
-        # This handles:
-        # 1. Known schema fields properly validated
-        # 2. Unknown fields ignored (not errors)
-        # 3. New optional fields work automatically
+        # Use schema migration system to validate and migrate config
+        config, warnings = validate_and_migrate_agent_config(config_data, agent_id)
 
-        # Prepare nested dicts for Pydantic validation
-        # Pass through as-is and let Pydantic handle validation with defaults
-        brain_data = config_data.get("brain", {}) or {}
-        caps_data = config_data.get("capabilities", {}) or {}
-        interests_data = config_data.get("interests", {}) or {}
-        behavior_data = config_data.get("behavior", {}) or {}
-        memory_data = config_data.get("memory", {}) or {}
+        # Log warnings about unknown fields for debugging
+        for warning in warnings:
+            logger.warning(
+                "unknown_config_field",
+                agent_id=agent_id,
+                field=warning.field_path,
+                suggestion=warning.suggestion,
+            )
 
-        # Extract nested configs
-        shell_data = caps_data.get("shell", {}) or {}
-        spawning_data = caps_data.get("spawning", {}) or {}
-        discovery_data = behavior_data.get("discovery", {}) or {}
-        limits_data = behavior_data.get("limits", {}) or {}
-        remember_data = memory_data.get("remember", {}) or {}
-        retrieval_data = memory_data.get("retrieval", {}) or {}
+        # Attach system prompt separately
+        config.system_prompt = system_prompt
 
-        # Use Pydantic's model_validate which handles extra_fields gracefully
-        brain = BrainConfig.model_validate(brain_data) if brain_data else BrainConfig()
-
-        capabilities = CapabilityGrants(
-            grants=caps_data.get("grants", []),
-            skills=caps_data.get("skills", []),
-            mcp_servers=caps_data.get("mcp_servers", []),
-            shell=ShellConfig.model_validate(shell_data) if shell_data else ShellConfig(),
-            spawning=SpawningConfig.model_validate(spawning_data) if spawning_data else SpawningConfig(),
-        )
-
-        interests = InterestConfig.model_validate(interests_data) if interests_data else InterestConfig()
-
-        behavior = BehaviorConfig(
-            respond_to_mentions=behavior_data.get("respond_to_mentions", True),
-            respond_to_replies=behavior_data.get("respond_to_replies", True),
-            respond_to_dms=behavior_data.get("respond_to_dms", True),
-            max_iterations=behavior_data.get("max_iterations", 10),
-            can_create_posts=behavior_data.get("can_create_posts", True),
-            max_daily_posts=behavior_data.get("max_daily_posts", 5),
-            max_daily_comments=behavior_data.get("max_daily_comments", 50),
-            discovery=DiscoveryConfig.model_validate(discovery_data) if discovery_data else DiscoveryConfig(),
-            limits=BehaviorLimitsConfig.model_validate(limits_data) if limits_data else BehaviorLimitsConfig(),
-        )
-
-        memory = MemoryConfig(
-            enabled=memory_data.get("enabled", False),
-            remember=MemoryRememberConfig.model_validate(remember_data) if remember_data else MemoryRememberConfig(),
-            max_size_mb=memory_data.get("max_size_mb", 100),
-            retrieval=MemoryRetrievalConfig.model_validate(retrieval_data) if retrieval_data else MemoryRetrievalConfig(),
-        )
-
-        return AgentConfig(
-            name=config_data.get("name", agent_id),
-            type=config_data.get("type", "claude-code"),
-            brain=brain,
-            capabilities=capabilities,
-            interests=interests,
-            behavior=behavior,
-            memory=memory,
-            display_name=config_data.get("display_name"),
-            description=config_data.get("description"),
-            version=config_data.get("version"),
-            system_prompt=system_prompt,
-            cache_ttl=config_data.get("cache_ttl", 300),
-            r2_path="",  # Deprecated
-        )
+        return config
