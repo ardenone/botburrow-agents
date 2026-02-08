@@ -218,61 +218,57 @@ class GitClient:
         """Load complete agent configuration.
 
         Parses all fields from agent-definitions schema v1.0.0.
+        Uses Pydantic's model_validate to handle unknown fields gracefully.
 
         Args:
             agent_id: Agent identifier
 
         Returns:
             Fully populated AgentConfig
+
+        Note:
+            This is a workaround that uses Pydantic's flexible parsing to handle
+            schema changes without requiring manual field-by-field updates.
+            Unknown fields in the YAML are silently ignored (not causing errors).
+            For a proper solution, implement schema version tracking and migration.
         """
         config_data = await self.get_agent_config(agent_id)
         system_prompt = await self.get_system_prompt(agent_id)
 
-        # Parse brain configuration
-        brain_data = config_data.get("brain", {})
-        brain = BrainConfig(
-            model=brain_data.get("model", "claude-sonnet-4-20250514"),
-            provider=brain_data.get("provider", "anthropic"),
-            temperature=brain_data.get("temperature", 0.7),
-            max_tokens=brain_data.get("max_tokens", 4096),
-            api_base=brain_data.get("api_base"),
-            api_key_env=brain_data.get("api_key_env"),
-        )
+        # WORKAROUND: Use Pydantic's model_validate with ** unpacking
+        # This handles:
+        # 1. Known schema fields properly validated
+        # 2. Unknown fields ignored (not errors)
+        # 3. New optional fields work automatically
 
-        # Parse capabilities configuration
-        caps_data = config_data.get("capabilities", {})
-        shell_data = caps_data.get("shell", {})
-        spawning_data = caps_data.get("spawning", {})
+        # Prepare nested dicts for Pydantic validation
+        # Pass through as-is and let Pydantic handle validation with defaults
+        brain_data = config_data.get("brain", {}) or {}
+        caps_data = config_data.get("capabilities", {}) or {}
+        interests_data = config_data.get("interests", {}) or {}
+        behavior_data = config_data.get("behavior", {}) or {}
+        memory_data = config_data.get("memory", {}) or {}
+
+        # Extract nested configs
+        shell_data = caps_data.get("shell", {}) or {}
+        spawning_data = caps_data.get("spawning", {}) or {}
+        discovery_data = behavior_data.get("discovery", {}) or {}
+        limits_data = behavior_data.get("limits", {}) or {}
+        remember_data = memory_data.get("remember", {}) or {}
+        retrieval_data = memory_data.get("retrieval", {}) or {}
+
+        # Use Pydantic's model_validate which handles extra_fields gracefully
+        brain = BrainConfig.model_validate(brain_data) if brain_data else BrainConfig()
 
         capabilities = CapabilityGrants(
             grants=caps_data.get("grants", []),
             skills=caps_data.get("skills", []),
             mcp_servers=caps_data.get("mcp_servers", []),
-            shell=ShellConfig(
-                enabled=shell_data.get("enabled", False),
-                allowed_commands=shell_data.get("allowed_commands", []),
-                blocked_patterns=shell_data.get("blocked_patterns", []),
-                timeout_seconds=shell_data.get("timeout_seconds", 120),
-            ),
-            spawning=SpawningConfig(
-                can_propose=spawning_data.get("can_propose", False),
-                allowed_templates=spawning_data.get("allowed_templates", []),
-            ),
+            shell=ShellConfig.model_validate(shell_data) if shell_data else ShellConfig(),
+            spawning=SpawningConfig.model_validate(spawning_data) if spawning_data else SpawningConfig(),
         )
 
-        # Parse interests configuration
-        interests_data = config_data.get("interests", {})
-        interests = InterestConfig(
-            topics=interests_data.get("topics", []),
-            communities=interests_data.get("communities", []),
-            keywords=interests_data.get("keywords", []),
-            follow_agents=interests_data.get("follow_agents", []),
-        )
-
-        # Parse behavior configuration
-        behavior_data = config_data.get("behavior", {})
-        discovery_data = behavior_data.get("discovery", {})
-        limits_data = behavior_data.get("limits", {})
+        interests = InterestConfig.model_validate(interests_data) if interests_data else InterestConfig()
 
         behavior = BehaviorConfig(
             respond_to_mentions=behavior_data.get("respond_to_mentions", True),
@@ -280,44 +276,17 @@ class GitClient:
             respond_to_dms=behavior_data.get("respond_to_dms", True),
             max_iterations=behavior_data.get("max_iterations", 10),
             can_create_posts=behavior_data.get("can_create_posts", True),
-            # Legacy fields for backwards compatibility
             max_daily_posts=behavior_data.get("max_daily_posts", 5),
             max_daily_comments=behavior_data.get("max_daily_comments", 50),
-            # New schema fields
-            discovery=DiscoveryConfig(
-                enabled=discovery_data.get("enabled", False),
-                frequency=discovery_data.get("frequency", "staleness"),
-                respond_to_questions=discovery_data.get("respond_to_questions", False),
-                respond_to_discussions=discovery_data.get("respond_to_discussions", False),
-                min_confidence=discovery_data.get("min_confidence", 0.7),
-            ),
-            limits=BehaviorLimitsConfig(
-                max_daily_posts=limits_data.get("max_daily_posts", 5),
-                max_daily_comments=limits_data.get("max_daily_comments", 50),
-                max_responses_per_thread=limits_data.get("max_responses_per_thread", 3),
-                min_interval_seconds=limits_data.get("min_interval_seconds", 60),
-            ),
+            discovery=DiscoveryConfig.model_validate(discovery_data) if discovery_data else DiscoveryConfig(),
+            limits=BehaviorLimitsConfig.model_validate(limits_data) if limits_data else BehaviorLimitsConfig(),
         )
-
-        # Parse memory configuration
-        memory_data = config_data.get("memory", {})
-        remember_data = memory_data.get("remember", {})
-        retrieval_data = memory_data.get("retrieval", {})
 
         memory = MemoryConfig(
             enabled=memory_data.get("enabled", False),
-            remember=MemoryRememberConfig(
-                conversations_with=remember_data.get("conversations_with", []),
-                projects_worked_on=remember_data.get("projects_worked_on", False),
-                decisions_made=remember_data.get("decisions_made", False),
-                feedback_received=remember_data.get("feedback_received", False),
-            ),
+            remember=MemoryRememberConfig.model_validate(remember_data) if remember_data else MemoryRememberConfig(),
             max_size_mb=memory_data.get("max_size_mb", 100),
-            retrieval=MemoryRetrievalConfig(
-                strategy=retrieval_data.get("strategy", "embedding_search"),
-                max_context_items=retrieval_data.get("max_context_items", 10),
-                relevance_threshold=retrieval_data.get("relevance_threshold", 0.7),
-            ),
+            retrieval=MemoryRetrievalConfig.model_validate(retrieval_data) if retrieval_data else MemoryRetrievalConfig(),
         )
 
         return AgentConfig(
