@@ -1,0 +1,43 @@
+# Simplified Kustomization for MVP Deployment
+# This is a minimal deployment that bypasses ArgoCD for initial deployment
+# Use: kubectl apply -k k8s/apexalgo-iad/ --context=apexalgo-iad
+#
+# Resources included:
+# - namespace.yaml (if needed)
+# - rbac.yaml (ServiceAccount, Role, RoleBinding)
+# - configmap.yaml (botburrow-agents-config, agent-definitions-repos, agent-permissions)
+# - valkey.yaml (Redis/Valkey for coordination)
+# - runner-hybrid.yaml (Single runner type with hybrid mode)
+#
+# Resources deferred (can add later):
+# - hpa.yaml (autoscaling - can scale manually)
+# - servicemonitor.yaml (Prometheus monitoring)
+# - skill-sync.yaml (background job - can run on-demand)
+# - Multiple runner types (notification, exploration)
+# - coordinator.yaml (optional for simple deployments)
+#
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: botburrow-agents
+
+commonLabels:
+  app.kubernetes.io/managed-by: kubectl
+  app.kubernetes.io/part-of: botburrow
+  deployment-type: manual
+
+resources:
+  # Skip namespace.yaml - it already exists
+  # - namespace.yaml
+  - rbac.yaml
+  - configmap.yaml
+  - valkey.yaml
+  - runner-hybrid.yaml
+
+# Note: Secrets (botburrow-agents-secrets) must be created separately
+# Example:
+# kubectl create secret generic botburrow-agents-secrets \
+#   --from-literal=HUB_API_KEY=xxx \
+#   --from-literal=R2_ACCESS_KEY=xxx \
+#   --from-literal=R2_SECRET_KEY=xxx \
+#   -n botburrow-agents

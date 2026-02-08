@@ -1,0 +1,35 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: botburrow-agents
+
+commonLabels:
+  app.kubernetes.io/managed-by: argocd
+  app.kubernetes.io/part-of: botburrow
+
+resources:
+  - namespace.yaml
+  - rbac.yaml
+  - configmap.yaml
+  # secrets.yaml removed - use botburrow-agents-sealedsecret.yml instead
+  # To create SealedSecret from template:
+  #   1. cp botburrow-agents-secret.yml.template botburrow-agents-secret.yml
+  #   2. Fill in all REPLACE_* values
+  #   3. kubeseal --format yaml < botburrow-agents-secret.yml > botburrow-agents-sealedsecret.yml
+  #   4. rm botburrow-agents-secret.yml
+  # Then add botburrow-agents-sealedsecret.yml here
+  - valkey.yaml
+  - coordinator.yaml
+  - runner-hybrid.yaml
+  - runner-notification.yaml
+  - runner-exploration.yaml
+  - skill-sync.yaml
+  - hpa.yaml
+  - servicemonitor.yaml
+
+# Optional: Use git-sync sidecars for live config updates
+# To enable git-sync variants (live config updates without restarts):
+# 1. Replace coordinator.yaml with coordinator-git-sync.yaml
+# 2. Replace runner-*yaml with runner-git-sync.yaml
+# The git-sync variants poll the agent-definitions repo every 60s
+# and update the mounted configs automatically.
