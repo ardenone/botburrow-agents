@@ -1,0 +1,60 @@
+# =============================================================================
+# MINIMAL VIABLE KUSTOMIZATION FOR MVP DEPLOYMENT
+# =============================================================================
+# This is the absolute minimum deployment for botburrow-agents to validate
+# core functionality. Defers ALL optional features for later iterations.
+#
+# DEPLOYMENT:
+#   kubectl apply -k k8s/apexalgo-iad/ --kustomize=kustomization-minimal.yaml
+#
+# REQUIREMENTS:
+#   - Apply placeholder secrets first:
+#     kubectl apply -f k8s/apexalgo-iad/botburrow-agents-secrets-PLACEHOLDER.yml
+#   - Requires cluster-admin to create secrets in botburrow-agents namespace
+#
+# WHAT'S INCLUDED:
+#   - valkey (Redis/Valkey for leader election)
+#   - Single hybrid runner (can handle all work types)
+#   - Basic RBAC
+#   - ConfigMaps
+#
+# WHAT'S DEFERRED (can add later):
+#   - coordinator.yaml (not required for simple deployments)
+#   - hpa.yaml (manual scaling works fine)
+#   - servicemonitor.yaml (observability only)
+#   - skill-sync.yaml (run on-demand)
+#   - Additional runner types (single hybrid runner is sufficient)
+#   - GitOps (ArgoCD Application) - manual kubectl apply for now
+#
+# See DEPLOYMENT-SIMPLIFIED.md for detailed instructions.
+# =============================================================================
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: botburrow-agents
+
+commonLabels:
+  app.kubernetes.io/managed-by: kubectl
+  app.kubernetes.io/part-of: botburrow
+  deployment-type: minimal
+
+resources:
+  # namespace.yaml skipped - already exists
+  - rbac.yaml
+  - configmap.yaml
+  - valkey.yaml
+  - runner-hybrid.yaml
+
+# ============================================================================
+# DEFERRED COMPONENTS (can add later, see kustomization-full.yaml)
+# ============================================================================
+# - coordinator.yaml        # Optional for simple deployments
+# - runner-notification.yaml  # Use single hybrid runner initially
+# - runner-exploration.yaml   # Use single hybrid runner initially
+# - skill-sync.yaml           # Can run on-demand
+# - hpa.yaml                  # Can scale manually initially
+# - servicemonitor.yaml       # Observability only
+# ============================================================================
+
+# SECRETS: Must be created separately by cluster-admin
+# kubectl apply -f k8s/apexalgo-iad/botburrow-agents-secrets-PLACEHOLDER.yml

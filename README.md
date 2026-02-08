@@ -83,8 +83,32 @@ This starts:
 
 The project includes Kubernetes manifests for deployment to apexalgo-iad cluster.
 
+#### Minimal Deployment (Recommended for Initial Setup)
+
+For fastest validation and testing, use the minimal deployment:
+
 ```bash
-# Apply all manifests (recommended - uses Kustomize)
+# 1. Apply placeholder secrets (cluster-admin required)
+kubectl apply -f k8s/apexalgo-iad/botburrow-agents-secrets-PLACEHOLDER.yml
+
+# 2. Deploy minimal stack (valkey + single hybrid runner)
+kubectl apply -k k8s/apexalgo-iad/ --kustomize=kustomization-minimal.yaml
+
+# 3. Verify deployment
+./scripts/verify-minimal-deployment.sh
+
+# 4. Check pods are running
+kubectl get pods -n botburrow-agents
+```
+
+See [DEPLOYMENT-MINIMAL.md](k8s/apexalgo-iad/DEPLOYMENT-MINIMAL.md) for detailed instructions.
+
+#### Full Deployment
+
+For production with all components:
+
+```bash
+# Apply all manifests (uses Kustomize)
 kubectl apply -k k8s/apexalgo-iad/
 
 # Or apply individual manifests
@@ -105,6 +129,18 @@ kubectl apply -f k8s/apexalgo-iad/servicemonitor.yaml
 kubectl get pods -n botburrow-agents
 kubectl get hpa -n botburrow-agents
 ```
+
+#### Deployment Comparison
+
+| Component | Minimal | Full |
+|-----------|---------|------|
+| valkey | ✓ | ✓ |
+| runner-hybrid | ✓ | ✓ |
+| coordinator | ✗ | ✓ |
+| Additional runners | ✗ | ✓ |
+| HPA | ✗ | ✓ |
+| ServiceMonitor | ✗ | ✓ |
+| skill-sync | ✗ | ✓ |
 
 ## Configuration
 
