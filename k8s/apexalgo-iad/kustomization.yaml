@@ -1,46 +1,91 @@
 # =============================================================================
-# SIMPLIFIED KUSTOMIZATION FOR MVP DEPLOYMENT
+# ARGOCD GITOPS KUSTOMIZATION FOR BOTBURROW-AGENTS
 # =============================================================================
-# This is a minimal deployment for botburrow-agents that focuses on
-# core functionality only. Bypasses ArgoCD for initial deployment.
+# This is the main Kustomization for botburrow-agents, configured for
+# GitOps deployment via ArgoCD with SealedSecrets support.
 #
-# DEPLOYMENT:
-#   kubectl apply -k k8s/apexalgo-iad/ --context=apexalgo-iad
+# DEPLOYMENT (via ArgoCD):
+#   The ArgoCD Application (argocd-application.yaml) references this file.
+#   Apply the Application manifest to enable GitOps:
 #
-# REQUIREMENTS:
-#   - Secrets must be created first (see botburrow-agents-secrets-PLACEHOLDER.yml)
-#   - Requires cluster-admin to create secrets in botburrow-agents namespace
+#     kubectl apply -f k8s/apexalgo-iad/argocd-application.yaml
 #
-# See DEPLOYMENT-SIMPLIFIED.md for detailed instructions.
+# MANUAL DEPLOYMENT (kubectl):
+#   kubectl apply -k k8s/apexalgo-iad/
+#
+# PREREQUISITES:
+#   - SealedSecrets controller installed in cluster
+#   - SealedSecrets created from template (see SECRET_SETUP.md)
+#   - ArgoCD installed and configured
+#
 # =============================================================================
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 namespace: botburrow-agents
 
+# Common labels applied to all resources
 commonLabels:
-  app.kubernetes.io/managed-by: kubectl
+  app.kubernetes.io/managed-by: argocd
   app.kubernetes.io/part-of: botburrow
-  deployment-type: manual
+  deployment-type: gitops
 
+# Resources in deployment order
 resources:
-  # namespace.yaml skipped - already exists
+  # Infrastructure
+  - namespace.yaml
   - rbac.yaml
   - configmap.yaml
+
+  # Valkey (dependency for other components)
   - valkey.yaml
+
+  # Coordinator (depends on Valkey)
+  - coordinator.yaml
+
+  # Runners
   - runner-hybrid.yaml
+  - runner-notification.yaml
+  - runner-exploration.yaml
 
-# ============================================================================
-# DEFERRED COMPONENTS (can add later, see kustomization-full.yaml)
-# ============================================================================
-# - coordinator.yaml        # Optional for simple deployments
-# - runner-notification.yaml  # Use single hybrid runner initially
-# - runner-exploration.yaml   # Use single hybrid runner initially
-# - skill-sync.yaml           # Can run on-demand
-# - hpa.yaml                  # Can scale manually initially
-# - servicemonitor.yaml       # Observability only
-# ============================================================================
+  # Optional components
+  - skill-sync.yaml
+  - hpa.yaml
+  - servicemonitor.yaml
 
-# SECRETS: Must be created separately by cluster-admin
-# Example:
-# kubectl apply -f k8s/apexalgo-iad/botburrow-agents-secrets-PLACEHOLDER.yml
+# =============================================================================
+# SECRETS: SealedSecrets are managed separately
+# =============================================================================
+# To create SealedSecret from template:
+#   1. cp botburrow-agents-secret.yml.template /tmp/botburrow-agents-secret.yml
+#   2. Fill in all REPLACE_* values with real credentials
+#   3. kubeseal --format yaml < /tmp/botburrow-agents-secret.yml > botburrow-agents-sealedsecret.yml
+#   4. rm /tmp/botburrow-agents-secret.yml
+#   5. Add botburrow-agents-sealedsecret.yml to resources above
+#
+# See: SECRET_SETUP.md and SECRET_CREDENTIALS.md for full guide
+# =============================================================================
+
+# =============================================================================
+# CONFIGMAP GENERATOR (with checksum for automatic restarts)
+# =============================================================================
+configMapGenerator:
+  - name: botburrow-agents-config
+    literals:
+      - HUB_URL=https://hub.botburrow.internal
+      - REDIS_URL=redis://valkey.botburrow-agents.svc.cluster.local:6379
+      - R2_BUCKET=agent-artifacts
+      - POLL_INTERVAL=30
+      - ACTIVATION_TIMEOUT=300
+      - MAX_ITERATIONS=10
+      - MIN_ACTIVATION_INTERVAL=900
+      - LOCK_TTL=600
+      - SANDBOX_IMAGE=ghcr.io/botburrow/botburrow-sandbox:latest
+      - SANDBOX_MEMORY=2g
+      - SANDBOX_CPU=1.0
+      - MCP_TIMEOUT=30
+      - DEFAULT_EXECUTOR=claude-cli
+      - DEFAULT_MODEL=glm-4.7
+      - DEFAULT_API_BASE=http://zai-proxy.mcp.svc.cluster.local:8080
+      - DEFAULT_TEMPERATURE=0.7
+      - DEFAULT_MAX_TOKENS=4096

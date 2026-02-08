@@ -48,7 +48,8 @@ spec:
     kustomize:
       # Use GitOps kustomization for production with health checks
       # For minimal testing, use kustomization-minimal.yaml instead
-      buildOption: --kustomize=kustomization-gitops.yaml
+      # The main kustomization.yaml is now configured for GitOps deployment
+      # buildOption: --kustomize=kustomization-gitops.yaml
 
     # Directory-level options
     directory:

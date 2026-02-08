@@ -23,7 +23,7 @@ resources:
 #      - kubeseal --format yaml < /tmp/botburrow-agents-secret.yml > botburrow-agents-sealedsecret.yml
 #      - rm /tmp/botburrow-agents-secret.yml
 #   3. Uncomment the line below and commit
-# See: SECRET_CREDENTIALS.md for full credential gathering guide
+# See: SECRET_SETUP.md and SECRET_CREDENTIALS.md for full guide
 # =============================================================================
 #  - botburrow-agents-sealedsecret.yml  # <-- UNCOMMENT after creating SealedSecret
 
