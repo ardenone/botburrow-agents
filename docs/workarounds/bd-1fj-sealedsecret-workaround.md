@@ -72,9 +72,9 @@ kubeseal --format=yaml --controller-namespace=sealed-secrets \
 ```
 
 ## Related Beads
-- **bd-2la** - HUMAN: Create botburrow-agents-secrets and mcp-credentials (blocked on RBAC)
-- **bd-1re** - HUMAN: Apply devpod-observer RBAC RoleBinding (cluster-admin required)
-- **bd-3s2** - Deploy botburrow-agents namespace and base infrastructure
+- **bd-3cpp** - HUMAN: Grant devpod-observer RBAC for botburrow-agents namespace deployment (OPEN)
+- **bd-psf5** - HUMAN: Apply botburrow-agents secrets for coordinator leader election verification (OPEN)
+- **bd-38r** - Verify botburrow-agents deployment health (blocked by bd-1x8)
 
 ## Decision Summary
 | Aspect | Original Approach | Workaround Approach |
