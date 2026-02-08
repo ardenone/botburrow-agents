@@ -222,6 +222,9 @@ class TestRunnerPoolUtilization:
 
     def test_activations_in_progress_gauge(self) -> None:
         """Verify runners track activations in progress."""
+        # Reset gauge to ensure clean state (tests may share gauge state)
+        ACTIVATIONS_IN_PROGRESS.labels(runner_id="runner-1").set(0)
+
         record_activation_start("runner-1")
 
         value = ACTIVATIONS_IN_PROGRESS.labels(runner_id="runner-1")._value.get()
