@@ -52,9 +52,16 @@ Under the `botburrow` organization:
 4. **CRITICAL:** Configure as a **mirror** from GitHub:
    - Enable "This repository is a mirror"
    - Set mirror source: `https://github.com/jedarden/agent-definitions`
+     - **Note:** Both `jedarden/agent-definitions` and `ardenone/agent-definitions` exist and are in sync
+     - Use `jedarden/agent-definitions` as the source (original repository)
    - Set sync interval: Every 8 hours (or as preferred)
    - If GitHub token is required, use token from `forgejo-secrets.GITHUB_TOKEN`
 5. Click **"Create Repository"**
+
+**IMPORTANT:** The Forgejo organization name is `botburrow`, not `ardenone`. The manifests in `/home/coder/ardenone-cluster/cluster-configuration/apexalgo-iad/botburrow-agents/` are configured to clone from:
+```
+http://forgejo.forgejo.svc.cluster.local:3000/botburrow/agent-definitions.git
+```
 
 ### 5. Verify Repository is Accessible
 

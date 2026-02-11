@@ -56,8 +56,10 @@ kubectl get secret -n forgejo forgejo-secrets -o jsonpath='{.data.ADMIN_PASSWORD
    - Name: `agent-definitions`
    - Enable "This repository is a mirror"
    - Mirror source: `https://github.com/jedarden/agent-definitions`
+     - (Alternative: `https://github.com/ardenone/agent-definitions` - both are in sync)
    - Sync interval: Every 8 hours
    - Create repository
+   - **Important:** Use organization name `botburrow`, not `ardenone`
 
 ### Step 4: Verify Success
 
