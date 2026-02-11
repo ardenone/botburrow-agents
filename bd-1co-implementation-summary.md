@@ -118,3 +118,42 @@ Forgejo is the **primary git server** where agents commit config changes.
 GitHub is a **read-only mirror** for backup/visibility.
 
 Botburrow-agents now correctly fetches from Forgejo (primary source) on port 3000.
+
+---
+
+## Update: 2026-02-11 (Post ArgoCD Sync)
+
+✅ **ArgoCD Successfully Synced!**
+
+After ~8 minutes, ArgoCD applied the updated manifests:
+
+```bash
+$ kubectl --kubeconfig=/home/coder/.kube/apexalgo-iad.kubeconfig get deployment coordinator -n botburrow-agents -o jsonpath='{.spec.template.spec.initContainers[0].command}' | jq -r 'join(" ")'
+git clone --depth=1 --branch=main http://forgejo.forgejo.svc.cluster.local:3000/ardenone/agent-definitions.git /configs/agent-definitions
+```
+
+✅ Port `:3000` now present in deployment spec  
+✅ New pods created with updated init containers
+
+## New Blocker Discovered
+
+❌ **Repository doesn't exist in Forgejo:**
+
+```bash
+$ kubectl logs coordinator-7f66bddfc9-fhws4 -n botburrow-agents -c git-clone
+Cloning into '/configs/agent-definitions'...
+remote: Not found.
+fatal: repository 'http://forgejo.forgejo.svc.cluster.local:3000/ardenone/agent-definitions.git/' not found
+```
+
+**Root Cause:** The `ardenone/agent-definitions` repository has not been created in Forgejo yet.
+
+**Next Steps:**
+1. Create `ardenone` organization in Forgejo
+2. Create `agent-definitions` repository under `ardenone` org
+3. Push initial content from GitHub or create empty repository
+4. Pods will then successfully clone
+
+**Alternatively:** If repository should be public on GitHub, revert URLs back to GitHub until Forgejo repository is populated.
+
+**Status:** This is a blocker that requires human intervention - repository creation in Forgejo.
