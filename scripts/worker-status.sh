@@ -105,8 +105,8 @@ display_status() {
 
     # Recent worker logs
     echo "📝 Recent Activity:"
-    if [ -d "$HOME/.beads-workers" ]; then
-        local latest_logs=$(ls -t "$HOME/.beads-workers"/*.log 2>/dev/null | head -5)
+    if [ -d "$HOME/.beads/workers" ]; then
+        local latest_logs=$(ls -t "$HOME/.beads/workers"/*.log 2>/dev/null | head -5)
 
         if [ -z "$latest_logs" ]; then
             echo "   (no logs found)"
@@ -133,7 +133,7 @@ display_status() {
         echo "   Watch mode:     $0 --workspace=$WORKSPACE --watch"
         echo "   Spawn workers:  ./spawn-workers.sh --workspace=$WORKSPACE"
         echo "   Attach worker:  tmux attach -t bead-worker-<id>"
-        echo "   View logs:      tail -f ~/.beads-workers/<worker-id>.log"
+        echo "   View logs:      tail -f ~/.beads/workers/<worker-id>.log"
     else
         echo "🔄 Refreshing every ${REFRESH_INTERVAL}s (Ctrl+C to stop)..."
     fi

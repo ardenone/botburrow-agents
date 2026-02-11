@@ -94,7 +94,7 @@ fi
 
 # Set LOG_FILE if not provided
 if [ -z "$LOG_FILE" ]; then
-    LOG_FILE="$HOME/.beads-workers/$WORKER_ID.log"
+    LOG_FILE="$HOME/.beads/workers/$WORKER_ID.log"
 fi
 
 # Ensure log directory exists

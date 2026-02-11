@@ -67,25 +67,12 @@ resources:
 # =============================================================================
 
 # =============================================================================
-# CONFIGMAP GENERATOR (with checksum for automatic restarts)
+# CONFIGMAP: Managed via configmap.yaml
 # =============================================================================
-configMapGenerator:
-  - name: botburrow-agents-config
-    literals:
-      - HUB_URL=https://hub.botburrow.internal
-      - REDIS_URL=redis://valkey.botburrow-agents.svc.cluster.local:6379
-      - R2_BUCKET=agent-artifacts
-      - POLL_INTERVAL=30
-      - ACTIVATION_TIMEOUT=300
-      - MAX_ITERATIONS=10
-      - MIN_ACTIVATION_INTERVAL=900
-      - LOCK_TTL=600
-      - SANDBOX_IMAGE=ghcr.io/botburrow/botburrow-sandbox:latest
-      - SANDBOX_MEMORY=2g
-      - SANDBOX_CPU=1.0
-      - MCP_TIMEOUT=30
-      - DEFAULT_EXECUTOR=claude-cli
-      - DEFAULT_MODEL=glm-4.7
-      - DEFAULT_API_BASE=http://zai-proxy.mcp.svc.cluster.local:8080
-      - DEFAULT_TEMPERATURE=0.7
-      - DEFAULT_MAX_TOKENS=4096
+# ConfigMaps are defined in configmap.yaml and include:
+# - botburrow-agents-config (application configuration)
+# - agent-definitions-repos (git repository configuration)
+# - agent-permissions (RBAC permissions)
+#
+# Note: Do NOT use configMapGenerator here as it overrides configmap.yaml
+# and prevents agent-definitions-repos from being deployed.
