@@ -78,6 +78,8 @@ spec:
           volumeMounts:
             - name: agent-definitions
               mountPath: /git
+            - name: tmp
+              mountPath: /tmp
           resources:
             requests:
               memory: "64Mi"
@@ -155,6 +157,8 @@ spec:
         - name: agent-definitions
           emptyDir:
             sizeLimit: 100Mi
+        - name: tmp
+          emptyDir: {}
 ---
 apiVersion: v1
 kind: Service
