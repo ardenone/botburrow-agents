@@ -75,17 +75,17 @@ spec:
                   name: agent-definitions-repos
                   key: repo-branch
             # Git authentication credentials from botburrow-agents-secrets
-            # agent-definitions is on GitHub, so use GitHub credentials
+            # agent-definitions is on Forgejo (cluster-internal), so use Forgejo credentials
             - name: GIT_SYNC_USERNAME
               valueFrom:
                 secretKeyRef:
                   name: botburrow-agents-secrets
-                  key: GITHUB_USER
+                  key: FORGEJO_USER
             - name: GIT_SYNC_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: botburrow-agents-secrets
-                  key: GITHUB_TOKEN
+                  key: FORGEJO_TOKEN
           volumeMounts:
             - name: agent-definitions
               mountPath: /git

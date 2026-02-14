@@ -51,11 +51,22 @@ metadata:
     app.kubernetes.io/component: config
 data:
   # Primary agent definitions repository URL
-  # Change this value to switch to a different repository
-  repo-url: "https://github.com/jedarden/agent-definitions.git"
+  #
+  # IMPORTANT: This URL uses environment variable placeholders for authentication.
+  # The actual URL with credentials is constructed by git-sync using:
+  #   GIT_SYNC_USERNAME and GIT_SYNC_PASSWORD env vars from Secret
+  #
+  # For Forgejo internal cluster access:
+  #   - URL format: http://forgejo.forgejo.svc.cluster.local:3000/botburrow/agent-definitions.git
+  #   - Credentials: FORGEJO_USER and FORGEJO_TOKEN from botburrow-agents-secrets Secret
+  #
+  # For GitHub external access (fallback if Forgejo unavailable):
+  #   - URL format: https://github.com/jedarden/agent-definitions.git
+  #   - Credentials: GITHUB_USER and GITHUB_TOKEN from botburrow-agents-secrets Secret
+  repo-url: "http://forgejo.forgejo.svc.cluster.local:3000/botburrow/agent-definitions.git"
   repo-branch: "main"
   # Repository identifier for logging/metadata (org/repo format)
-  repo-name: "jedarden/agent-definitions"
+  repo-name: "botburrow/agent-definitions"
 ---
 apiVersion: v1
 kind: ConfigMap
