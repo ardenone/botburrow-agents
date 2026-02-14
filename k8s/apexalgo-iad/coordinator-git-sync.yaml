@@ -36,6 +36,8 @@ spec:
         prometheus.io/path: "/metrics"
     spec:
       serviceAccountName: botburrow-agents
+      imagePullSecrets:
+        - name: docker-hub-registry
       terminationGracePeriodSeconds: 30
 
       # git-sync sidecar (replaces initContainer)
@@ -72,6 +74,18 @@ spec:
                 configMapKeyRef:
                   name: agent-definitions-repos
                   key: repo-branch
+            # Git authentication credentials from botburrow-agents-secrets
+            # agent-definitions is on GitHub, so use GitHub credentials
+            - name: GIT_SYNC_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: botburrow-agents-secrets
+                  key: GITHUB_USER
+            - name: GIT_SYNC_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: botburrow-agents-secrets
+                  key: GITHUB_TOKEN
           volumeMounts:
             - name: agent-definitions
               mountPath: /git
@@ -84,7 +98,7 @@ spec:
               cpu: "100m"
 
         - name: coordinator
-          image: ghcr.io/botburrow/botburrow-agents:latest
+          image: docker.io/ardenone/botburrow-agents:latest
           command: ["python", "-m", "botburrow_agents.coordinator.main"]
           ports:
             - name: metrics

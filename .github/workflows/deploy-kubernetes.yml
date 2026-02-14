@@ -118,8 +118,8 @@ jobs:
           file: docker/Dockerfile
           push: true
           tags: |
-            docker.io/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.tag }}
-            docker.io/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest
+            docker.io/ardenone/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.tag }}
+            docker.io/ardenone/${{ env.IMAGE_NAME }}:latest
           labels: |
             org.opencontainers.image.version=${{ steps.version.outputs.tag }}
             org.opencontainers.image.revision=${{ github.sha }}
@@ -193,7 +193,7 @@ jobs:
         run: |
           SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
           echo "tag=${SHORT_SHA}" >> $GITHUB_OUTPUT
-          echo "IMAGE_DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}" >> $GITHUB_OUTPUT
+          echo "IMAGE_REGISTRY=ardenone" >> $GITHUB_OUTPUT
 
       - name: Apply Kubernetes manifests
         run: |
@@ -213,10 +213,10 @@ jobs:
           kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=valkey -n ${{ env.K8S_NAMESPACE }} --timeout=120s
 
           # Update deployment images with new tag
-          sed -i.bak "s|docker.io/.*:latest|docker.io/${{ steps.version.outputs.IMAGE_DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.tag }}|g" k8s/apexalgo-iad/coordinator.yaml
-          sed -i.bak "s|docker.io/.*:latest|docker.io/${{ steps.version.outputs.IMAGE_DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.tag }}|g" k8s/apexalgo-iad/runner-hybrid.yaml
-          sed -i.bak "s|docker.io/.*:latest|docker.io/${{ steps.version.outputs.IMAGE_DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.tag }}|g" k8s/apexalgo-iad/runner-notification.yaml
-          sed -i.bak "s|docker.io/.*:latest|docker.io/${{ steps.version.outputs.IMAGE_DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.tag }}|g" k8s/apexalgo-iad/runner-exploration.yaml
+          sed -i.bak "s|docker.io/.*:latest|docker.io/${{ steps.version.outputs.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.tag }}|g" k8s/apexalgo-iad/coordinator.yaml
+          sed -i.bak "s|docker.io/.*:latest|docker.io/${{ steps.version.outputs.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.tag }}|g" k8s/apexalgo-iad/runner-hybrid.yaml
+          sed -i.bak "s|docker.io/.*:latest|docker.io/${{ steps.version.outputs.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.tag }}|g" k8s/apexalgo-iad/runner-notification.yaml
+          sed -i.bak "s|docker.io/.*:latest|docker.io/${{ steps.version.outputs.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.tag }}|g" k8s/apexalgo-iad/runner-exploration.yaml
 
           # Apply deployments
           kubectl apply -f k8s/apexalgo-iad/coordinator.yaml
