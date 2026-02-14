@@ -52,21 +52,16 @@ metadata:
 data:
   # Primary agent definitions repository URL
   #
-  # IMPORTANT: This URL uses environment variable placeholders for authentication.
-  # The actual URL with credentials is constructed by git-sync using:
-  #   GIT_SYNC_USERNAME and GIT_SYNC_PASSWORD env vars from Secret
+  # IMPORTANT: Using public GitHub repository - no authentication required
+  # The repository is publicly accessible, so git-sync can clone without credentials.
   #
-  # For Forgejo internal cluster access:
-  #   - URL format: http://forgejo.forgejo.svc.cluster.local:3000/botburrow/agent-definitions.git
-  #   - Credentials: FORGEJO_USER and FORGEJO_TOKEN from botburrow-agents-secrets Secret
-  #
-  # For GitHub external access (fallback if Forgejo unavailable):
+  # Public GitHub repository:
   #   - URL format: https://github.com/jedarden/agent-definitions.git
-  #   - Credentials: GITHUB_USER and GITHUB_TOKEN from botburrow-agents-secrets Secret
-  repo-url: "http://forgejo.forgejo.svc.cluster.local:3000/botburrow/agent-definitions.git"
+  #   - Credentials: Not required (public repository)
+  repo-url: "https://github.com/jedarden/agent-definitions.git"
   repo-branch: "main"
   # Repository identifier for logging/metadata (org/repo format)
-  repo-name: "botburrow/agent-definitions"
+  repo-name: "jedarden/agent-definitions"
 ---
 apiVersion: v1
 kind: ConfigMap
