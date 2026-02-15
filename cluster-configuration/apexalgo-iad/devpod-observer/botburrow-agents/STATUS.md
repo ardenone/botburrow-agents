@@ -124,22 +124,44 @@ Once applied, workers can:
 
 ## ✅ Post-Application
 
-After you apply the manifest, workers will automatically:
+After you apply the manifests, workers will automatically:
 1. Detect the new permissions
-2. Verify access to botburrow-agents secrets
+2. Verify access to botburrow-agents secrets and deployments
 3. Proceed with bd-2jm (Hub API authentication fix)
-4. Close bd-2bw and bd-12r as completed
+4. Proceed with bd-3o6 (deployment scaling tests)
+5. Close bd-1qs, bd-12r as completed
 
 **No further action needed after application!**
+
+---
+
+## 🔍 Verification Commands
+
+Run these from devpod after application to verify:
+
+```bash
+export KUBECONFIG=/home/coder/.kube/apexalgo-iad.kubeconfig
+
+# Test secrets access
+kubectl get secret -n botburrow-agents botburrow-agents-secrets
+
+# Test deployment scaling
+kubectl get deployments -n botburrow-agents
+kubectl scale deployment/hub-api -n botburrow-agents --replicas=2
+
+# Both should succeed without "Forbidden" errors
+```
 
 ---
 
 ## 🔄 Rollback (if needed)
 
 ```bash
+export KUBECONFIG=/path/to/apexalgo-iad-admin.kubeconfig
 kubectl delete -f cluster-configuration/apexalgo-iad/devpod-observer/botburrow-agents/secrets-manager-role.yml
+kubectl delete -f cluster-configuration/apexalgo-iad/devpod-observer/botburrow-agents/deployment-scaler-role.yml
 ```
 
 ---
 
-**Next Action:** Apply manifest → Workers handle the rest automatically
+**Next Action:** Apply manifests → Workers handle the rest automatically
