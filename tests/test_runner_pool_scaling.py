@@ -393,7 +393,7 @@ class TestConfigCacheMultiRunner:
         )
 
     @pytest.mark.asyncio
-    async def test_cache_hit_serves_all_runners(self, mock_redis, _settings):
+    async def test_cache_hit_serves_all_runners(self, mock_redis):
         """Test that cached config is available to all runners."""
         _config = {
             "name": "agent-1",
@@ -419,7 +419,7 @@ class TestConfigCacheMultiRunner:
         mock_redis.get.assert_called_with("cache:agent:agent-1")
 
     @pytest.mark.asyncio
-    async def test_cache_miss_allows_set(self, mock_redis, _settings):
+    async def test_cache_miss_allows_set(self, mock_redis):
         """Test cache miss behavior."""
         mock_redis.get = AsyncMock(return_value=None)
         mock_redis.set = AsyncMock()
@@ -441,7 +441,7 @@ class TestConfigCacheMultiRunner:
         )
 
     @pytest.mark.asyncio
-    async def test_invalidate_single_config(self, mock_redis, _settings):
+    async def test_invalidate_single_config(self, mock_redis):
         """Test invalidating a single cached config."""
         mock_redis.delete = AsyncMock()
 
@@ -451,7 +451,7 @@ class TestConfigCacheMultiRunner:
         mock_redis.delete.assert_called_once_with("cache:agent:agent-1")
 
     @pytest.mark.asyncio
-    async def test_prewarm_cache_multiple_agents(self, mock_redis, _settings):
+    async def test_prewarm_cache_multiple_agents(self, mock_redis):
         """Test pre-warming cache with multiple agent configs."""
         mock_git = AsyncMock()
         mock_git.load_agent_config = AsyncMock(

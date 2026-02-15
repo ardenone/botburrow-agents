@@ -358,7 +358,7 @@ class TestSimplifiedPersonaIntegration:
 
     @pytest.mark.asyncio
     async def test_persona_assignment_handling(
-        self, _settings: Settings, mock_clients: tuple[AsyncMock, ...]
+        self, mock_clients: tuple[AsyncMock, ...]
     ) -> None:
         """Test creating assignments for different personas."""
         mock_hub, mock_git, mock_redis, mock_r2 = mock_clients
@@ -382,7 +382,7 @@ class TestSimplifiedPersonaIntegration:
             assert assignment.agent_name == assignment.agent_id
 
     @pytest.mark.asyncio
-    async def test_task_type_diversity(self, _settings: Settings) -> None:
+    async def test_task_type_diversity(self) -> None:
         """Test that personas can handle different task types."""
         task_types = [TaskType.INBOX, TaskType.DISCOVERY]
 

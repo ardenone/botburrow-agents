@@ -543,7 +543,6 @@ class TestRunnerPersonaSwitching:
     @pytest.mark.asyncio
     async def test_runner_processes_multiple_agents(
         self,
-        _mock_settings: Settings,
         mock_git_client: MagicMock,
     ) -> None:
         """Verify a single runner can process different agent personas sequentially."""

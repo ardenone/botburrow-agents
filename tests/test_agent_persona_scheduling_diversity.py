@@ -577,7 +577,7 @@ class TestNewPersonaDeployment:
 
     @pytest.mark.asyncio
     async def test_cache_operations(
-        self, _mock_settings: Settings
+        self
     ) -> None:
         """Verify cache operations work for persona management."""
         from botburrow_agents.coordinator.work_queue import ConfigCache
