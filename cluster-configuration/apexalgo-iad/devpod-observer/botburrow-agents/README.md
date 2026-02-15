@@ -91,21 +91,32 @@ kubectl get rolebinding -n botburrow-agents devpod-observer-secrets-manager
 
 ## Security Review
 
+### Deployment-Scaler
 - ✅ Minimal permissions (only scaling operations)
 - ✅ Namespace-scoped (botburrow-agents only)
 - ✅ No create/delete permissions
 - ✅ No cluster-wide access
 - ✅ Reversible (can be removed with kubectl delete)
 
-**Recommendation:** APPROVE - Safe for production
+### Secrets-Manager
+- ⚠️  Medium risk (secrets access)
+- ✅ Namespace-scoped (botburrow-agents only)
+- ✅ No create/delete permissions (cannot add/remove secrets)
+- ✅ No cluster-wide access
+- ✅ Reversible (can be removed with kubectl delete)
+- ✅ Justification: Required for Hub API configuration management
+
+**Recommendation:** APPROVE BOTH - Minimal scope, necessary for operations
 
 ---
 
 ## Related Documentation
 
 - **Full Testing Guide:** [SCALING-TESTS-GUIDE.md](./SCALING-TESTS-GUIDE.md)
-- **Quick Apply Guide:** [HUMAN-ACTION-APPLY-RBAC.md](./HUMAN-ACTION-APPLY-RBAC.md)
+- **Deployment Scaler Guide:** [HUMAN-ACTION-APPLY-RBAC.md](./HUMAN-ACTION-APPLY-RBAC.md)
+- **Secrets Manager Guide:** [HUMAN-ACTION-SECRETS-RBAC.md](./HUMAN-ACTION-SECRETS-RBAC.md)
 - **Cross-Cluster Access:** `~/.claude/CLAUDE.md` (apexalgo-iad section)
+- **Kubectl Proxy Status:** `../KUBECTL-PROXY-RESOLUTION-2026-02-15.md`
 
 ---
 
@@ -113,7 +124,11 @@ kubectl get rolebinding -n botburrow-agents devpod-observer-secrets-manager
 
 If needed, remove permissions with:
 ```bash
+# Remove deployment-scaler
 kubectl delete -f cluster-configuration/apexalgo-iad/devpod-observer/botburrow-agents/deployment-scaler-role.yml
+
+# Remove secrets-manager
+kubectl delete -f cluster-configuration/apexalgo-iad/devpod-observer/botburrow-agents/secrets-manager-role.yml
 ```
 
 ---
