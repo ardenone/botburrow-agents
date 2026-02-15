@@ -1,0 +1,153 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-runner-scaling
+  namespace: botburrow-agents
+  labels:
+    app: test-runner-scaling
+    test-type: scaling
+spec:
+  restartPolicy: Never
+  containers:
+    - name: test
+      image: python:3.12-slim
+      command:
+        - sh
+        - -c
+        - |
+          pip install --quiet redis && \
+          python /test/test_runner_pool_scaling.py
+      volumeMounts:
+        - name: test-script
+          mountPath: /test
+  volumes:
+    - name: test-script
+      configMap:
+        name: runner-scaling-test
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: runner-scaling-test
+  namespace: botburrow-agents
+data:
+  test_runner_pool_scaling.py: |
+    #!/usr/bin/env python3
+    """Test runner pool scaling by injecting work items into Redis."""
+
+    import asyncio
+    import json
+    import time
+    from datetime import UTC, datetime
+
+    import redis.asyncio as aioredis
+
+
+    class WorkItem:
+        """Work item for runner queue."""
+
+        def __init__(
+            self,
+            agent_id: str,
+            agent_name: str,
+            task_type: str = "INBOX",
+            priority: str = "normal",
+            inbox_count: int = 1,
+        ):
+            self.agent_id = agent_id
+            self.agent_name = agent_name
+            self.task_type = task_type
+            self.priority = priority
+            self.inbox_count = inbox_count
+
+        def to_json(self) -> str:
+            """Serialize to JSON."""
+            return json.dumps(
+                {
+                    "agent_id": self.agent_id,
+                    "agent_name": self.agent_name,
+                    "task_type": self.task_type,
+                    "priority": self.priority,
+                    "inbox_count": self.inbox_count,
+                    "enqueued_at": datetime.now(UTC).isoformat(),
+                }
+            )
+
+
+    async def test_runner_scaling():
+        """Test runner pool scaling capabilities."""
+        redis_url = "redis://valkey.botburrow-agents.svc.cluster.local:6379"
+        redis_client = await aioredis.from_url(redis_url, decode_responses=True)
+
+        print("✓ Connected to Redis")
+
+        test_agents = [
+            ("agent-alpha", "Agent Alpha - Code Reviewer", "high"),
+            ("agent-beta", "Agent Beta - Bug Fixer", "normal"),
+            ("agent-gamma", "Agent Gamma - Feature Developer", "high"),
+            ("agent-delta", "Agent Delta - Documentation Writer", "normal"),
+            ("agent-epsilon", "Agent Epsilon - Test Writer", "low"),
+        ]
+
+        print(f"\\n📊 Creating {len(test_agents)} test work items...")
+
+        for agent_id, agent_name, priority in test_agents:
+            work_item = WorkItem(
+                agent_id=agent_id, agent_name=agent_name, priority=priority, inbox_count=3
+            )
+
+            queue_key = f"work:queue:{priority}"
+            await redis_client.lpush(queue_key, work_item.to_json())
+            print(f"  ✓ Enqueued {agent_id} to {queue_key}")
+
+        print("\\n📈 Initial queue lengths:")
+        for priority in ["high", "normal", "low"]:
+            queue_key = f"work:queue:{priority}"
+            length = await redis_client.llen(queue_key)
+            print(f"  {queue_key}: {length} items")
+
+        print("\\n⏳ Monitoring active work for 60 seconds...")
+        start_time = time.time()
+        max_monitor_time = 60
+        check_interval = 5
+
+        while (time.time() - start_time) < max_monitor_time:
+            await asyncio.sleep(check_interval)
+
+            active_work = await redis_client.hgetall("work:active")
+            print(f"\\n[{int(time.time() - start_time)}s] Active work:")
+            if active_work:
+                for agent_id, runner_id in active_work.items():
+                    print(f"  {agent_id} → {runner_id}")
+            else:
+                print("  (none)")
+
+            print("  Queue lengths:")
+            total_queued = 0
+            for priority in ["high", "normal", "low"]:
+                queue_key = f"work:queue:{priority}"
+                length = await redis_client.llen(queue_key)
+                total_queued += length
+                if length > 0:
+                    print(f"    {queue_key}: {length}")
+
+            if total_queued == 0 and not active_work:
+                print("\\n✓ All work completed!")
+                break
+
+        print("\\n📊 Final Statistics:")
+        active_work = await redis_client.hgetall("work:active")
+        print(f"  Active work: {len(active_work)} items")
+
+        for priority in ["high", "normal", "low"]:
+            queue_key = f"work:queue:{priority}"
+            length = await redis_client.llen(queue_key)
+            if length > 0:
+                print(f"  {queue_key}: {length} remaining")
+
+        await redis_client.close()
+        print("\\n✓ Test complete")
+
+
+    if __name__ == "__main__":
+        asyncio.run(test_runner_scaling())
