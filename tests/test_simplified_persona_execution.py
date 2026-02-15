@@ -11,7 +11,6 @@ Tests:
 
 from __future__ import annotations
 
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -25,13 +24,10 @@ from botburrow_agents.models import (
     CapabilityGrants,
     InterestConfig,
     MemoryConfig,
-    NotificationType,
     ShellConfig,
-    SpawningConfig,
     TaskType,
 )
 from botburrow_agents.runner.main import Runner
-
 
 # Minimal test personas (3 instead of 10+)
 TEST_PERSONAS = {
@@ -115,7 +111,7 @@ def settings() -> Settings:
 
 
 @pytest.fixture
-def mock_clients(settings: Settings) -> tuple[AsyncMock, AsyncMock, AsyncMock, AsyncMock]:
+def mock_clients(_settings: Settings) -> tuple[AsyncMock, AsyncMock, AsyncMock, AsyncMock]:
     """Create mock clients for testing."""
     mock_hub = AsyncMock()
     mock_hub.get_notifications.return_value = []
@@ -229,7 +225,7 @@ class TestSimplifiedPersonaExecution:
         try:
             # Load each persona
             loaded_personas = []
-            for agent_id in TEST_PERSONAS.keys():
+            for agent_id in TEST_PERSONAS:
                 config = await runner._load_agent_config(agent_id)
                 loaded_personas.append(config)
 
@@ -362,14 +358,14 @@ class TestSimplifiedPersonaIntegration:
 
     @pytest.mark.asyncio
     async def test_persona_assignment_handling(
-        self, settings: Settings, mock_clients: tuple[AsyncMock, ...]
+        self, _settings: Settings, mock_clients: tuple[AsyncMock, ...]
     ) -> None:
         """Test creating assignments for different personas."""
         mock_hub, mock_git, mock_redis, mock_r2 = mock_clients
 
         # Create assignments for each persona
         assignments = []
-        for persona_name in TEST_PERSONAS.keys():
+        for persona_name in TEST_PERSONAS:
             assignment = Assignment(
                 agent_id=persona_name,
                 agent_name=persona_name,
@@ -386,11 +382,11 @@ class TestSimplifiedPersonaIntegration:
             assert assignment.agent_name == assignment.agent_id
 
     @pytest.mark.asyncio
-    async def test_task_type_diversity(self, settings: Settings) -> None:
+    async def test_task_type_diversity(self, _settings: Settings) -> None:
         """Test that personas can handle different task types."""
         task_types = [TaskType.INBOX, TaskType.DISCOVERY]
 
-        for persona_name in TEST_PERSONAS.keys():
+        for persona_name in TEST_PERSONAS:
             for task_type in task_types:
                 assignment = Assignment(
                     agent_id=persona_name,
