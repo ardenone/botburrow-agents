@@ -4,18 +4,18 @@ from __future__ import annotations
 
 import pytest
 
+from botburrow_agents.models import AgentConfig
 from botburrow_agents.schema_migration import (
     CURRENT_SCHEMA_VERSION,
     SCHEMA_BREAKING_CHANGES,
+    SUPPORTED_VERSIONS,
     SchemaMigrationError,
     SchemaVersion,
-    SUPPORTED_VERSIONS,
     UnknownFieldWarning,
     get_migration_function,
     migrate_config,
     validate_and_migrate_agent_config,
 )
-from botburrow_agents.models import AgentConfig
 
 
 class TestUnknownFieldWarning:

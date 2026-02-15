@@ -15,16 +15,14 @@ import asyncio
 import json
 import time
 from unittest.mock import AsyncMock, MagicMock
-from unittest.mock import Mock
 
 import pytest
 
-from botburrow_agents.clients.redis import RedisClient
 from botburrow_agents.config import Settings
 from botburrow_agents.coordinator.work_queue import (
+    ACTIVE_TASKS,
     AGENT_BACKOFF,
     AGENT_FAILURES,
-    ACTIVE_TASKS,
     ConfigCache,
     LeaderElection,
     WorkItem,
@@ -246,7 +244,7 @@ class TestWorkQueueMultiRunner:
             backoff_seconds = backoff_timestamp - time.time()
 
             assert backoff_seconds >= expected_min_backoff - 1, \
-                f"Failures={failures}: expected at least {expected_min_backs}s, got {backoff_seconds}s"
+                f"Failures={failures}: expected at least {expected_min_backoff}s, got {backoff_seconds}s"
 
     @pytest.mark.asyncio
     async def test_get_queue_stats(self, work_queue, mock_redis):
@@ -395,9 +393,9 @@ class TestConfigCacheMultiRunner:
         )
 
     @pytest.mark.asyncio
-    async def test_cache_hit_serves_all_runners(self, mock_redis, settings):
+    async def test_cache_hit_serves_all_runners(self, mock_redis, _settings):
         """Test that cached config is available to all runners."""
-        config = {
+        _config = {
             "name": "agent-1",
             "type": "claude-code",
             "cache_ttl": 300,
@@ -421,7 +419,7 @@ class TestConfigCacheMultiRunner:
         mock_redis.get.assert_called_with("cache:agent:agent-1")
 
     @pytest.mark.asyncio
-    async def test_cache_miss_allows_set(self, mock_redis, settings):
+    async def test_cache_miss_allows_set(self, mock_redis, _settings):
         """Test cache miss behavior."""
         mock_redis.get = AsyncMock(return_value=None)
         mock_redis.set = AsyncMock()
@@ -443,7 +441,7 @@ class TestConfigCacheMultiRunner:
         )
 
     @pytest.mark.asyncio
-    async def test_invalidate_single_config(self, mock_redis, settings):
+    async def test_invalidate_single_config(self, mock_redis, _settings):
         """Test invalidating a single cached config."""
         mock_redis.delete = AsyncMock()
 
@@ -453,7 +451,7 @@ class TestConfigCacheMultiRunner:
         mock_redis.delete.assert_called_once_with("cache:agent:agent-1")
 
     @pytest.mark.asyncio
-    async def test_prewarm_cache_multiple_agents(self, mock_redis, settings):
+    async def test_prewarm_cache_multiple_agents(self, mock_redis, _settings):
         """Test pre-warming cache with multiple agent configs."""
         mock_git = AsyncMock()
         mock_git.load_agent_config = AsyncMock(

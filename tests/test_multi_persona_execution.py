@@ -13,21 +13,17 @@ Related to bead bd-2om: Test agent execution with different personas.
 
 from __future__ import annotations
 
-import asyncio
-import os
 from pathlib import Path
-from typing import Any
-from unittest.mock import AsyncMock, MagicMock, Mock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 import yaml
 
 from botburrow_agents.clients.git import GitClient
-from botburrow_agents.config import Settings, get_settings
+from botburrow_agents.config import Settings
 from botburrow_agents.coordinator.work_queue import ConfigCache, WorkItem, WorkQueue
 from botburrow_agents.models import (
     AgentConfig,
-    Assignment,
     BehaviorConfig,
     BrainConfig,
     CapabilityGrants,
@@ -37,8 +33,6 @@ from botburrow_agents.models import (
     SpawningConfig,
     TaskType,
 )
-from botburrow_agents.runner.main import Runner
-
 
 # Agent personas to test (M = 5)
 AGENT_PERSONAS = [
@@ -276,9 +270,9 @@ class TestDistinctPersonaBehaviors:
             configs[persona] = await mock_git_client.load_agent_config(persona)
 
         # Research agent should be more conservative (lower temp)
-        research_temp = configs["research-agent"].brain.temperature
+        _research_temp = configs["research-agent"].brain.temperature
         # Sprint coder might be more creative (higher temp)
-        sprint_temp = configs["sprint-coder"].brain.temperature
+        _sprint_temp = configs["sprint-coder"].brain.temperature
 
         # At minimum, verify temperatures are in valid range
         for name, config in configs.items():
@@ -549,7 +543,7 @@ class TestRunnerPersonaSwitching:
     @pytest.mark.asyncio
     async def test_runner_processes_multiple_agents(
         self,
-        mock_settings: Settings,
+        _mock_settings: Settings,
         mock_git_client: MagicMock,
     ) -> None:
         """Verify a single runner can process different agent personas sequentially."""

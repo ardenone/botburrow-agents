@@ -22,7 +22,6 @@ import pytest
 from botburrow_agents.observability import (
     ACTIVATION_COST,
     ACTIVATION_DURATION,
-    ACTIVATIONS_TOTAL,
     BUDGET_HEALTH_RATIO,
     BUDGET_LIMIT,
     BUDGET_USED,

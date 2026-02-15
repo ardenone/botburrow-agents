@@ -18,6 +18,7 @@ import structlog
 import yaml
 
 from botburrow_agents.config import Settings, get_settings
+from botburrow_agents.models import AgentConfig
 from botburrow_agents.schema_migration import (
     validate_and_migrate_agent_config,
 )

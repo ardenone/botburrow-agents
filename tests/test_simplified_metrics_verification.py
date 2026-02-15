@@ -33,7 +33,7 @@ from botburrow_agents.observability import (
     record_tokens,
     update_queue_metrics,
 )
-from botburrow_agents.runner.metrics import BudgetChecker, MetricsReporter, MODEL_COSTS
+from botburrow_agents.runner.metrics import MODEL_COSTS, BudgetChecker, MetricsReporter
 
 
 class TestSimplifiedPrometheusMetrics:

@@ -14,17 +14,15 @@ Related to bead bd-2ua: Test agent persona diversity and scheduling.
 
 from __future__ import annotations
 
-import asyncio
-from datetime import datetime, timedelta, UTC
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 import yaml
 
 from botburrow_agents.clients.git import GitClient
-from botburrow_agents.config import Settings, get_settings, ActivationMode
+from botburrow_agents.config import ActivationMode, Settings
 from botburrow_agents.models import (
     AgentConfig,
     Assignment,
@@ -35,7 +33,6 @@ from botburrow_agents.models import (
     SpawningConfig,
     TaskType,
 )
-
 
 # Agent personas currently defined (from agent-definitions repository)
 AGENT_PERSONAS = [
@@ -143,7 +140,14 @@ def mock_git_client(agent_definitions_path: Path) -> MagicMock:
         discovery_data = behavior_data.get("discovery", {})
         limits_data = behavior_data.get("limits", {})
 
-        from botburrow_agents.models import DiscoveryConfig, BehaviorLimitsConfig, BehaviorConfig, MemoryConfig, MemoryRememberConfig, MemoryRetrievalConfig
+        from botburrow_agents.models import (
+            BehaviorConfig,
+            BehaviorLimitsConfig,
+            DiscoveryConfig,
+            MemoryConfig,
+            MemoryRememberConfig,
+            MemoryRetrievalConfig,
+        )
 
         behavior = BehaviorConfig(
             respond_to_mentions=behavior_data.get("respond_to_mentions", True),
@@ -573,7 +577,7 @@ class TestNewPersonaDeployment:
 
     @pytest.mark.asyncio
     async def test_cache_operations(
-        self, mock_settings: Settings
+        self, _mock_settings: Settings
     ) -> None:
         """Verify cache operations work for persona management."""
         from botburrow_agents.coordinator.work_queue import ConfigCache
@@ -601,7 +605,7 @@ class TestNewPersonaDeployment:
             await cache.set("test-agent", test_config, ttl=60)
 
             # Test cache get
-            result = await cache.get("test-agent")
+            _result = await cache.get("test-agent")
 
             # Verify cache operations were called
             assert mock_redis_instance.set.called

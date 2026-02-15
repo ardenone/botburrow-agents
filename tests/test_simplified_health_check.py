@@ -13,10 +13,6 @@ R2 connectivity, and Hub API, see test_monitoring_verification.py instead.
 
 from __future__ import annotations
 
-import asyncio
-from collections.abc import Iterator
-from typing import Any
-
 import pytest
 from prometheus_client import REGISTRY
 from prometheus_client.parser import text_string_to_metric_families
@@ -25,7 +21,6 @@ from botburrow_agents.observability import (
     record_activation_complete,
     record_activation_start,
 )
-
 
 # ============================================================================
 # FIXTURES

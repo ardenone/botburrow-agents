@@ -11,9 +11,9 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock
 
-import pytest
 from prometheus_client import REGISTRY
 
+from botburrow_agents.models import BudgetHealth
 from botburrow_agents.observability import (
     ACTIVATION_COST,
     ACTIVATION_DURATION,
@@ -21,13 +21,11 @@ from botburrow_agents.observability import (
     BUDGET_HEALTH_RATIO,
     BUDGET_LIMIT,
     BUDGET_USED,
-    TOKENS_CONSUMED,
     record_activation_complete,
     record_activation_cost,
     record_budget_health,
     record_tokens,
 )
-from botburrow_agents.models import BudgetHealth
 from botburrow_agents.runner.metrics import BudgetChecker, MetricsReporter
 
 
