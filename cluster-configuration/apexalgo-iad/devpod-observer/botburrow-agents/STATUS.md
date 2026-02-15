@@ -1,51 +1,66 @@
-# RBAC Application Status
+# RBAC Application Status - devpod-observer in botburrow-agents
 
-**Bead:** bd-2bw
-**Status:** ⏳ READY FOR HUMAN APPLICATION
-**Last Verified:** 2026-02-15 20:57 UTC
-**Worker:** claude-code
+**Bead:** bd-1qs
+**Status:** ⏳ AWAITING CLUSTER-ADMIN ACTION
+**Last Updated:** 2026-02-15 22:56 UTC
+**Worker:** claude-code-worker
 
 ---
 
 ## 📋 Current State
 
 ### ✅ Completed by Workers
-- [x] RBAC manifest created and validated
-- [x] Documentation written (READY-FOR-HUMAN-APPLICATION.md, HUMAN-ACTION-SECRETS-RBAC.md)
+- [x] RBAC manifests created and validated (secrets-manager + deployment-scaler)
+- [x] Documentation complete (APPLY-RBAC.md)
+- [x] Quick-apply script created (QUICK-APPLY.sh)
 - [x] Syntax validated (YAML is valid)
 - [x] Prerequisites verified (namespace exists, ServiceAccount exists)
 - [x] Worker confirmed: NO cluster-admin permissions
-- [x] RBAC confirmed: NOT yet applied (kubectl get role → NotFound)
+- [x] Security review passed (least privilege principle)
+- [x] Committed to Git
 
-### ⏳ Waiting for Human
-- [ ] Apply manifest to apexalgo-iad cluster
-- [ ] Verify role and rolebinding exist
+### ⏳ Waiting for Cluster-Admin
+- [ ] Apply secrets-manager-role.yml to apexalgo-iad cluster
+- [ ] Apply deployment-scaler-role.yml to apexalgo-iad cluster
+- [ ] Verify roles and rolebindings exist
 
 ---
 
-## 🚀 Quick Application (1 minute)
+## 🚀 Quick Application (2 minutes)
 
 ### Prerequisites
 ✅ You need cluster-admin access to **apexalgo-iad** cluster
 
-### Steps
+### Option 1: Quick Script (RECOMMENDED)
+
+```bash
+# From cluster-configuration/apexalgo-iad/devpod-observer/botburrow-agents/
+export KUBECONFIG=/path/to/apexalgo-iad-admin.kubeconfig
+./QUICK-APPLY.sh
+```
+
+### Option 2: Manual Application
 
 ```bash
 # 1. Verify you have admin access
+export KUBECONFIG=/path/to/apexalgo-iad-admin.kubeconfig
 kubectl auth can-i create role -n botburrow-agents
 # Should return: yes
 
-# 2. Apply the manifest
-cd /path/to/botburrow-agents
-kubectl apply -f cluster-configuration/apexalgo-iad/devpod-observer/botburrow-agents/secrets-manager-role.yml
+# 2. Apply both manifests
+cd /path/to/botburrow-agents/cluster-configuration/apexalgo-iad/devpod-observer/botburrow-agents
+kubectl apply -f secrets-manager-role.yml
+kubectl apply -f deployment-scaler-role.yml
 
 # Expected output:
 # role.rbac.authorization.k8s.io/secrets-manager created
 # rolebinding.rbac.authorization.k8s.io/devpod-observer-secrets-manager created
+# role.rbac.authorization.k8s.io/deployment-scaler created
+# rolebinding.rbac.authorization.k8s.io/devpod-observer-scaler created
 
 # 3. Verify (optional)
-kubectl get role -n botburrow-agents secrets-manager
-kubectl get rolebinding -n botburrow-agents devpod-observer-secrets-manager
+kubectl get role -n botburrow-agents
+kubectl get rolebinding -n botburrow-agents
 ```
 
 ---
@@ -54,9 +69,10 @@ kubectl get rolebinding -n botburrow-agents devpod-observer-secrets-manager
 
 | Document | Purpose |
 |----------|---------|
-| [READY-FOR-HUMAN-APPLICATION.md](./READY-FOR-HUMAN-APPLICATION.md) | Quick application guide |
-| [HUMAN-ACTION-SECRETS-RBAC.md](./HUMAN-ACTION-SECRETS-RBAC.md) | Full documentation and security review |
-| [secrets-manager-role.yml](./secrets-manager-role.yml) | RBAC manifest to apply |
+| [APPLY-RBAC.md](./APPLY-RBAC.md) | Detailed application instructions and security review |
+| [QUICK-APPLY.sh](./QUICK-APPLY.sh) | Automated application script |
+| [secrets-manager-role.yml](./secrets-manager-role.yml) | RBAC manifest for secrets access |
+| [deployment-scaler-role.yml](./deployment-scaler-role.yml) | RBAC manifest for deployment scaling |
 | **STATUS.md** (this file) | Quick status summary |
 
 ---
@@ -66,30 +82,43 @@ kubectl get rolebinding -n botburrow-agents devpod-observer-secrets-manager
 | Aspect | Status |
 |--------|--------|
 | **Scope** | ✅ Namespace-scoped (botburrow-agents only) |
-| **Destructive Ops** | ✅ No create/delete permissions |
-| **Risk Level** | ⚠️ Medium (secrets access) |
+| **Destructive Ops** | ✅ No delete permissions |
+| **Risk Level** | ⚠️ Medium (secrets + deployment access) |
 | **Reversible** | ✅ Yes (kubectl delete -f ...) |
-| **Precedent** | ✅ Similar to deployment-scaler RBAC (bd-3o6) |
+| **Audit Trail** | ✅ Git history + labeled with bead IDs |
 
-**Permissions Granted:**
+**secrets-manager Permissions:**
 - ✅ Read secrets (get, list)
 - ✅ Update secrets (patch, update)
-- ❌ No create
-- ❌ No delete
+- ❌ No create/delete
+
+**deployment-scaler Permissions:**
+- ✅ Scale deployments and HPAs
+- ✅ Read pods, deployments, replicasets
+- ✅ Port-forward to pods
+- ❌ No delete permissions
+
+**Both Roles:**
 - ❌ No access to other namespaces
+- ❌ No RBAC escalation permissions
+- ❌ No cluster-scoped modifications
 
 ---
 
 ## 🎯 What This Unblocks
 
 Once applied, workers can:
+- Access and update secrets in botburrow-agents namespace
+- Scale deployments and HPAs for testing
+- Port-forward to pods for debugging
 - Apply Hub API authentication fix (bd-2jm)
-- Update botburrow-agents-secrets ConfigMap
-- Manage configuration without human intervention
+- Run deployment scaling tests (bd-3o6)
 
 **Blocked Beads:**
+- bd-1qs - CLUSTER-ADMIN: Apply RBAC manifests (this bead)
 - bd-12r - Grant devpod-observer RBAC access to botburrow namespace
 - bd-2jm - Hub API authentication fix
+- bd-3o6 - Runner scaling tests
 
 ---
 
