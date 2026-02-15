@@ -1,14 +1,26 @@
 # BD-2BW: Apply secrets-manager RBAC to apexalgo-iad
 
-**Status:** ✅ Ready for cluster-admin application
+**Status:** ⏳ Awaiting TRUE cluster-admin with elevated privileges
 **Date:** 2026-02-15
 **Bead:** bd-2bw (human-type)
+**Last Attempt:** 2026-02-15 22:10 UTC (correctly rejected - devpod-observer lacks RBAC permissions)
+
+---
+
+## ⚠️ IMPORTANT: Requires True Cluster-Admin Privileges
+
+**The devpod-observer ServiceAccount CANNOT apply RBAC resources** (correct security design).
+
+This task requires a **human administrator** with:
+- Direct access to apexalgo-iad Kubernetes API
+- **cluster-admin credentials** (NOT devpod-observer proxy)
+- kubectl configured with elevated privileges
 
 ---
 
 ## Quick Apply (1 minute)
 
-From a machine with **cluster-admin access** to **apexalgo-iad**:
+From a machine with **TRUE cluster-admin access** to **apexalgo-iad**:
 
 ```bash
 # 1. Pull latest changes
