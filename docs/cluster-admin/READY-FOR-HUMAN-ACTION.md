@@ -2,7 +2,7 @@
 
 **Bead:** bd-fvs (CLUSTER-ADMIN: Grant permissions to install ArgoCD in apexalgo-iad)
 **Status:** ✅ ALL PREP COMPLETE - AWAITING HUMAN ACTION
-**Last Verified:** 2026-02-15
+**Last Verified:** 2026-02-15 20:11 UTC (verified: permissions NOT yet granted)
 **Estimated Time:** < 15 minutes total (< 5 minutes human time)
 
 ---
@@ -42,7 +42,7 @@ This comprehensive checklist includes:
 
 ---
 
-## ✅ Current State (Verified 2026-02-15)
+## ✅ Current State (Verified 2026-02-15 20:11 UTC)
 
 ```
 ✅ botburrow-agents namespace: Active (14 days old)
@@ -51,9 +51,9 @@ This comprehensive checklist includes:
 ✅ Deployment guide: Ready (k8s/apexalgo-iad/argocd/DEPLOYMENT-GUIDE.md)
 ✅ Cluster-admin checklist: Ready (docs/cluster-admin/bd-fvs-permission-grant-checklist.md)
 
-❌ ArgoCD namespace: Does not exist (will be created by workers)
-❌ devpod-observer cluster-admin: Not granted (awaiting your action)
-❌ devpod-observer can create namespace: NO (verified)
+❌ ArgoCD namespace: Does not exist (verified: NotFound)
+❌ devpod-observer cluster-admin binding: Does not exist (verified: NotFound)
+❌ devpod-observer can create namespace: NO (verified: auth can-i → no)
 ```
 
 ---
@@ -150,6 +150,7 @@ A: See the full manual installation steps in `k8s/apexalgo-iad/argocd/DEPLOYMENT
 
 ---
 
-**Last Updated:** 2026-02-15
-**Worker:** claude-code-glm-47-tango
+**Last Updated:** 2026-02-15 20:11 UTC
+**Last Worker:** claude-code-glm-47-tango (verification)
+**Previous Workers:** claude-code-glm-47-lima (documentation), claude-code-glm-47-foxtrot (initial prep)
 **Bead:** bd-fvs
