@@ -1,53 +1,83 @@
 # Kubernetes Coordinator Leader Election Verification Plan
 
 **Bead:** bd-1j7
-**Status:** BLOCKED - Waiting for cluster-admin to apply secrets
-**Blocker:** /home/coder workspace bead bd-psf5 (HUMAN: Apply botburrow-agents secrets)
+**Status:** VERIFICATION INCOMPLETE - Logs not showing leader election
+**Date:** 2026-02-15
+**Updated:** After initial verification attempt
 
 ## Summary
 
-This document outlines the full Kubernetes verification plan for the coordinator leader election implementation. The local tests pass, but the Kubernetes deployment is blocked because required secrets don't exist in the apexalgo-iad cluster.
+This document outlines the full Kubernetes verification plan for the coordinator leader election implementation. The local tests pass, and the Kubernetes deployment is running, but **leader election cannot be verified from logs** due to missing startup/info log messages.
 
-## Current Status
+**See:** `kubernetes-coordinator-verification-results.md` for detailed findings.
+
+## Current Status (2026-02-15)
 
 ### Completed
 - [x] Local leader election verification (fakeredis) - **PASSED**
 - [x] Work queue deduplication verification - **PASSED**
 - [x] Circuit breaker verification - **PASSED**
 - [x] Analysis of deployment blockers
+- [x] Kubernetes deployment exists - **2/2 replicas running**
+- [x] Valkey operational - **Active connections confirmed**
 
-### Blocked
-- [ ] Kubernetes deployment verification (blocked by missing secrets)
-- [ ] Real leader election with Valkey
-- [ ] Pod failover testing
-- [ ] Work distribution verification
+### Incomplete - Cannot Verify
+- [⚠️] Leader election in Kubernetes logs - **NO LOG MESSAGES**
+- [⚠️] Metrics endpoint access - **RBAC BLOCKED**
+- [ ] Real leader election with Valkey - **NEEDS REDIS CLI ACCESS**
+- [ ] Pod failover testing - **NEEDS DELETE PERMISSION**
+- [ ] Work distribution verification - **NEEDS REDIS CLI ACCESS**
 
-## Blockers
+## Current Blockers
 
-### Primary Blocker: Missing Secrets
+### Primary Blocker: Missing Leader Election Logs
 
-The `botburrow-agents` namespace exists but is empty. Required secrets:
-- `botburrow-agents-secrets` - Hub API, R2 storage, Git credentials
-- `mcp-credentials` - MCP server API keys
+**Issue:** Coordinator pods are running but logs don't show:
+- No "coordinator_starting" messages
+- No "became_leader" messages
+- No "not_leader" messages
+- Only ERROR logs visible (401 Unauthorized from Hub API)
 
-**Human bead for resolution:** bd-psf5 in /home/coder workspace
+**Possible Causes:**
+1. **Image version mismatch** - Deployed image is `ronaldraygun/botburrow-agents:latest` not `ardenone/botburrow-agents:latest`
+2. **Log filtering** - INFO level logs may be filtered before reaching pod logs
+3. **Old code version** - Deployed image may not contain leader election code
 
-**Quick resolution:**
-```bash
-# From cluster-admin context (not devpod):
-kubectl apply -f /home/coder/botburrow-agents/k8s/apexalgo-iad/botburrow-agents-secrets-PLACEHOLDER.yml
-```
+**Resolution Options:**
+1. Verify image contains leader election code
+2. Enable DEBUG logging via environment variable
+3. Rebuild and push fresh image
+4. Check image build date and commit
 
-### Secondary Blocker: RBAC Permissions
+### Secondary Blocker: RBAC Permissions (For Full Verification)
 
-The devpod-observer ServiceAccount has read-only permissions in botburrow-agents namespace.
+**Missing Permissions:**
+- Cannot access service proxy endpoints (metrics at :9090)
+- Cannot exec into pods (Redis CLI access)
+- Cannot delete pods (failover testing)
 
-**Human bead for resolution:** bd-3cpp in /home/coder workspace
+**Human bead:** bd-3q9 (CLOSED but RoleBinding not actually applied)
 
 **Quick resolution:**
 ```bash
 kubectl apply -f /home/coder/botburrow-agents/k8s/apexalgo-iad/devpod-observer-botburrow-agents-admin-rbac.yml
 ```
+
+### Tertiary Blocker: Image Version Uncertainty
+
+**Current State:**
+- Manifest specifies: `ardenone/botburrow-agents:latest`
+- Deployed pods use: `ronaldraygun/botburrow-agents:latest`
+
+**Questions:**
+1. Is ronaldraygun/botburrow-agents the correct image?
+2. When was it last built?
+3. Does it contain leader election code?
+
+**Resolution:**
+1. Check image provenance
+2. Verify image contains current code
+3. Consider rebuilding and pushing to ardenone/botburrow-agents
 
 ## Verification Plan (Once Unblocked)
 
