@@ -1,0 +1,73 @@
+---
+# Role: deployment-scaler
+# Purpose: Grant devpod-observer ServiceAccount permission to scale deployments
+#          and manage HPAs in botburrow-agents namespace for testing purposes
+# Context: bd-3o6 - Enable write permissions for runner scaling tests
+# Scope: Minimal permissions - only deployment/HPA scaling operations
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: deployment-scaler
+  namespace: botburrow-agents
+  labels:
+    app.kubernetes.io/name: deployment-scaler
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/part-of: devpod-observer
+    ardenone.com/managed-by: argocd
+  annotations:
+    ardenone.com/description: "Allows devpod-observer to scale deployments for testing"
+    ardenone.com/bead: "bd-3o6"
+rules:
+  # Allow scaling deployments (kubectl scale deployment)
+  - apiGroups: ["apps"]
+    resources: ["deployments/scale"]
+    verbs: ["get", "patch", "update"]
+
+  # Allow reading deployment status to verify scaling
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "watch"]
+
+  # Allow managing HorizontalPodAutoscalers for scaling tests
+  - apiGroups: ["autoscaling"]
+    resources: ["horizontalpodautoscalers"]
+    verbs: ["get", "list", "watch", "patch", "update"]
+
+  # Allow reading pods to verify scaled replicas
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+
+  # Allow port-forwarding to pods for testing (Valkey access)
+  - apiGroups: [""]
+    resources: ["pods/portforward"]
+    verbs: ["create", "get"]
+
+  # Allow reading replicasets (managed by deployments)
+  - apiGroups: ["apps"]
+    resources: ["replicasets"]
+    verbs: ["get", "list", "watch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: devpod-observer-scaler
+  namespace: botburrow-agents
+  labels:
+    app.kubernetes.io/name: devpod-observer-scaler
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/part-of: devpod-observer
+    ardenone.com/managed-by: argocd
+  annotations:
+    ardenone.com/description: "Binds deployment-scaler role to devpod-observer ServiceAccount"
+    ardenone.com/bead: "bd-3o6"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: deployment-scaler
+subjects:
+  - kind: ServiceAccount
+    name: devpod-observer
+    namespace: devpod-observer
