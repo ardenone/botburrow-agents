@@ -14,6 +14,7 @@ import json
 import time
 from datetime import UTC, datetime
 
+import pytest
 import redis.asyncio as aioredis
 
 
@@ -48,6 +49,7 @@ class WorkItem:
         )
 
 
+@pytest.mark.integration
 async def test_runner_scaling():
     """Test runner pool scaling capabilities."""
     # Connect to Valkey (Redis) in the cluster
