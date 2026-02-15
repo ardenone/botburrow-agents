@@ -111,7 +111,7 @@ def settings() -> Settings:
 
 
 @pytest.fixture
-def mock_clients(_settings: Settings) -> tuple[AsyncMock, AsyncMock, AsyncMock, AsyncMock]:
+def mock_clients() -> tuple[AsyncMock, AsyncMock, AsyncMock, AsyncMock]:
     """Create mock clients for testing."""
     mock_hub = AsyncMock()
     mock_hub.get_notifications.return_value = []
