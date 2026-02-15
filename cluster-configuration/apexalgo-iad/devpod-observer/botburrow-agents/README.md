@@ -1,59 +1,91 @@
-# Deployment-Scaler RBAC for botburrow-agents Testing
+# devpod-observer RBAC for botburrow-agents Namespace
 
 **Status:** ⏳ Ready for Human Application
-**Bead:** bd-3o6 - Enable write permissions for runner scaling tests
+**Beads:** bd-3o6 (deployment scaling), bd-12r (secrets management)
 **Date Created:** 2026-02-15
-**Worker:** claude-code
+**Workers:** claude-code, claude-code-glm-47-lima
 
 ---
 
 ## Quick Summary
 
-RBAC manifest to grant devpod-observer ServiceAccount minimal permissions for testing runner pool scaling in the botburrow-agents namespace.
+RBAC manifests to grant devpod-observer ServiceAccount minimal permissions for testing and configuration management in the botburrow-agents namespace.
 
 ### Files in This Directory
 
-1. **`deployment-scaler-role.yml`** - RBAC manifest (Role + RoleBinding)
-2. **`HUMAN-ACTION-APPLY-RBAC.md`** - Quick apply guide for cluster-admin
-3. **`SCALING-TESTS-GUIDE.md`** - Comprehensive testing documentation
-4. **`README.md`** - This file
+1. **`deployment-scaler-role.yml`** - RBAC for deployment scaling (bd-3o6)
+2. **`secrets-manager-role.yml`** - RBAC for secrets management (bd-12r)
+3. **`HUMAN-ACTION-APPLY-RBAC.md`** - Quick apply guide for deployment-scaler
+4. **`HUMAN-ACTION-SECRETS-RBAC.md`** - Quick apply guide for secrets-manager
+5. **`SCALING-TESTS-GUIDE.md`** - Comprehensive testing documentation
+6. **`BD-3O6-VERIFICATION.md`** - Deployment scaler verification results
+7. **`README.md`** - This file
 
 ---
 
-## What This Does
+## What These Manifests Do
 
+### 1. Deployment-Scaler (bd-3o6)
 Grants the `devpod-observer` ServiceAccount permission to:
 - Scale deployments (kubectl scale)
 - Manage HorizontalPodAutoscalers
 - Port-forward to pods (for Valkey access)
 - Read deployment/pod/replicaset status
 
+### 2. Secrets-Manager (bd-12r)
+Grants the `devpod-observer` ServiceAccount permission to:
+- Read secrets (get, list)
+- Update existing secrets (patch, update)
+- **Note:** No create/delete permissions
+
 **Scope:** botburrow-agents namespace only
-**Security:** Minimal permissions, no create/delete
+**Security:** Minimal permissions, no destructive operations
 
 ---
 
 ## How to Apply (Cluster-Admin Required)
 
+### Option 1: Apply Both Manifests
 ```bash
 # From a machine with cluster-admin access to apexalgo-iad
 kubectl apply -f cluster-configuration/apexalgo-iad/devpod-observer/botburrow-agents/deployment-scaler-role.yml
+kubectl apply -f cluster-configuration/apexalgo-iad/devpod-observer/botburrow-agents/secrets-manager-role.yml
+```
+
+### Option 2: Apply Individually
+```bash
+# Deployment scaler only (bd-3o6)
+kubectl apply -f cluster-configuration/apexalgo-iad/devpod-observer/botburrow-agents/deployment-scaler-role.yml
+
+# Secrets manager only (bd-12r)
+kubectl apply -f cluster-configuration/apexalgo-iad/devpod-observer/botburrow-agents/secrets-manager-role.yml
 ```
 
 **Verification:**
 ```bash
+# Check deployment-scaler
 kubectl get role -n botburrow-agents deployment-scaler
 kubectl get rolebinding -n botburrow-agents devpod-observer-scaler
+
+# Check secrets-manager
+kubectl get role -n botburrow-agents secrets-manager
+kubectl get rolebinding -n botburrow-agents devpod-observer-secrets-manager
 ```
 
 ---
 
 ## What This Unblocks
 
+### Deployment-Scaler Unblocks:
 - **bd-3qv** - Test agent runner pool scaling
 - Port-forward testing to Valkey
 - Deployment scaling tests
 - HPA behavior verification
+
+### Secrets-Manager Unblocks:
+- **bd-2jm** - Hub API authentication fix
+- Configuration management from devpod
+- Secret updates for application configuration
 
 ---
 
