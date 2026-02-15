@@ -2,11 +2,13 @@
 
 **Status:** ✅ ALL PREPARATION COMPLETE - PROPERLY BLOCKED ON HUMAN ACTION
 
-**Date:** 2026-02-15 19:15 UTC
+**Date:** 2026-02-15 19:39 UTC (Updated with cluster-admin checklist)
 
 ## Executive Summary
 
 This bead is **correctly configured as a human-type bead** and requires cluster-admin intervention. All worker preparation is complete. The fix is ready to apply but cannot be executed by autonomous workers due to permission constraints.
+
+**NEW:** Created dedicated cluster-admin action checklist: `docs/cluster-admin/bd-2sp-hub-auth-fix.md`
 
 ## Problem Status: ACTIVE ✅
 
@@ -55,6 +57,11 @@ This bead is **correctly configured as a human-type bead** and requires cluster-
   - Step-by-step instructions
   - Expected results
   - Troubleshooting
+- **Cluster-admin checklist:** `docs/cluster-admin/bd-2sp-hub-auth-fix.md` (NEW)
+  - Quick start instructions
+  - Comprehensive troubleshooting
+  - Post-fix verification
+  - Bead closure steps
 
 ### 4. ✅ Updated Manifests
 - **File:** `k8s/apexalgo-iad/botburrow-agents-secrets-PLACEHOLDER.yml`
