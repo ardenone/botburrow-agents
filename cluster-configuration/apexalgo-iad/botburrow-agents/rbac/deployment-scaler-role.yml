@@ -1,0 +1,49 @@
+---
+# Role: deployment-scaler
+# Purpose: Grant minimal write permissions for scaling deployments and HPAs
+# Target: devpod-observer ServiceAccount for runner pool scaling tests
+# Namespace: botburrow-agents
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: deployment-scaler
+  namespace: botburrow-agents
+  labels:
+    app: devpod-observer
+    component: rbac
+    purpose: scaling-tests
+  annotations:
+    description: "Minimal write permissions for scaling deployments and HPAs in botburrow-agents namespace"
+    granted-to: "devpod-observer ServiceAccount (devpod-observer namespace)"
+    use-case: "Runner pool scaling tests from ardenone-cluster devpod"
+rules:
+  # Allow scaling of deployments
+  - apiGroups: ["apps"]
+    resources: ["deployments/scale"]
+    verbs: ["get", "patch", "update"]
+
+  # Allow scaling of replicasets (used by deployments)
+  - apiGroups: ["apps"]
+    resources: ["replicasets/scale"]
+    verbs: ["get", "patch", "update"]
+
+  # Allow read access to deployments (needed for scaling context)
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "watch"]
+
+  # Allow HPA modifications for autoscaling tests
+  - apiGroups: ["autoscaling"]
+    resources: ["horizontalpodautoscalers"]
+    verbs: ["get", "list", "watch", "patch", "update"]
+
+  # Allow reading pods to verify scaling results
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+
+  # Allow reading events to debug scaling issues
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["get", "list", "watch"]
