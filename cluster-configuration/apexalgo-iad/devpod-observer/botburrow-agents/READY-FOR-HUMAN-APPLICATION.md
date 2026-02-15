@@ -146,4 +146,5 @@ This RBAC application unblocks:
 ---
 
 **Status:** ⏳ Waiting for cluster-admin to apply
+**Last Worker Check:** 2026-02-15T16:57:00Z (RBAC still not applied)
 **Next Action:** Human applies manifest, then workers verify and proceed with bd-2jm
