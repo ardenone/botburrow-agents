@@ -2,44 +2,45 @@
 
 **Task:** CLUSTER-ADMIN: Apply Hub API authentication fix
 **Status:** ⛔ BLOCKED
-**Blocker:** bd-2y0 (CLUSTER-ADMIN: Fix Tailscale kubectl-proxy connectivity to apexalgo-iad)
-**Date:** 2026-02-15
+**Blocker:** bd-2y0 (RBAC permissions for botburrow-agents namespace)
+**Date:** 2026-02-15 (Updated: 2026-02-15 20:41 UTC)
 **Worker:** claude-code
 
 ## Summary
 
-Cannot proceed with Hub API authentication fix because the Tailscale kubectl-proxy connection to apexalgo-iad cluster is experiencing timeout issues. This is a **cluster infrastructure problem** that requires human intervention.
+Cannot proceed with Hub API authentication fix due to **RBAC permission issue**. The devpod-observer ServiceAccount (used by kubectl-proxy) does not have permission to access secrets in the botburrow-agents namespace.
+
+**UPDATE 2026-02-15 20:41 UTC:** ✅ Tailscale connectivity issue resolved (connection working). ❌ New blocker: RBAC permissions.
 
 ## What Was Attempted
 
 1. ✅ Reviewed fix documentation (`docs/hub-api-authentication-fix.md`)
 2. ✅ Reviewed automated fix script (`scripts/fix-hub-auth.sh`)
-3. ❌ Attempted to connect to apexalgo-iad cluster via kubectl-proxy
-4. ❌ Connection timed out after 90+ seconds
+3. ✅ Connected to apexalgo-iad cluster via kubectl-proxy (initially timed out, later succeeded)
+4. ❌ Attempted to read botburrow-agents-secrets
+5. ❌ **RBAC Forbidden:** devpod-observer ServiceAccount lacks permissions
 
 ## Technical Details
 
-### Error Symptoms
+### Current Error (RBAC)
 
 ```
-# kubectl error
-E0215 20:37:15.763511 2879290 memcache.go:265] "Unhandled Error"
-err="couldn't get current server API group list: Get
-\"http://ts-kubectl-apexalgo-iad-87pxw.tailscale.svc.cluster.local:8001/api?timeout=32s\":
-dial tcp 10.42.6.45:8001: i/o timeout"
-
-# Tailscale pod logs
-2026/02/15 20:38:03 open-conn-track: timeout opening
-(TCP 100.79.107.110:37196 => 100.94.193.51:8001) to node [p/guc];
-online=yes, lastRecv=13m42s
+Error from server (Forbidden): secrets "botburrow-agents-secrets" is forbidden:
+User "system:serviceaccount:devpod-observer:devpod-observer" cannot get resource
+"secrets" in API group "" in the namespace "botburrow-agents"
 ```
 
 ### Infrastructure Status
 
-- **Tailscale pod:** ts-kubectl-apexalgo-iad-87pxw-0 (Running, age: 3d17h)
-- **Service:** kubectl-apexalgo-iad.devpod.svc.cluster.local:8001
-- **Issue:** TCP connection to remote node 100.94.193.51:8001 times out
-- **Tailscale status:** Shows "online=yes" but cannot establish connections
+- **Tailscale connectivity:** ✅ WORKING (resolved)
+- **kubectl-proxy:** ✅ WORKING (can connect to cluster)
+- **ServiceAccount:** devpod-observer (devpod-observer namespace)
+- **Target namespace:** botburrow-agents
+- **Missing permissions:** get, list, patch secrets in botburrow-agents namespace
+
+### Previous Issue (Resolved)
+
+~~Tailscale connection timeouts~~ - This was resolved, connection now works properly.
 
 ### What This Blocks
 
@@ -51,39 +52,68 @@ online=yes, lastRecv=13m42s
 
 **⚠️ ACTION REQUIRED: CLUSTER-ADMIN**
 
-A human bead has been created with detailed resolution options: **bd-2y0**
+A human bead has been created with detailed resolution: **bd-2y0**
 
-### Recommended Quick Fix (Option 1)
+### Required Fix: Grant RBAC Permissions
 
-Restart the Tailscale proxy pod to see if it's a transient connection issue:
+Create a RoleBinding to grant devpod-observer ServiceAccount access to the botburrow-agents namespace:
 
 ```bash
-# Restart Tailscale proxy pod
-kubectl delete pod -n tailscale ts-kubectl-apexalgo-iad-87pxw-0
-
-# Wait for pod to restart
-kubectl wait --for=condition=Ready pod -n tailscale \
-  -l app.kubernetes.io/name=ts-kubectl-apexalgo-iad --timeout=120s
-
-# Test connectivity
-curl http://kubectl-apexalgo-iad.devpod.svc.cluster.local:8001/healthz
-
-# Should return: "ok"
+# Grant edit permissions (allows secret management)
+kubectl apply -f - <<EOF
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: devpod-observer-secrets
+  namespace: botburrow-agents
+subjects:
+- kind: ServiceAccount
+  name: devpod-observer
+  namespace: devpod-observer
+roleRef:
+  kind: ClusterRole
+  name: edit  # Built-in role with secret edit permissions
+  apiGroup: rbac.authorization.k8s.io
+EOF
 ```
 
-### If Quick Fix Doesn't Work
+### Verify After Applying
 
-See human bead **bd-2y0** for additional diagnostic steps including:
-- Checking Tailscale mesh connectivity
-- Verifying remote kubectl-proxy health in apexalgo-iad
-- Alternative access methods via VPN/bastion
+```bash
+export KUBECONFIG=/home/coder/.kube/apexalgo-iad.kubeconfig
+kubectl get secret botburrow-agents-secrets -n botburrow-agents
+
+# Should now work without "Forbidden" error
+```
+
+### Alternative: Read-Only Access
+
+If you prefer minimal permissions for investigation:
+```bash
+kubectl apply -f - <<EOF
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: devpod-observer-view
+  namespace: botburrow-agents
+subjects:
+- kind: ServiceAccount
+  name: devpod-observer
+  namespace: devpod-observer
+roleRef:
+  kind: ClusterRole
+  name: view
+  apiGroup: rbac.authorization.k8s.io
+EOF
+```
+(Note: This won't allow secret editing)
 
 ## Workflow Status
 
 ```mermaid
 graph LR
-    A[bd-2jm: Apply Hub API fix] -->|BLOCKED BY| B[bd-2y0: Fix Tailscale connectivity]
-    B -->|REQUIRES| C[Human intervention]
+    A[bd-2jm: Apply Hub API fix] -->|BLOCKED BY| B[bd-2y0: RBAC permissions needed]
+    B -->|REQUIRES| C[Human: Apply RoleBinding]
     C -->|UNBLOCKS| A
     A -->|UNBLOCKS| D[bd-q21: Coordinator 401 errors]
 ```
@@ -105,18 +135,24 @@ graph LR
 ## Timeline
 
 - **2026-02-15 20:30 UTC** - Started work on bd-2jm
-- **2026-02-15 20:34 UTC** - First timeout detected
+- **2026-02-15 20:34 UTC** - First timeout detected (Tailscale connectivity issue)
 - **2026-02-15 20:39 UTC** - Created blocker bead bd-2y0
 - **2026-02-15 20:40 UTC** - Added dependency, documented status
-- **Next:** Waiting for human to resolve Tailscale connectivity
+- **2026-02-15 20:41 UTC** - ✅ Tailscale resolved, ❌ discovered RBAC issue
+- **2026-02-15 20:42 UTC** - Updated bd-2y0 with RBAC fix instructions
+- **Next:** Waiting for human to apply RoleBinding
 
 ## Worker Notes
 
-This is a cluster infrastructure issue beyond the scope of autonomous worker operations. The Tailscale mesh connection appears to be in a degraded state where it reports "online" but cannot establish TCP connections to the remote kubectl-proxy.
+This bead is blocked by RBAC permissions, which requires cluster-admin privileges to resolve. The devpod-observer ServiceAccount needs access to the botburrow-agents namespace to read and edit secrets.
 
-The fix requires cluster-admin privileges to either:
-1. Restart the Tailscale proxy pod
-2. Investigate Tailscale mesh routing issues
-3. Use alternative cluster access methods
+**Root Cause:** The kubectl-proxy authentication works via the devpod-observer ServiceAccount, which currently only has permissions for:
+- devpod-observer namespace (full access)
+- monitoring namespace (full access)
+- Cluster-scoped resources (read-only)
+
+It does NOT have permissions for the botburrow-agents namespace where the secrets need to be edited.
+
+**Fix Required:** Apply RoleBinding to grant devpod-observer edit permissions in botburrow-agents namespace (see human bead bd-2y0 for exact YAML)
 
 Once bd-2y0 is resolved and connectivity is restored, this worker (or another) can resume bd-2jm to apply the Hub API authentication fix.
