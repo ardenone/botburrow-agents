@@ -1,107 +1,83 @@
-# bd-1qs Final Status: Ready for Cluster-Admin Action
+# BD-1qs: Final Status - Awaiting Cluster Admin Action
 
-**Bead ID:** bd-1qs
-**Type:** HUMAN (requires cluster-admin credentials)
-**Status:** ✅ ALL WORKER TASKS COMPLETE - Ready for human cluster-admin
-**Last Update:** 2026-02-16 03:09 UTC
-**Worker:** Claude Sonnet 4.5
+**Status:** ⏳ READY FOR CLUSTER ADMIN EXECUTION
+**Date:** 2026-02-16
+**Bead:** bd-1qs (CLUSTER-ADMIN: Apply RBAC manifests for devpod-observer in botburrow-agents namespace)
+**Cluster:** apexalgo-iad
 
 ---
 
-## ✅ Verification Complete
+## Summary
 
-**RBAC Manifests Ready:**
-- ✅ `secrets-manager-role.yml` - 49 lines (1.6 KB)
-- ✅ `deployment-scaler-role.yml` - 74 lines (2.3 KB)
+All preparation work is **COMPLETE**. RBAC manifests are ready to apply but require **cluster-admin credentials** which workers do not possess (by design). This bead is now awaiting human action.
 
-**Current Cluster Status:**
-- ❌ Role `secrets-manager` does NOT exist (NotFound)
-- ❌ Role `deployment-scaler` does NOT exist (NotFound)
-- ❌ devpod-observer ServiceAccount lacks secret access
-- ❌ devpod-observer ServiceAccount lacks deployment scaling access
+## Current State ✅
 
-**Worker Verification:**
+### 1. Manifests Ready
+- ✅ `secrets-manager-role.yml` - Exists and committed (49 lines)
+- ✅ `deployment-scaler-role.yml` - Exists and committed (74 lines)
+- ✅ Both manifests follow principle of least privilege
+- ✅ Security review complete
+
+### 2. Documentation Complete
+- ✅ `CLUSTER-ADMIN-APPLY-INSTRUCTIONS.md` - Step-by-step guide
+- ✅ `WORKER-STATUS.md` - Worker verification results
+- ✅ `BD-33D-COMPLETION-GUIDE.md` - Detailed completion guide
+- ✅ This file (`bd-1qs-FINAL-STATUS.md`)
+
+### 3. Cluster State Verified (2026-02-16 04:51 UTC)
 ```bash
+# Verified: Roles do NOT exist yet
 $ kubectl get role -n botburrow-agents secrets-manager
 Error from server (NotFound): roles.rbac.authorization.k8s.io "secrets-manager" not found
 
 $ kubectl get role -n botburrow-agents deployment-scaler
 Error from server (NotFound): roles.rbac.authorization.k8s.io "deployment-scaler" not found
 
+# Verified: Permissions not yet granted
 $ kubectl auth can-i get secrets -n botburrow-agents
 no
 
 $ kubectl auth can-i patch deployments/scale -n botburrow-agents
 no
+
+# Verified: Worker lacks cluster-admin access (correct)
+$ kubectl auth can-i create roles -n botburrow-agents
+no
 ```
+
+### 4. Target Resources Exist
+- ✅ Namespace `botburrow-agents` exists
+- ✅ ServiceAccount `devpod-observer` exists (in `devpod-observer` namespace)
+- ✅ Cluster connectivity verified
 
 ---
 
-## 🎯 Problem Statement
-
-The `devpod-observer` ServiceAccount in apexalgo-iad cluster needs RBAC permissions to access the `botburrow-agents` namespace, but workers do NOT have cluster-admin access to create RBAC resources.
-
-**Error:**
-```
-Error from server (Forbidden): roles.rbac.authorization.k8s.io is forbidden:
-User "system:serviceaccount:devpod-observer:devpod-observer" cannot create resource "roles"
-in API group "rbac.authorization.k8s.io" in the namespace "botburrow-agents"
-```
-
-**Why This Is Correct:**
-- devpod-observer ServiceAccount intentionally lacks cluster-admin privileges
-- Follows security best practices (principle of least privilege)
-- Prevents privilege escalation attacks
-- Legitimate security boundary requiring human intervention
-
----
-
-## 📚 Documentation Ready
-
-All worker preparation is complete. Documentation available at:
-
-1. **RBAC Manifests:**
-   - `cluster-configuration/apexalgo-iad/devpod-observer/botburrow-agents/secrets-manager-role.yml`
-   - `cluster-configuration/apexalgo-iad/devpod-observer/botburrow-agents/deployment-scaler-role.yml`
-
-2. **Application Guide:**
-   - `cluster-configuration/apexalgo-iad/devpod-observer/botburrow-agents/CLUSTER-ADMIN-APPLY-INSTRUCTIONS.md`
-
-3. **Worker Status:**
-   - `cluster-configuration/apexalgo-iad/devpod-observer/botburrow-agents/WORKER-STATUS.md`
-
----
-
-## 🚨 Required Human Actions (3-5 minutes)
+## Required Human Action 🔧
 
 ### Prerequisites
 - Cluster-admin kubeconfig for apexalgo-iad cluster
-- kubectl CLI installed
-- Access to botburrow-agents repository
+- Access to this repository: `/home/coder/botburrow-agents`
 
-### Step 1: Set Cluster-Admin Kubeconfig
+### Step 1: Apply RBAC Manifests
+
 ```bash
-# Set environment variable to cluster-admin kubeconfig
-export KUBECONFIG=/path/to/apexalgo-iad-admin.kubeconfig
+# Set cluster-admin kubeconfig
+export KUBECONFIG=/path/to/apexalgo-iad-cluster-admin.kubeconfig
 
 # Verify cluster-admin access
 kubectl auth can-i create roles -n botburrow-agents
-# Should return: yes
-```
+# MUST return: yes
 
-### Step 2: Apply RBAC Manifests
-```bash
-# Navigate to repository root
-cd /path/to/botburrow-agents
+# Navigate to repository (if not already there)
+cd /home/coder/botburrow-agents
 
-# Apply secrets-manager role (for bd-2jm Hub API auth fix)
+# Apply manifests
 kubectl apply -f cluster-configuration/apexalgo-iad/devpod-observer/botburrow-agents/secrets-manager-role.yml
-
-# Apply deployment-scaler role (for bd-3o6 Runner scaling tests)
 kubectl apply -f cluster-configuration/apexalgo-iad/devpod-observer/botburrow-agents/deployment-scaler-role.yml
 ```
 
-**Expected Output:**
+**Expected output:**
 ```
 role.rbac.authorization.k8s.io/secrets-manager created
 rolebinding.rbac.authorization.k8s.io/devpod-observer-secrets-manager created
@@ -109,266 +85,155 @@ role.rbac.authorization.k8s.io/deployment-scaler created
 rolebinding.rbac.authorization.k8s.io/devpod-observer-scaler created
 ```
 
-### Step 3: Verify RBAC Applied Successfully
+### Step 2: Verify RBAC Applied
+
 ```bash
-# Check Roles exist
-kubectl get role -n botburrow-agents secrets-manager
-kubectl get role -n botburrow-agents deployment-scaler
+# Check roles exist
+kubectl get role -n botburrow-agents secrets-manager deployment-scaler
 
-# Check RoleBindings exist
-kubectl get rolebinding -n botburrow-agents devpod-observer-secrets-manager
-kubectl get rolebinding -n botburrow-agents devpod-observer-scaler
+# Check bindings exist
+kubectl get rolebinding -n botburrow-agents devpod-observer-secrets-manager devpod-observer-scaler
 
-# Verify devpod-observer permissions work (should return "yes")
+# Test permissions (should return "yes" for both)
 kubectl auth can-i get secrets -n botburrow-agents \
-  --as=system:serviceaccount:devpod-observer:devpod-observer
-
-kubectl auth can-i patch secrets -n botburrow-agents \
   --as=system:serviceaccount:devpod-observer:devpod-observer
 
 kubectl auth can-i patch deployments/scale -n botburrow-agents \
   --as=system:serviceaccount:devpod-observer:devpod-observer
 ```
 
-**Expected Results:** All commands should return "yes" or show resources exist.
+### Step 3: Close Beads
 
-### Step 4: Close Bead and Commit
 ```bash
-# Navigate to repository root
 cd /home/coder/botburrow-agents
 
-# Close bead as completed
+# Close bd-1qs
 br close bd-1qs --status completed
 
-# Sync beads to JSONL
+# Sync and commit
 br sync --flush-only
-
-# Commit and push
 git add .beads/*.jsonl
 git commit -m "chore(bd-1qs): cluster-admin applied RBAC manifests
 
-Applied secrets-manager and deployment-scaler roles to apexalgo-iad cluster.
-This grants devpod-observer ServiceAccount minimal permissions for:
-- Secret access (bd-2jm Hub API authentication fix)
-- Deployment scaling (bd-3o6 Runner scaling tests)
+Applied secrets-manager and deployment-scaler roles to botburrow-agents
+namespace in apexalgo-iad cluster for devpod-observer ServiceAccount.
+
+Roles grant minimal permissions:
+- secrets-manager: get, list, patch, update secrets (for bd-2jm)
+- deployment-scaler: scale deployments, manage HPAs (for bd-3o6)
 
 Co-Authored-By: Cluster Admin <admin@ardenone.com>"
 git push origin main
 ```
 
-### Step 5: Verify Blocked Beads Unblock
+---
+
+## What This Unblocks 🔓
+
+Once RBAC is applied, these beads can proceed:
+
+1. **bd-12r** - Parent bead requesting RBAC access
+2. **bd-2jm** - Hub API authentication fix (requires secret write permissions)
+3. **bd-3o6** - Runner scaling tests (requires deployment scaling permissions)
+
+---
+
+## Security Review ✅
+
+Both roles follow **principle of least privilege**:
+
+### secrets-manager
+- **Scope:** `botburrow-agents` namespace only
+- **Resources:** `secrets` only
+- **Verbs:** `get`, `list`, `patch`, `update`
+- **NO permission to:** `create`, `delete`, `deletecollection`
+
+### deployment-scaler
+- **Scope:** `botburrow-agents` namespace only
+- **Resources:** `deployments/scale`, `deployments`, `horizontalpodautoscalers`, `pods`, `replicasets`
+- **Verbs:** `get`, `list`, `watch`, `patch`, `update`, `create` (portforward only)
+- **NO permission to:** `delete` deployments or other destructive operations
+
+---
+
+## Reference Documentation
+
+### Primary Documents
+- **This file:** `docs/fixes/bd-1qs-FINAL-STATUS.md`
+- **Apply guide:** `cluster-configuration/apexalgo-iad/devpod-observer/botburrow-agents/CLUSTER-ADMIN-APPLY-INSTRUCTIONS.md`
+- **Worker status:** `cluster-configuration/apexalgo-iad/devpod-observer/botburrow-agents/WORKER-STATUS.md`
+- **Completion guide:** `cluster-configuration/apexalgo-iad/devpod-observer/botburrow-agents/BD-33D-COMPLETION-GUIDE.md`
+
+### Manifest Files
+- **secrets-manager:** `cluster-configuration/apexalgo-iad/devpod-observer/botburrow-agents/secrets-manager-role.yml`
+- **deployment-scaler:** `cluster-configuration/apexalgo-iad/devpod-observer/botburrow-agents/deployment-scaler-role.yml`
+
+### Bead Information
+- **Current bead:** `br show bd-1qs`
+- **Human bead (closed):** `br show bd-33d`
+- **Parent bead:** `br show bd-12r`
+
+---
+
+## Alternative Access Methods
+
+### Option 1: Use /respond Skill (If Available)
+If you have the `/respond` skill available in your devpod:
 ```bash
-# Check that dependent beads are no longer blocked
-br show bd-12r  # Should show dependency on bd-1qs resolved
-br show bd-2jm  # Should be unblocked if bd-1qs was the blocker
-br show bd-3o6  # Should be unblocked if bd-1qs was the blocker
+/respond
 ```
+Then select this bead (bd-1qs) and provide cluster-admin credentials or execution confirmation.
 
----
-
-## 🔗 Blocked Beads (Will Auto-Unblock)
-
-Once bd-1qs is completed, these beads will be automatically unblocked:
-
-- **bd-12r** - CLUSTER-ADMIN: Grant devpod-observer RBAC access to botburrow-agents namespace (parent bead)
-- **bd-2jm** - Hub API authentication fix (needs secret write access)
-- **bd-3o6** - Runner scaling tests (needs deployment scaling access)
-
----
-
-## 🔐 Security Review
-
-Both RBAC manifests follow **principle of least privilege**:
-
-### secrets-manager Role
-**Purpose:** Allow devpod-observer to manage secrets for configuration updates (bd-2jm)
-
-**Permissions:**
-- **Scope:** botburrow-agents namespace ONLY
-- **Resources:** secrets ONLY
-- **Verbs:** get, list, patch, update
-- **NOT Granted:** create, delete, deletecollection
-
-**Justification:** Minimal permissions required for updating existing secret values during Hub API authentication fix.
-
-### deployment-scaler Role
-**Purpose:** Allow devpod-observer to scale deployments for testing (bd-3o6)
-
-**Permissions:**
-- **Scope:** botburrow-agents namespace ONLY
-- **Resources:**
-  - deployments/scale (get, patch, update)
-  - deployments (get, list, watch)
-  - horizontalpodautoscalers (get, list, watch, patch, update)
-  - pods (get, list, watch)
-  - pods/portforward (create, get)
-  - replicasets (get, list, watch)
-- **NOT Granted:** delete, deletecollection on any resources
-
-**Justification:** Minimal permissions required for scaling tests and observing scaling behavior.
-
-### RoleBindings
-Both RoleBindings grant these roles ONLY to:
-- **ServiceAccount:** devpod-observer
-- **Namespace:** devpod-observer
-
-No other ServiceAccounts or users gain these permissions.
-
----
-
-## ⚠️ Why This Requires Human Action
-
-This bead **cannot be completed by automated workers** because it requires:
-
-1. **Cluster-admin credentials** - Workers use devpod-observer ServiceAccount (read-only)
-2. **RBAC creation permission** - Workers cannot create Roles/RoleBindings (security boundary)
-3. **Manual credential management** - Cluster-admin kubeconfig is not available in devpods
-
-Workers have completed all possible automation:
-- ✅ Created RBAC manifests with minimal permissions
-- ✅ Validated manifests follow security best practices
-- ✅ Verified target namespace and ServiceAccount exist
-- ✅ Confirmed RBAC resources do NOT exist yet
-- ✅ Documented application process
-- ✅ Identified blocked beads
-
-**Next step:** Human cluster-admin executes the 5-step checklist above.
-
----
-
-## 📊 RBAC Manifest Details
-
-### secrets-manager-role.yml
-```yaml
-# Creates:
-# - Role: secrets-manager (botburrow-agents namespace)
-# - RoleBinding: devpod-observer-secrets-manager
-
-Permissions:
-  - apiGroups: [""]
-    resources: ["secrets"]
-    verbs: ["get", "list", "patch", "update"]
-
-Bound to: system:serviceaccount:devpod-observer:devpod-observer
-```
-
-### deployment-scaler-role.yml
-```yaml
-# Creates:
-# - Role: deployment-scaler (botburrow-agents namespace)
-# - RoleBinding: devpod-observer-scaler
-
-Permissions:
-  - apps/deployments/scale: get, patch, update
-  - apps/deployments: get, list, watch
-  - autoscaling/horizontalpodautoscalers: get, list, watch, patch, update
-  - core/pods: get, list, watch
-  - core/pods/portforward: create, get
-  - apps/replicasets: get, list, watch
-
-Bound to: system:serviceaccount:devpod-observer:devpod-observer
-```
-
----
-
-## 🔄 Alternative Solutions (NOT RECOMMENDED)
-
-### Option 2: Grant devpod-observer permission to create RBAC
-**Status:** ❌ NOT RECOMMENDED
-
-**Why:**
-- Violates principle of least privilege
-- Enables privilege escalation attacks
-- Reduces security posture unnecessarily
-- Creates security vulnerability
-
-### Option 3: Use ArgoCD Auto-Sync
-**Status:** ⚠️ NOT IMMEDIATE
-
-**Why:**
-- Requires ArgoCD Application configuration for this directory
-- Takes longer to set up than manual application
-- Still requires cluster-admin to configure ArgoCD Application
-
-**Recommendation:** Use Option 1 (manual application with cluster-admin kubeconfig) for immediate resolution with minimal security risk.
-
----
-
-## 📝 Summary
-
-**Current State:**
-- Bead Type: HUMAN
-- Worker Tasks: ✅ COMPLETE
-- Manifests: ✅ READY (validated, committed)
-- RBAC Status: ❌ NOT APPLIED (verified NotFound)
-- Next Action: Human cluster-admin executes 5-step checklist
-
-**Estimated Time:** 3-5 minutes
-
-**After Completion:**
+### Option 2: Remote Execution
+If cluster-admin kubeconfig is on a different machine:
 ```bash
-br close bd-1qs --status completed
-```
-
-This will automatically unblock dependent beads (bd-12r, bd-2jm, bd-3o6).
-
----
-
-## 🛠️ Troubleshooting
-
-### Problem: "Forbidden" error when applying manifests
-**Cause:** Kubeconfig does not have cluster-admin access
-
-**Fix:**
-```bash
-# Verify you're using cluster-admin kubeconfig
-kubectl auth can-i create roles -n botburrow-agents
-# Should return: yes
-
-# If not, switch to correct kubeconfig
+# On machine with cluster-admin access
+git clone <repo-url>
+cd botburrow-agents
 export KUBECONFIG=/path/to/apexalgo-iad-admin.kubeconfig
+kubectl apply -f cluster-configuration/apexalgo-iad/devpod-observer/botburrow-agents/
 ```
 
-### Problem: Role already exists
-**Cause:** Manifests were already applied
-
-**Fix:**
-```bash
-# Check if roles exist
-kubectl get role -n botburrow-agents secrets-manager deployment-scaler
-
-# If they exist, skip to Step 3 (Verify RBAC Applied)
-# Then proceed to Step 4 (Close Bead)
-```
-
-### Problem: ServiceAccount not found
-**Cause:** devpod-observer namespace or ServiceAccount doesn't exist
-
-**Fix:**
-```bash
-# Verify namespace exists
-kubectl get namespace devpod-observer
-
-# Verify ServiceAccount exists
-kubectl get serviceaccount -n devpod-observer devpod-observer
-
-# If missing, investigate why devpod-observer is not deployed
-```
-
-### Problem: Target namespace not found
-**Cause:** botburrow-agents namespace doesn't exist
-
-**Fix:**
-```bash
-# Verify namespace exists
-kubectl get namespace botburrow-agents
-
-# If missing, create it first
-kubectl create namespace botburrow-agents
-```
+### Option 3: ArgoCD (Future)
+For future RBAC changes, consider setting up ArgoCD Application for this directory to automate deployments.
 
 ---
 
-**Worker Signature:** Claude Sonnet 4.5
-**Final Verification:** 2026-02-16 03:09 UTC
-**Status:** ✅ READY FOR HUMAN CLUSTER-ADMIN
+## Troubleshooting
+
+### Problem: "Unauthorized" or "Forbidden" error
+**Cause:** Kubeconfig does not have cluster-admin permissions
+**Fix:** Verify you're using the correct cluster-admin kubeconfig:
+```bash
+kubectl auth can-i create roles -n botburrow-agents
+# Must return: yes
+```
+
+### Problem: Roles already exist
+**Cause:** Manifests were already applied previously
+**Fix:** This is OK! Just verify permissions work and close the bead:
+```bash
+kubectl auth can-i get secrets -n botburrow-agents \
+  --as=system:serviceaccount:devpod-observer:devpod-observer
+# Should return: yes
+```
+
+### Problem: Cannot close beads (br command not found)
+**Cause:** Not in devpod environment
+**Fix:** SSH into devpod or use alternative bead management method
+
+---
+
+## Worker Conclusion
+
+✅ **All worker tasks COMPLETE**
+⏳ **Awaiting cluster-admin with apexalgo-iad credentials**
+📋 **Next action:** Human executes Step 1-3 above
+
+**Worker Status:** BLOCKED - Requires cluster-admin credentials not available to workers
+
+---
+
+**Last Updated:** 2026-02-16 04:51 UTC
+**Worker:** Claude Code (Sonnet 4.5)
+**Action Required:** Human cluster-admin must apply manifests to apexalgo-iad cluster
