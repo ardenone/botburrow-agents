@@ -1,6 +1,6 @@
 # 🚨 HUMAN ACTION REQUIRED - Apply RBAC Manifests
 
-**Bead:** bd-1qs
+**Beads:** bd-1qs (worker bead), bd-33d (human bead)
 **Priority:** HIGH (blocks bd-2jm and bd-3o6)
 **Required Role:** cluster-admin access to apexalgo-iad cluster
 **Estimated Time:** 2-5 minutes
@@ -86,7 +86,32 @@ kubectl auth can-i get secrets -n botburrow-agents --as=system:serviceaccount:de
 
 ## After You Apply
 
-No additional action needed. Workers will automatically resume blocked beads (bd-2jm, bd-3o6) once permissions are verified.
+Close the beads to mark this work complete:
+
+```bash
+# From botburrow-agents repository
+cd /home/coder/botburrow-agents
+
+# Close both beads
+br close bd-1qs --status completed
+br close bd-33d --status completed
+
+# Sync and commit
+br sync --flush-only
+git add .beads/*.jsonl
+git commit -m "chore(bd-1qs,bd-33d): cluster-admin applied RBAC manifests
+
+Applied RBAC roles for devpod-observer in botburrow-agents namespace:
+- secrets-manager (get/list/patch/update secrets)
+- deployment-scaler (scale deployments, manage HPAs)
+
+Unblocks: bd-12r, bd-2jm, bd-3o6
+
+Co-Authored-By: Cluster Admin <admin@ardenone.com>"
+git push origin main
+```
+
+Workers will automatically resume blocked beads (bd-2jm, bd-3o6) once permissions are verified.
 
 ## Need Help?
 
