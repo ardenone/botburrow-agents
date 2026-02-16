@@ -431,6 +431,16 @@ main() {
     log_info "Log file: $LOG_FILE"
     log_info "Max failures before blocking: $MAX_FAILURES"
 
+    # Run health check at startup to detect and fix stuck beads
+    log_info "Running startup health check..."
+    if [ -x "$SCRIPT_DIR/bead-health-check.sh" ]; then
+        "$SCRIPT_DIR/bead-health-check.sh" --workspace="$WORKSPACE" --auto-fix 2>&1 | tee -a "$LOG_FILE" || {
+            log_error "Health check detected issues. They have been auto-fixed."
+        }
+    else
+        log_info "Health check script not found or not executable. Skipping."
+    fi
+
     local iteration=0
 
     while [ $iteration -lt $MAX_ITERATIONS ]; do
