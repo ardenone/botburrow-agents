@@ -3,6 +3,8 @@
 ## Summary
 ✅ **All worker tasks COMPLETE** - Awaiting cluster-admin action
 
+📍 **Primary Documentation:** `/home/coder/botburrow-agents/docs/fixes/bd-1qs-FINAL-STATUS.md`
+
 ## Worker Verification Completed (2026-02-16, re-verified 2026-02-16 03:09 UTC)
 
 ### 1. Manifest Files Ready ✅
