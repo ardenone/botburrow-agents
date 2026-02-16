@@ -112,56 +112,69 @@ in API group "rbac.authorization.k8s.io" in the namespace "botburrow-agents"
 
 ## Expected Output
 
-**Phase 1 - Grant Permissions:**
+**Applying manifests:**
 ```
-clusterrolebinding.rbac.authorization.k8s.io/devpod-observer-cluster-admin created
+role.rbac.authorization.k8s.io/secrets-manager created
+rolebinding.rbac.authorization.k8s.io/devpod-observer-secrets-manager created
+role.rbac.authorization.k8s.io/deployment-scaler created
+rolebinding.rbac.authorization.k8s.io/devpod-observer-scaler created
+```
+
+**Verification:**
+```
+# Check roles exist
+$ kubectl get role -n botburrow-agents
+NAME                  CREATED AT
+deployment-scaler     2026-02-16T01:40:00Z
+secrets-manager       2026-02-16T01:40:00Z
+
+# Check rolebindings exist
+$ kubectl get rolebinding -n botburrow-agents
+NAME                                ROLE                       AGE
+devpod-observer-scaler              Role/deployment-scaler     1m
+devpod-observer-secrets-manager     Role/secrets-manager       1m
+
+# Test permissions (should return "yes")
+$ kubectl auth can-i get secrets -n botburrow-agents \
+  --as=system:serviceaccount:devpod-observer:devpod-observer
+yes
+
+$ kubectl auth can-i patch deployments/scale -n botburrow-agents \
+  --as=system:serviceaccount:devpod-observer:devpod-observer
 yes
 ```
 
-**Phase 2 - Monitor Installation:**
-```
-# After 1-2 minutes:
-namespace/argocd created
-
-# After 5-7 minutes:
-NAME                                               READY   STATUS    AGE
-argocd-application-controller-0                    1/1     Running   2m
-argocd-applicationset-controller-xxx               1/1     Running   2m
-argocd-dex-server-xxx                              1/1     Running   2m
-argocd-notifications-controller-xxx                1/1     Running   2m
-argocd-redis-xxx                                   1/1     Running   2m
-argocd-repo-server-xxx                             1/1     Running   2m
-argocd-server-xxx                                  1/1     Running   2m
-```
-
-**Phase 3 - Revoke Permissions:**
-```
-clusterrolebinding.rbac.authorization.k8s.io "devpod-observer-cluster-admin" deleted
-Error from server (NotFound): clusterrolebindings.rbac.authorization.k8s.io "devpod-observer-cluster-admin" not found
-no
-```
-
-## Verification Commands
+## Additional Verification
 
 ```bash
-# Verify ArgoCD is installed
-kubectl get namespace argocd
-kubectl get pods -n argocd
-# All pods should be Running
+# Verify roles exist
+kubectl get role -n botburrow-agents secrets-manager -o yaml
+kubectl get role -n botburrow-agents deployment-scaler -o yaml
 
-# Verify ArgoCD Application exists
-kubectl get application botburrow-agents -n argocd
-# Should show: Synced / Healthy
+# Verify rolebindings exist
+kubectl get rolebinding -n botburrow-agents devpod-observer-secrets-manager -o yaml
+kubectl get rolebinding -n botburrow-agents devpod-observer-scaler -o yaml
 
-# Verify permissions were revoked
-kubectl auth can-i create namespace --as=system:serviceaccount:devpod-observer:devpod-observer
-# Should return: no
+# Test specific permissions
+kubectl auth can-i get secrets -n botburrow-agents \
+  --as=system:serviceaccount:devpod-observer:devpod-observer
 
-# Optional: Get ArgoCD admin password for UI access
-kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath='{.data.password}' | base64 -d
+kubectl auth can-i patch secrets -n botburrow-agents \
+  --as=system:serviceaccount:devpod-observer:devpod-observer
+
+kubectl auth can-i delete secrets -n botburrow-agents \
+  --as=system:serviceaccount:devpod-observer:devpod-observer
+# Should return: no (no delete permission)
+
+kubectl auth can-i scale deployments -n botburrow-agents \
+  --as=system:serviceaccount:devpod-observer:devpod-observer
+
+kubectl auth can-i delete deployments -n botburrow-agents \
+  --as=system:serviceaccount:devpod-observer:devpod-observer
+# Should return: no (no delete permission)
 ```
 
-## After You Complete All Phases
+## After Applying Manifests
 
 Close the bead to mark this work complete:
 
@@ -170,29 +183,36 @@ Close the bead to mark this work complete:
 cd /home/coder/botburrow-agents
 
 # Close bead
-br close bd-3f3 --status completed
+br close bd-1qs --status completed
 
 # Sync and commit
 br sync --flush-only
 git add .beads/*.jsonl
-git commit -m "chore(bd-3f3): cluster-admin completed ArgoCD installation
+git commit -m "chore(bd-1qs): cluster-admin applied RBAC manifests
 
-Phases completed:
-1. Granted temporary cluster-admin to devpod-observer ServiceAccount
-2. Workers installed ArgoCD (7 pods Running, Healthy)
-3. Revoked cluster-admin permissions
-4. Verified GitOps deployment (botburrow-agents Synced/Healthy)
+Applied to apexalgo-iad cluster:
+- secrets-manager-role.yml (grants get/list/patch/update secrets)
+- deployment-scaler-role.yml (grants deployment scaling permissions)
 
-Unblocks: bd-3e3 (GitOps deployment)
+Verified permissions granted to devpod-observer ServiceAccount.
+
+Unblocks:
+- bd-12r (Grant devpod-observer RBAC access)
+- bd-2jm (Hub API authentication fix)
+- bd-3o6 (Runner scaling tests)
 
 Co-Authored-By: Cluster Admin <admin@ardenone.com>"
 git push origin main
 ```
 
-This will automatically unblock bead **bd-3e3** (Create ArgoCD GitOps deployment for botburrow-agents).
+This will automatically unblock downstream beads:
+- **bd-12r** - Parent bead requesting RBAC access
+- **bd-2jm** - Hub API authentication fix
+- **bd-3o6** - Runner scaling tests
 
-## Need Help?
+## Documentation References
 
-**📋 Full Execution Guide:** `/home/coder/botburrow-agents/docs/cluster-admin/bd-3f3-READY-FOR-EXECUTION.md`
-**✓ Verification Script:** `/home/coder/botburrow-agents/docs/cluster-admin/bd-3f3-VERIFY-READY.sh`
-**📊 Worker Status:** `/home/coder/botburrow-agents/docs/cluster-admin/bd-3f3-WORKER-VERIFICATION-2026-02-16.md`
+- **Application Instructions:** `CLUSTER-ADMIN-APPLY-INSTRUCTIONS.md` (detailed guide)
+- **Worker Status:** `WORKER-STATUS.md` (verification results from 2026-02-15)
+- **This Document:** `HUMAN-ACTION-REQUIRED.md` (current status as of 2026-02-16)
+- **Manifests:** `secrets-manager-role.yml`, `deployment-scaler-role.yml`
