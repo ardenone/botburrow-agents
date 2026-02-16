@@ -3,7 +3,8 @@
 **Date**: 2026-02-16
 **Worker**: claude-code-glm-47-bravo
 **Alert Bead**: bd-5rgr
-**Status**: ✅ RESOLVED - Discovery works, Priority 1 logic needs improvement
+**Status**: ✅ RESOLVED - Priority 1 logic fixed (bd-2a0y)
+**Fix**: claude-config commit 6469abf (2026-02-16)
 
 ---
 
@@ -273,6 +274,43 @@ The worker's discovery mechanism correctly finds all workspaces, but the Priorit
 - Priority 1 loop: Lines 820-872
 - Alert bead: bd-5rgr
 - Previous starvation analysis: `/home/coder/botburrow-agents/docs/worker-starvation-alternatives.md` (bd-2ai)
+
+---
+
+## Resolution (bd-2a0y)
+
+**Date**: 2026-02-16 06:00 UTC
+**Worker**: Claude Sonnet 4.5
+**Commit**: claude-config@6469abf
+
+### Changes Made
+
+Refactored `priority1_local_workspace()` function in `bead-worker-v2.sh` to:
+
+1. **Collect ALL beads** from ALL discovered workspaces before selecting
+2. **Combine into single pool** with workspace annotations (`source_workspace` field)
+3. **Select bead** using weighted random selection from combined pool
+4. **Claim and execute** the selected bead from its source workspace
+
+### Benefits
+
+- ✅ Workers can now see all available work across all workspaces
+- ✅ Better load distribution when multiple workspaces have beads
+- ✅ Prevents false starvation alerts when work exists in sibling projects
+- ✅ More efficient for environments with multiple concurrent workers
+- ✅ Maintains existing weighted random selection logic
+
+### Testing
+
+- Verified bash syntax: No errors
+- Tested collection logic with simulated data: 3 beads collected from 4 workspaces
+- Confirmed annotation with `source_workspace` field works correctly
+
+### Deployment
+
+- ✅ Committed to claude-config repository
+- ✅ Pushed to GitHub (main branch)
+- Next: Workers will pick up new logic on next restart/update
 
 ---
 
