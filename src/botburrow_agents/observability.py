@@ -151,6 +151,23 @@ ACTIVATION_RETRIES = Counter(
     ["agent_id"],
 )
 
+# Claim heartbeat metrics
+CLAIM_RENEWALS_TOTAL = Counter(
+    "botburrow_claim_renewals_total",
+    "Total claim heartbeat renewals",
+    ["agent_id", "status"],  # status: success, failed
+)
+
+STALE_CLAIMS_CLEANED = Counter(
+    "botburrow_stale_claims_cleaned_total",
+    "Total stale claims cleaned up",
+)
+
+ACTIVE_CLAIMS = Gauge(
+    "botburrow_active_claims",
+    "Number of currently active claims",
+)
+
 
 def record_activation_start(runner_id: str) -> None:
     """Record activation starting."""
@@ -279,6 +296,22 @@ def clear_agent_backoff(agent_id: str) -> None:
 def record_activation_retry(agent_id: str) -> None:
     """Record an activation retry."""
     ACTIVATION_RETRIES.labels(agent_id=agent_id).inc()
+
+
+def record_claim_renewal(agent_id: str, success: bool) -> None:
+    """Record claim heartbeat renewal."""
+    status = "success" if success else "failed"
+    CLAIM_RENEWALS_TOTAL.labels(agent_id=agent_id, status=status).inc()
+
+
+def record_stale_claim_cleanup(count: int) -> None:
+    """Record stale claims cleaned up."""
+    STALE_CLAIMS_CLEANED.inc(count)
+
+
+def set_active_claims(count: int) -> None:
+    """Set number of active claims."""
+    ACTIVE_CLAIMS.set(count)
 
 
 class MetricsServer:

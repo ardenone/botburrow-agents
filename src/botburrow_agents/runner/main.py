@@ -39,6 +39,7 @@ from botburrow_agents.observability import (
     MetricsServer,
     record_activation_complete,
     record_activation_start,
+    record_claim_renewal,
     record_tokens,
     set_runner_heartbeat,
     set_runner_info,
@@ -94,6 +95,7 @@ class Runner:
         self._shutdown_event = asyncio.Event()
         self._current_activation: str | None = None
         self._current_work: WorkItem | None = None
+        self._claim_renewal_task: asyncio.Task | None = None
 
     async def start(self) -> None:
         """Start the runner service."""
@@ -125,6 +127,7 @@ class Runner:
         tasks = [
             asyncio.create_task(self._work_loop()),
             asyncio.create_task(self._heartbeat_loop()),
+            asyncio.create_task(self._stale_claim_cleanup_loop()),
         ]
 
         logger.info("runner_started", runner_id=self.runner_id)
@@ -137,7 +140,19 @@ class Runner:
             task.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
 
-        # Cleanup
+        # Cleanup - release any active claims
+        if self._current_activation:
+            logger.info(
+                "releasing_claim_on_shutdown",
+                agent_id=self._current_activation,
+                runner_id=self.runner_id,
+            )
+            await self.assigner.release(
+                self._current_activation,
+                self.runner_id,
+                None,
+            )
+
         await self.metrics.flush()
         await self.metrics_server.stop()
         await self.hub.close()
@@ -241,6 +256,42 @@ class Runner:
 
             await asyncio.sleep(10)
 
+    async def _claim_renewal_loop(self, agent_id: str) -> None:
+        """Renew claim heartbeat during activation.
+
+        Args:
+            agent_id: Agent ID for the current activation
+        """
+        while self._current_activation == agent_id:
+            try:
+                await asyncio.sleep(self.settings.claim_heartbeat_interval)
+                if self._current_activation == agent_id:
+                    success = await self.assigner.renew_claim(agent_id, self.runner_id)
+                    record_claim_renewal(agent_id, success=success)
+                    if not success:
+                        logger.error(
+                            "claim_renewal_failed",
+                            agent_id=agent_id,
+                            runner_id=self.runner_id,
+                        )
+                        break
+            except asyncio.CancelledError:
+                logger.debug("claim_renewal_cancelled", agent_id=agent_id)
+                break
+            except Exception as e:
+                logger.error("claim_renewal_error", agent_id=agent_id, error=str(e))
+
+    async def _stale_claim_cleanup_loop(self) -> None:
+        """Periodically cleanup stale claims."""
+        while self._running:
+            try:
+                await asyncio.sleep(self.settings.stale_claim_check_interval)
+                cleaned = await self.assigner.cleanup_stale_claims()
+                if cleaned > 0:
+                    logger.info("stale_claims_cleaned", count=cleaned)
+            except Exception as e:
+                logger.warning("stale_claim_cleanup_error", error=str(e))
+
     async def _load_agent_config(self, agent_id: str) -> AgentConfig:
         """Load agent config with caching.
 
@@ -281,6 +332,11 @@ class Runner:
 
         # Record activation start for Prometheus
         record_activation_start(self.runner_id)
+
+        # Start claim renewal background task
+        self._claim_renewal_task = asyncio.create_task(
+            self._claim_renewal_loop(assignment.agent_id)
+        )
 
         logger.info(
             "activation_starting",
@@ -388,6 +444,15 @@ class Runner:
             )
 
         finally:
+            # Stop claim renewal task
+            if self._claim_renewal_task:
+                self._claim_renewal_task.cancel()
+                try:
+                    await self._claim_renewal_task
+                except asyncio.CancelledError:
+                    pass
+                self._claim_renewal_task = None
+
             self._current_activation = None
 
     def _uses_executor(self, agent: AgentConfig) -> bool:

@@ -117,8 +117,9 @@ class TestAssignerClaim:
 
         await assigner.try_claim(assignment, "runner-1")
 
-        # Check that _track_assignment was called (via second set call)
-        assert mock_redis.set.call_count == 2
+        # Check that _track_assignment was called
+        # Expect 3 set calls: lock, activation metadata, and heartbeat
+        assert mock_redis.set.call_count == 3
 
 
 class TestAssignerRelease:
@@ -325,3 +326,112 @@ class TestAssignerGetRecentResults:
         assert results[0]["agent_id"] == "agent-1"
         assert results[1]["success"] is False
         mock_redis.lrange.assert_called_once_with("activation:results", 0, 9)
+
+
+class TestAssignerClaimRenewal:
+    """Tests for claim heartbeat renewal."""
+
+    @pytest.mark.asyncio
+    async def test_renew_claim_success(
+        self,
+        assigner: Assigner,
+        mock_redis: AsyncMock,
+    ) -> None:
+        """Test successfully renewing a claim."""
+        mock_redis.get.side_effect = ["runner-1", json.dumps({"agent_id": "agent-1"})]
+        mock_redis._ensure_connected.return_value = mock_redis
+
+        result = await assigner.renew_claim("agent-1", "runner-1")
+
+        assert result is True
+        # Verify heartbeat was updated
+        assert mock_redis.set.call_count >= 2  # Heartbeat + activation metadata
+
+    @pytest.mark.asyncio
+    async def test_renew_claim_failure_not_owner(
+        self,
+        assigner: Assigner,
+        mock_redis: AsyncMock,
+    ) -> None:
+        """Test failing to renew claim when not the owner."""
+        mock_redis.get.return_value = "runner-2"
+
+        result = await assigner.renew_claim("agent-1", "runner-1")
+
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_renew_claim_updates_heartbeat_timestamp(
+        self,
+        assigner: Assigner,
+        mock_redis: AsyncMock,
+    ) -> None:
+        """Test that renewing claim updates heartbeat timestamp."""
+        mock_redis.get.side_effect = ["runner-1", json.dumps({"agent_id": "agent-1"})]
+        mock_redis._ensure_connected.return_value = mock_redis
+
+        await assigner.renew_claim("agent-1", "runner-1")
+
+        # Verify heartbeat key was set with expiration
+        heartbeat_calls = [
+            call for call in mock_redis.set.call_args_list
+            if "claim:heartbeat:" in str(call)
+        ]
+        assert len(heartbeat_calls) >= 1
+
+
+class TestAssignerStaleClaimCleanup:
+    """Tests for stale claim cleanup."""
+
+    @pytest.mark.asyncio
+    async def test_cleanup_stale_claims_success(
+        self,
+        assigner: Assigner,
+        mock_redis: AsyncMock,
+    ) -> None:
+        """Test cleaning up stale claims."""
+        mock_redis._ensure_connected.return_value = mock_redis
+        # Simulate finding a lock without a heartbeat
+        mock_redis.scan.side_effect = [(0, ["agent_lock:agent-1"])]
+        mock_redis.get.side_effect = [None, "runner-1"]  # No heartbeat, then owner
+
+        result = await assigner.cleanup_stale_claims()
+
+        assert result == 1  # One stale claim cleaned
+        # Verify lock was deleted
+        mock_redis.delete.assert_called()
+
+    @pytest.mark.asyncio
+    async def test_cleanup_stale_claims_no_stale_claims(
+        self,
+        assigner: Assigner,
+        mock_redis: AsyncMock,
+    ) -> None:
+        """Test cleanup when no stale claims exist."""
+        mock_redis._ensure_connected.return_value = mock_redis
+        # Simulate finding a lock with a valid heartbeat
+        mock_redis.scan.side_effect = [(0, ["agent_lock:agent-1"])]
+        mock_redis.get.side_effect = ["heartbeat-timestamp"]  # Valid heartbeat
+
+        result = await assigner.cleanup_stale_claims()
+
+        assert result == 0  # No stale claims
+
+    @pytest.mark.asyncio
+    async def test_cleanup_stale_claims_multiple(
+        self,
+        assigner: Assigner,
+        mock_redis: AsyncMock,
+    ) -> None:
+        """Test cleaning up multiple stale claims."""
+        mock_redis._ensure_connected.return_value = mock_redis
+        # Simulate finding two locks without heartbeats
+        mock_redis.scan.side_effect = [(0, ["agent_lock:agent-1", "agent_lock:agent-2"])]
+        mock_redis.get.side_effect = [
+            None, "runner-1",  # agent-1: no heartbeat, owner runner-1
+            None, "runner-2",  # agent-2: no heartbeat, owner runner-2
+        ]
+
+        result = await assigner.cleanup_stale_claims()
+
+        assert result == 2  # Two stale claims cleaned

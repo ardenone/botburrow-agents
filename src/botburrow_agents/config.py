@@ -54,6 +54,17 @@ class Settings(BaseSettings):
     )
     lock_ttl: int = Field(default=600, description="Redis lock TTL in seconds")
 
+    # Claim heartbeat settings
+    claim_heartbeat_interval: int = Field(
+        default=120, description="Seconds between claim renewals (2 min default)"
+    )
+    claim_expiration_threshold: int = Field(
+        default=600, description="Seconds before stale claim expires (10 min default)"
+    )
+    stale_claim_check_interval: int = Field(
+        default=60, description="Seconds between stale claim checks"
+    )
+
     # Sandbox settings
     sandbox_enabled: bool = Field(default=False, description="Enable Docker sandbox isolation")
     sandbox_image: str = Field(
