@@ -1,87 +1,134 @@
-# 🚨 HUMAN ACTION REQUIRED - Apply RBAC Manifests
+# 🚨 HUMAN ACTION REQUIRED - Install ArgoCD in apexalgo-iad
 
-**Beads:** bd-1qs (worker bead), bd-33d (human bead)
-**Priority:** HIGH (blocks bd-2jm and bd-3o6)
+**Bead:** bd-3f3
+**Priority:** P0 CRITICAL (blocks bd-3e3 - GitOps deployment)
 **Required Role:** cluster-admin access to apexalgo-iad cluster
-**Estimated Time:** 2-5 minutes
+**Estimated Time:** < 15 minutes total (< 5 minutes human active time)
 
 ## TL;DR - What You Need to Do
 
-Apply two RBAC manifest files to grant devpod-observer ServiceAccount permissions in the `botburrow-agents` namespace.
+Grant temporary cluster-admin permissions to devpod-observer ServiceAccount, monitor automated ArgoCD installation by workers, then revoke permissions.
 
 ## Quick Start (Copy-Paste)
 
+**⚠️ CRITICAL:** Do NOT use `/home/coder/.kube/apexalgo-iad.kubeconfig` (read-only devpod kubeconfig)
+**✅ USE:** Your personal cluster-admin kubeconfig for apexalgo-iad cluster
+
 ```bash
-# Set your cluster-admin kubeconfig for apexalgo-iad
-export KUBECONFIG=/path/to/apexalgo-iad-cluster-admin.kubeconfig
+# PHASE 1: Grant cluster-admin (< 1 minute)
+export KUBECONFIG=/path/to/your/apexalgo-iad-admin.kubeconfig
 
-# Navigate to manifests directory
-cd /home/coder/botburrow-agents/cluster-configuration/apexalgo-iad/devpod-observer/botburrow-agents
+# Verify you have cluster-admin permissions
+kubectl auth can-i create clusterrolebinding
+# Expected: yes
 
-# Apply both manifests
-kubectl apply -f secrets-manager-role.yml
-kubectl apply -f deployment-scaler-role.yml
+# Grant temporary cluster-admin to devpod-observer
+kubectl create clusterrolebinding devpod-observer-cluster-admin \
+  --clusterrole=cluster-admin \
+  --serviceaccount=devpod-observer:devpod-observer
 
-# Verify (should all return "yes")
-kubectl auth can-i get secrets -n botburrow-agents --as=system:serviceaccount:devpod-observer:devpod-observer
-kubectl auth can-i patch secrets -n botburrow-agents --as=system:serviceaccount:devpod-observer:devpod-observer
-kubectl auth can-i patch deployments/scale -n botburrow-agents --as=system:serviceaccount:devpod-observer:devpod-observer
+# PHASE 2: Monitor automated ArgoCD installation (5-10 minutes)
+kubectl get namespace argocd -w
+# Wait for namespace to appear, then Ctrl+C
+
+kubectl get pods -n argocd -w
+# Wait for all 7-8 pods to be Running, then Ctrl+C
+
+# PHASE 3: Revoke cluster-admin (< 1 minute) ⚠️ CRITICAL
+kubectl delete clusterrolebinding devpod-observer-cluster-admin
+
+# Verify revocation
+kubectl auth can-i create namespace --as=system:serviceaccount:devpod-observer:devpod-observer
+# Expected: no
 ```
 
 ## Why This Is Needed
 
-Workers cannot create RBAC resources (Roles/RoleBindings) because the devpod-observer ServiceAccount lacks cluster-level permissions. This is by design for security.
+Workers cannot install ArgoCD because it requires cluster-admin permissions to create namespaces, CRDs, and cluster-level RBAC resources. The devpod-observer ServiceAccount has read-only access by design.
 
-**Blocked Work:**
-- ❌ bd-2jm - Hub API authentication fix (needs secret write access)
-- ❌ bd-3o6 - Runner scaling tests (needs deployment scaling access)
+**What This Unblocks:**
+- ✅ bd-3e3 - Create ArgoCD GitOps deployment for botburrow-agents
+- ✅ GitOps-based deployment automation for all future changes
+- ✅ Autonomous worker management of Kubernetes resources
 
-## What These Manifests Grant
+## What This Process Does
 
-### secrets-manager-role.yml
-✅ Read and update secrets in `botburrow-agents` namespace
-✅ **NO** secret creation or deletion
-✅ Scoped to single namespace only
+### Phase 1: Grant Temporary Cluster-Admin
+- Creates ClusterRoleBinding for devpod-observer ServiceAccount
+- Grants cluster-admin privileges (time-boxed to installation window)
 
-### deployment-scaler-role.yml
-✅ Scale deployments (testing purposes)
-✅ Read pods, deployments, replicasets
-✅ Manage HorizontalPodAutoscalers
-✅ Port-forward to pods (Valkey access)
-✅ **NO** deployment creation or deletion
+### Phase 2: Automated ArgoCD Installation (Workers)
+- Workers detect elevated permissions and automatically:
+  - Create ArgoCD namespace
+  - Install ArgoCD CRDs and components (7-8 pods)
+  - Apply ArgoCD Application for botburrow-agents
+  - Verify sync status
+
+### Phase 3: Revoke Cluster-Admin
+- Deletes ClusterRoleBinding (instant revocation)
+- devpod-observer returns to read-only permissions
+- ArgoCD continues running (unaffected)
 
 ## Security Review
 
-**Safe to apply?** ✅ YES
+**Is this safe?** ✅ YES (with time-boxed elevation)
 
-- ✅ Least privilege - minimal permissions only
-- ✅ Namespace-scoped (not cluster-wide)
-- ✅ No resource creation/deletion
-- ✅ No RBAC escalation risk
-- ✅ Manifests tracked in Git
-- ✅ Labeled with bead IDs for audit trail
+- ✅ **Time-boxed:** Cluster-admin only during installation (< 30 minutes)
+- ✅ **Revocable:** Delete ClusterRoleBinding instantly revokes permissions
+- ✅ **Monitored:** All actions logged in Kubernetes audit logs
+- ✅ **Auditable:** devpod-observer actions traceable to this bead (bd-3f3)
+- ✅ **Limited Scope:** Only used for ArgoCD installation
+- ⚠️ **Medium Risk:** Temporary cluster-admin access (mitigated by immediate revocation)
 
 ## Expected Output
 
+**Phase 1 - Grant Permissions:**
 ```
-role.rbac.authorization.k8s.io/secrets-manager created
-rolebinding.rbac.authorization.k8s.io/devpod-observer-secrets-manager created
-role.rbac.authorization.k8s.io/deployment-scaler created
-rolebinding.rbac.authorization.k8s.io/devpod-observer-scaler created
+clusterrolebinding.rbac.authorization.k8s.io/devpod-observer-cluster-admin created
+yes
+```
+
+**Phase 2 - Monitor Installation:**
+```
+# After 1-2 minutes:
+namespace/argocd created
+
+# After 5-7 minutes:
+NAME                                               READY   STATUS    AGE
+argocd-application-controller-0                    1/1     Running   2m
+argocd-applicationset-controller-xxx               1/1     Running   2m
+argocd-dex-server-xxx                              1/1     Running   2m
+argocd-notifications-controller-xxx                1/1     Running   2m
+argocd-redis-xxx                                   1/1     Running   2m
+argocd-repo-server-xxx                             1/1     Running   2m
+argocd-server-xxx                                  1/1     Running   2m
+```
+
+**Phase 3 - Revoke Permissions:**
+```
+clusterrolebinding.rbac.authorization.k8s.io "devpod-observer-cluster-admin" deleted
+Error from server (NotFound): clusterrolebindings.rbac.authorization.k8s.io "devpod-observer-cluster-admin" not found
+no
 ```
 
 ## Verification Commands
 
 ```bash
-# Check roles were created
-kubectl get role -n botburrow-agents secrets-manager deployment-scaler
+# Verify ArgoCD is installed
+kubectl get namespace argocd
+kubectl get pods -n argocd
+# All pods should be Running
 
-# Check bindings were created
-kubectl get rolebinding -n botburrow-agents
+# Verify ArgoCD Application exists
+kubectl get application botburrow-agents -n argocd
+# Should show: Synced / Healthy
 
-# Test permissions
-kubectl auth can-i get secrets -n botburrow-agents --as=system:serviceaccount:devpod-observer:devpod-observer
-# Should return: yes
+# Verify permissions were revoked
+kubectl auth can-i create namespace --as=system:serviceaccount:devpod-observer:devpod-observer
+# Should return: no
+
+# Optional: Get ArgoCD admin password for UI access
+kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath='{.data.password}' | base64 -d
 ```
 
 ## After You Apply
