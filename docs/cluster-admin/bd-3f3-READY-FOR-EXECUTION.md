@@ -81,6 +81,24 @@ Error from server (NotFound): clusterrolebindings.rbac.authorization.k8s.io "dev
 
 ---
 
+## Pre-Flight Verification (Optional but Recommended)
+
+Before executing the commands below, run this verification script to ensure all prerequisites are met:
+
+```bash
+cd /home/coder/botburrow-agents
+./docs/cluster-admin/bd-3f3-VERIFY-READY.sh
+```
+
+This will check:
+- ✓ You have cluster-admin permissions
+- ✓ All required namespaces and ServiceAccounts exist
+- ✓ ArgoCD namespace does NOT exist yet (as expected)
+- ✓ All manifests are present
+- ✓ kubectl-proxy is accessible (optional)
+
+---
+
 ## Quick Start: Execute These Commands
 
 ### IMPORTANT: Cluster Access Requirements
