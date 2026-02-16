@@ -122,9 +122,7 @@ create_incident_bead() {
     br create --type human \
         --priority "$priority" \
         --title "$title" \
-        --description "$description" \
-        --add-label monitoring \
-        --add-label auto-recovery
+        --description "$description"
 }
 
 # ============================================================================
@@ -144,7 +142,7 @@ check_unclaimed_in_progress() {
     unclaimed_beads=$(echo "$in_progress_beads" | jq -r '.[] | select(.claimed_by == null) | .id' 2>/dev/null || echo "")
 
     local unclaimed_count
-    unclaimed_count=$(echo "$unclaimed_beads" | grep -c "^bd-" || echo "0")
+    unclaimed_count=$(echo "$unclaimed_beads" | grep -c "^bd-" 2>/dev/null || echo "0")
 
     if [ "$unclaimed_count" -eq 0 ]; then
         log_success "No unclaimed in_progress beads found"
@@ -224,7 +222,7 @@ check_expired_claims() {
         '.[] | select(.claim_timestamp != null and .claim_timestamp < $cutoff) | .id' 2>/dev/null || echo "")
 
     local expired_count
-    expired_count=$(echo "$expired_beads" | grep -c "^bd-" || echo "0")
+    expired_count=$(echo "$expired_beads" | grep -c "^bd-" 2>/dev/null || echo "0")
 
     if [ "$expired_count" -eq 0 ]; then
         log_success "No expired claims found"
