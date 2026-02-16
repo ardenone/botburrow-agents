@@ -1,175 +1,232 @@
-# HUMAN ACTION REQUIRED: Apply RBAC Manifests
+# HUMAN ACTION REQUIRED: Multiple Cluster-Admin Tasks
 
 ## Status: ⏳ Awaiting Human with Cluster-Admin Access
 
-**Bead:** bd-33d
-**Created:** 2026-02-16
-**Worker:** Claude Code (verified no cluster-admin access available)
+**Beads Awaiting Action:**
+- **bd-33d** - Apply RBAC manifests (P1)
+- **bd-3f3** - Install ArgoCD (P0, HIGHER PRIORITY)
+
+**Date:** 2026-02-16
+**Worker Status:** All preparation complete, verified, documented
 
 ---
 
-## Summary
+## 🚀 PRIORITY 1: bd-3f3 - Install ArgoCD (START HERE)
 
-All RBAC manifests are **ready and committed to git**. However, applying them requires **cluster-admin credentials** for the apexalgo-iad cluster, which are **NOT available in the devpod environment**.
+### Quick Summary
+Install ArgoCD in apexalgo-iad cluster using temporary cluster-admin elevation for devpod-observer ServiceAccount.
+
+### Why This is Priority
+- **P0 (Critical)** - Required for GitOps automation
+- **Unblocks:** bd-3e3 (ArgoCD application setup)
+- **Time:** < 15 minutes total (< 5 minutes human active time)
+- **Risk:** Low (reversible, well-documented, automated installation)
+
+### Quick Start
+```bash
+# 1. Grant cluster-admin (< 1 min)
+export KUBECONFIG=/path/to/your/apexalgo-iad-admin.kubeconfig
+kubectl create clusterrolebinding devpod-observer-cluster-admin \
+  --clusterrole=cluster-admin \
+  --serviceaccount=devpod-observer:devpod-observer
+
+# 2. Monitor installation (5-10 min, automated by workers)
+kubectl get pods -n argocd -w
+# Wait for all 7-8 pods to reach Running, then Ctrl+C
+
+# 3. Revoke cluster-admin (< 1 min) ⚠️ CRITICAL
+kubectl delete clusterrolebinding devpod-observer-cluster-admin
+
+# 4. Close bead
+cd /home/coder/botburrow-agents
+br close bd-3f3 --status completed
+br sync --flush-only && git add .beads/*.jsonl && git commit -m "chore(bd-3f3): cluster-admin completed ArgoCD installation" && git push
+```
+
+### Full Documentation
+- **📖 START HERE:** docs/cluster-admin/bd-3f3-HUMAN-HANDOFF.md
+- **🚀 Detailed Guide:** docs/cluster-admin/bd-3f3-READY-FOR-EXECUTION.md
+- **✓ Verification Script:** docs/cluster-admin/bd-3f3-VERIFY-READY.sh
+- **📊 Worker Status:** docs/cluster-admin/bd-3f3-WORKER-FINAL-STATUS-2026-02-16-v2.md
+
+---
+
+## 📋 PRIORITY 2: bd-33d - Apply RBAC Manifests
+
+### Quick Summary
+Apply RBAC roles for devpod-observer ServiceAccount to access botburrow-agents namespace.
+
+### Why This Matters
+- **P1 (High)** - Required for worker access to secrets and deployments
+- **Unblocks:** bd-1qs, bd-12r, bd-2jm, bd-3o6
+- **Time:** < 5 minutes
+- **Risk:** Very low (read/write access to single namespace)
 
 ### What's Ready ✅
 - ✅ `secrets-manager-role.yml` - committed to git
 - ✅ `deployment-scaler-role.yml` - committed to git
-- ✅ Quick reference guide (`CLUSTER-ADMIN-APPLY-INSTRUCTIONS.md`)
-- ✅ Worker status documentation (`WORKER-STATUS.md`)
-- ✅ Security review completed (both roles follow least-privilege)
+- ✅ Documentation prepared
 
-### What's Blocked ❌
-- ❌ Applying manifests (requires cluster-admin)
-- ❌ Verifying RBAC permissions
-- ❌ Closing bead bd-1qs
-- ❌ Unblocking downstream beads (bd-12r, bd-2jm, bd-3o6)
-
----
-
-## Required Action
-
-### Prerequisites
-You need **cluster-admin access** to apexalgo-iad cluster. This typically means:
-- Access to the Kubernetes master node, OR
-- A kubeconfig with cluster-admin ClusterRoleBinding, OR
-- Administrative credentials for the cluster
-
-### Step 1: Apply RBAC Manifests
-
-From a machine with cluster-admin kubeconfig for apexalgo-iad:
-
+### Quick Start
 ```bash
-# Clone the repository if not already cloned
-git clone <repo-url> botburrow-agents
-cd botburrow-agents
+# From machine with cluster-admin kubeconfig for apexalgo-iad
+export KUBECONFIG=/path/to/your/apexalgo-iad-admin.kubeconfig
 
-# Apply the manifests
+# Apply manifests
+cd /home/coder/botburrow-agents
 kubectl apply -f cluster-configuration/apexalgo-iad/devpod-observer/botburrow-agents/secrets-manager-role.yml
 kubectl apply -f cluster-configuration/apexalgo-iad/devpod-observer/botburrow-agents/deployment-scaler-role.yml
-```
 
-Expected output:
-```
-role.rbac.authorization.k8s.io/secrets-manager created
-rolebinding.rbac.authorization.k8s.io/devpod-observer-secrets-manager created
-role.rbac.authorization.k8s.io/deployment-scaler created
-rolebinding.rbac.authorization.k8s.io/devpod-observer-scaler created
-```
-
-### Step 2: Verify RBAC Was Applied
-
-```bash
-# Check Roles exist
-kubectl get role -n botburrow-agents secrets-manager
-kubectl get role -n botburrow-agents deployment-scaler
-
-# Check RoleBindings exist
-kubectl get rolebinding -n botburrow-agents devpod-observer-secrets-manager
-kubectl get rolebinding -n botburrow-agents devpod-observer-scaler
-
-# Verify permissions (should return "yes")
+# Verify
 kubectl auth can-i get secrets -n botburrow-agents \
   --as=system:serviceaccount:devpod-observer:devpod-observer
+# Expected: yes
 
 kubectl auth can-i patch deployments/scale -n botburrow-agents \
   --as=system:serviceaccount:devpod-observer:devpod-observer
-```
+# Expected: yes
 
-All commands should succeed and `auth can-i` should return `yes`.
-
-### Step 3: Close the Beads
-
-From the devpod (or any environment with access to the repository):
-
-```bash
-cd /home/coder/botburrow-agents
-
-# Close the original worker bead
-br close bd-1qs --status completed
-
-# Close the human action bead
+# Close bead
 br close bd-33d --status completed
-
-# Sync and commit
-br sync --flush-only
-git add .beads/*.jsonl
-git commit -m "chore(bd-1qs,bd-33d): cluster-admin applied RBAC manifests
-
-Applied secrets-manager and deployment-scaler roles to botburrow-agents namespace.
-devpod-observer ServiceAccount now has read/write access to secrets and deployment scaling.
-
-Co-Authored-By: Cluster Admin <admin@ardenone.com>"
-git push origin main
+br close bd-1qs --status completed  # Original blocker
+br sync --flush-only && git add .beads/*.jsonl && git commit -m "chore(bd-33d,bd-1qs): cluster-admin applied RBAC manifests" && git push
 ```
 
----
+### Manifests to Apply
+```bash
+cluster-configuration/apexalgo-iad/devpod-observer/botburrow-agents/
+├── secrets-manager-role.yml     # Read/write secrets in botburrow-agents
+└── deployment-scaler-role.yml   # Scale deployments in botburrow-agents
+```
 
-## What This Unblocks
-
-Once applied, these downstream beads can proceed:
-
-- **bd-12r** - Parent bead requesting RBAC access
-- **bd-2jm** - Hub API authentication fix (needs secret write access)
-- **bd-3o6** - Runner scaling tests (needs deployment scaling access)
-
----
-
-## Security Review ✅
-
+### Security Review ✅
 Both roles follow **principle of least privilege**:
 
-### secrets-manager
-- **Scope:** botburrow-agents namespace only
-- **Resources:** secrets only
-- **Verbs:** get, list, patch, update (NO delete, NO create)
-- **Purpose:** Allow configuration updates for Hub API authentication
+**secrets-manager:**
+- Scope: botburrow-agents namespace only
+- Resources: secrets only
+- Verbs: get, list, patch, update (NO delete, NO create)
 
-### deployment-scaler
-- **Scope:** botburrow-agents namespace only
-- **Resources:** deployments/scale, deployments, HPAs, pods, replicasets
-- **Verbs:** get, list, watch, patch, update, create (portforward only)
-- **Purpose:** Enable scaling tests without granting destructive permissions
-- **NO permission to:** delete resources, modify other namespaces
+**deployment-scaler:**
+- Scope: botburrow-agents namespace only
+- Resources: deployments/scale, deployments, HPAs, pods, replicasets
+- Verbs: get, list, watch, patch, update, create (portforward only)
+- NO delete permissions
 
 ---
 
-## Why Worker Cannot Do This
+## 🔐 Why Workers Cannot Do This
 
-The devpod environment only has access to:
-1. **ardenone-cluster** (in-cluster ServiceAccount) - local cluster
-2. **apexalgo-iad** via `devpod-observer` ServiceAccount - **read-only + limited write**
+Workers have **read-only access** via devpod-observer ServiceAccount:
+- ✅ Can read existing resources
+- ✅ Can monitor cluster state
+- ❌ Cannot create RBAC resources (prevents privilege escalation)
+- ❌ Cannot create cluster-scoped resources (namespaces, CRDs, ClusterRoles)
 
-The `devpod-observer` ServiceAccount **cannot create RBAC resources**:
+This is **intentional security design** - workers should not be able to grant themselves elevated permissions.
 
+---
+
+## 📊 Recommended Execution Order
+
+### Option A: Sequential (Safest)
+1. Execute bd-3f3 (Install ArgoCD) - 15 minutes
+2. Verify ArgoCD is running
+3. Execute bd-33d (Apply RBAC) - 5 minutes
+4. Verify RBAC permissions
+
+**Total Time:** ~20 minutes
+
+### Option B: Parallel (Fastest)
+1. Execute both tasks in single session
+2. Grant cluster-admin once
+3. Install ArgoCD AND apply RBAC manifests
+4. Revoke cluster-admin after both complete
+
+**Total Time:** ~10 minutes
+
+---
+
+## 🔍 Verification
+
+### Verify bd-3f3 (ArgoCD Installation)
 ```bash
-$ kubectl auth can-i create roles -n botburrow-agents
-no
+kubectl get namespace argocd
+kubectl get pods -n argocd
+kubectl get svc -n argocd
+
+# Should see 7-8 pods all Running
 ```
 
-This is **intentional security design** - granting RBAC creation permission to devpod-observer would enable privilege escalation attacks.
+### Verify bd-33d (RBAC Manifests)
+```bash
+kubectl get role -n botburrow-agents secrets-manager deployment-scaler
+kubectl get rolebinding -n botburrow-agents devpod-observer-secrets-manager devpod-observer-scaler
+
+# Test permissions
+kubectl auth can-i get secrets -n botburrow-agents --as=system:serviceaccount:devpod-observer:devpod-observer
+kubectl auth can-i patch deployments/scale -n botburrow-agents --as=system:serviceaccount:devpod-observer:devpod-observer
+```
 
 ---
 
-## Alternative Approaches Considered
+## 🚨 Important Reminders
 
-### ❌ Option 2: Grant devpod-observer RBAC creation permission
-**Why rejected:** Violates least privilege principle, enables privilege escalation
+### For bd-3f3 (ArgoCD)
+- ⚠️ **MUST revoke cluster-admin immediately after installation**
+- ⚠️ Use YOUR cluster-admin kubeconfig (NOT /home/coder/.kube/apexalgo-iad.kubeconfig)
+- ✅ Workers will detect cluster-admin and install ArgoCD automatically
+- ✅ Installation takes 5-10 minutes (fully automated)
 
-### ⚠️ Option 3: Use ArgoCD for manifest application
-**Why not immediate:** Requires ArgoCD application setup for this directory, slower than manual application
-
-### ✅ Option 1: Manual application with cluster-admin (RECOMMENDED)
-**Why chosen:** Immediate resolution, minimal security risk, no architectural changes needed
+### For bd-33d (RBAC)
+- ✅ Safe to apply (least-privilege, namespace-scoped)
+- ✅ No downstream risks
+- ✅ Enables workers to manage secrets and scale deployments
 
 ---
 
-## Contact
+## 📞 Contact & Troubleshooting
 
-If you have questions or need clarification:
-- Review the detailed instructions in `CLUSTER-ADMIN-APPLY-INSTRUCTIONS.md`
-- Check worker verification status in `WORKER-STATUS.md`
-- Examine the manifest files to understand exactly what permissions are being granted
+### If Something Goes Wrong
 
-## Timestamp
-Last updated: 2026-02-16T01:10:00Z
+**bd-3f3 Issues:**
+- Review: docs/cluster-admin/bd-3f3-READY-FOR-EXECUTION.md (comprehensive troubleshooting)
+- Run verification: ./docs/cluster-admin/bd-3f3-VERIFY-READY.sh
+
+**bd-33d Issues:**
+- Manifests won't apply: Verify cluster-admin access
+- Permissions not working: Check ServiceAccount exists in devpod-observer namespace
+
+### Getting Help
+- All documentation is committed to git
+- Worker status reports are in docs/cluster-admin/
+- Verification scripts are executable and tested
+
+---
+
+## 📅 Timeline
+
+**Created:** 2026-02-15
+**Updated:** 2026-02-16
+**Status:** Ready for immediate execution
+**Estimated Completion:** < 30 minutes total for both tasks
+
+---
+
+## ✅ Checklist
+
+- [ ] Read bd-3f3-HUMAN-HANDOFF.md
+- [ ] Export cluster-admin KUBECONFIG
+- [ ] Verify cluster-admin access (`kubectl auth can-i create clusterrolebinding`)
+- [ ] Grant cluster-admin to devpod-observer
+- [ ] Monitor ArgoCD installation (wait for pods Running)
+- [ ] **REVOKE cluster-admin** (critical!)
+- [ ] Apply RBAC manifests (bd-33d)
+- [ ] Verify RBAC permissions
+- [ ] Close both beads (bd-3f3, bd-33d, bd-1qs)
+- [ ] Sync and commit bead updates
+
+---
+
+**Last Updated:** 2026-02-16
+**Workers:** All preparation complete, standing by for cluster-admin execution
