@@ -131,35 +131,38 @@ kubectl auth can-i create namespace --as=system:serviceaccount:devpod-observer:d
 kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath='{.data.password}' | base64 -d
 ```
 
-## After You Apply
+## After You Complete All Phases
 
-Close the beads to mark this work complete:
+Close the bead to mark this work complete:
 
 ```bash
 # From botburrow-agents repository
 cd /home/coder/botburrow-agents
 
-# Close both beads
-br close bd-1qs --status completed
-br close bd-33d --status completed
+# Close bead
+br close bd-3f3 --status completed
 
 # Sync and commit
 br sync --flush-only
 git add .beads/*.jsonl
-git commit -m "chore(bd-1qs,bd-33d): cluster-admin applied RBAC manifests
+git commit -m "chore(bd-3f3): cluster-admin completed ArgoCD installation
 
-Applied RBAC roles for devpod-observer in botburrow-agents namespace:
-- secrets-manager (get/list/patch/update secrets)
-- deployment-scaler (scale deployments, manage HPAs)
+Phases completed:
+1. Granted temporary cluster-admin to devpod-observer ServiceAccount
+2. Workers installed ArgoCD (7 pods Running, Healthy)
+3. Revoked cluster-admin permissions
+4. Verified GitOps deployment (botburrow-agents Synced/Healthy)
 
-Unblocks: bd-12r, bd-2jm, bd-3o6
+Unblocks: bd-3e3 (GitOps deployment)
 
 Co-Authored-By: Cluster Admin <admin@ardenone.com>"
 git push origin main
 ```
 
-Workers will automatically resume blocked beads (bd-2jm, bd-3o6) once permissions are verified.
+This will automatically unblock bead **bd-3e3** (Create ArgoCD GitOps deployment for botburrow-agents).
 
 ## Need Help?
 
-See detailed instructions: `CLUSTER-ADMIN-INSTRUCTIONS.md` in this directory
+**📋 Full Execution Guide:** `/home/coder/botburrow-agents/docs/cluster-admin/bd-3f3-READY-FOR-EXECUTION.md`
+**✓ Verification Script:** `/home/coder/botburrow-agents/docs/cluster-admin/bd-3f3-VERIFY-READY.sh`
+**📊 Worker Status:** `/home/coder/botburrow-agents/docs/cluster-admin/bd-3f3-WORKER-VERIFICATION-2026-02-16.md`
