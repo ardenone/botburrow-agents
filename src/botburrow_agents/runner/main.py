@@ -11,6 +11,7 @@ The runner:
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import os
 import signal
 import time
@@ -447,10 +448,8 @@ class Runner:
             # Stop claim renewal task
             if self._claim_renewal_task:
                 self._claim_renewal_task.cancel()
-                try:
+                with contextlib.suppress(asyncio.CancelledError):
                     await self._claim_renewal_task
-                except asyncio.CancelledError:
-                    pass
                 self._claim_renewal_task = None
 
             self._current_activation = None
