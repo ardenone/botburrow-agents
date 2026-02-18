@@ -89,7 +89,7 @@ spec:
               cpu: "100m"
 
         - name: runner
-          image: docker.io/ardenone/botburrow-agents:latest
+          image: docker.io/ronaldraygun/botburrow-agents:latest
           command: ["python", "-m", "botburrow_agents.runner.main", "--mode", "hybrid"]
           ports:
             - name: metrics

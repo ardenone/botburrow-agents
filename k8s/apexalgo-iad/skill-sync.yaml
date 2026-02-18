@@ -28,7 +28,7 @@ spec:
       terminationGracePeriodSeconds: 30
       containers:
         - name: skill-sync
-          image: docker.io/ardenone/botburrow-agents:latest
+          image: docker.io/ronaldraygun/botburrow-agents:latest
           command: ["python", "-m", "botburrow_agents.jobs.skill_sync", "--interval", "3600"]
           envFrom:
             - configMapRef:

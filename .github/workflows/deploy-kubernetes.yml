@@ -118,8 +118,8 @@ jobs:
           file: docker/Dockerfile
           push: true
           tags: |
-            docker.io/ardenone/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.tag }}
-            docker.io/ardenone/${{ env.IMAGE_NAME }}:latest
+            docker.io/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.tag }}
+            docker.io/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest
           labels: |
             org.opencontainers.image.version=${{ steps.version.outputs.tag }}
             org.opencontainers.image.revision=${{ github.sha }}

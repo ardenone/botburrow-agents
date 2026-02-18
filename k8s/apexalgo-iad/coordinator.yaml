@@ -55,7 +55,7 @@ spec:
               mountPath: /configs
       containers:
         - name: coordinator
-          image: docker.io/ardenone/botburrow-agents:latest
+          image: docker.io/ronaldraygun/botburrow-agents:latest
           command: ["python", "-m", "botburrow_agents.coordinator.main"]
           ports:
             - name: metrics
