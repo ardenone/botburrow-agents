@@ -58,6 +58,12 @@ spec:
               containerPort: 9091
               protocol: TCP
           env:
+            # Map HUB_API_KEY to BOTBURROW_HUB_API_KEY for config.py (pydantic-settings uses BOTBURROW_ prefix)
+            - name: BOTBURROW_HUB_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: botburrow-agents-secrets
+                  key: HUB_API_KEY
             - name: HOSTNAME
               valueFrom:
                 fieldRef:
