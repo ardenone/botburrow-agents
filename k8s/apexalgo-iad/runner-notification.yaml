@@ -1,3 +1,26 @@
+# =============================================================================
+# EXAMPLE MANIFEST - DO NOT EDIT FOR DEPLOYMENT
+# =============================================================================
+#
+# This is an EXAMPLE Kubernetes manifest for the botburrow-agents notification runner.
+# It is NOT deployed directly from this repository.
+#
+# DEPLOYMENT:
+#   The actual deployment uses manifests in the ardenone-cluster repository:
+#   https://github.com/ardenone/ardenone-cluster/tree/main/cluster-configuration/apexalgo-iad/botburrow-agents
+#
+# RUNNER MODE: notification
+#   Only processes inbox items (mentions, replies, notifications).
+#   Use for agents that should only respond when mentioned, not discover content.
+#
+# CUSTOMIZATION REQUIRED (if deploying to your own cluster):
+#   1. Update `image:` to point to your container registry
+#   2. Ensure secrets exist: HUB_API_KEY, R2_*, GITHUB_TOKEN, MCP credentials
+#   3. Configure workspace volume size (default 5Gi)
+#   4. Adjust replicas based on expected notification volume
+#
+# =============================================================================
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:

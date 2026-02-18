@@ -1,5 +1,27 @@
-# Skill Sync Deployment - Idempotent (not CronJob)
-# Syncs skills from ClawHub to R2 on an interval
+# =============================================================================
+# EXAMPLE MANIFEST - DO NOT EDIT FOR DEPLOYMENT
+# =============================================================================
+#
+# This is an EXAMPLE Kubernetes manifest for the botburrow-agents skill-sync job.
+# It is NOT deployed directly from this repository.
+#
+# DEPLOYMENT:
+#   The actual deployment uses manifests in the ardenone-cluster repository:
+#   https://github.com/ardenone/ardenone-cluster/tree/main/cluster-configuration/apexalgo-iad/botburrow-agents
+#
+# PURPOSE:
+#   Syncs skills from ClawHub repositories to R2 storage.
+#   Runs as an idempotent Deployment (not CronJob) with internal scheduling.
+#
+# CUSTOMIZATION REQUIRED (if deploying to your own cluster):
+#   1. Update `image:` to point to your container registry
+#   2. Ensure R2 secrets exist: R2_ENDPOINT, R2_ACCESS_KEY, R2_SECRET_KEY
+#   3. Optionally set GITHUB_TOKEN for higher rate limits
+#   4. Adjust --interval flag (default 3600s = 1 hour)
+#
+# NOTE: This does NOT use Hub API (no HUB_API_KEY needed)
+#
+# =============================================================================
 
 apiVersion: apps/v1
 kind: Deployment

@@ -1,3 +1,34 @@
+# =============================================================================
+# EXAMPLE MANIFEST - DO NOT EDIT FOR DEPLOYMENT
+# =============================================================================
+#
+# This is an EXAMPLE Kubernetes manifest for the botburrow-agents coordinator.
+# It is NOT deployed directly from this repository.
+#
+# DEPLOYMENT:
+#   The actual deployment uses manifests in the ardenone-cluster repository:
+#   https://github.com/ardenone/ardenone-cluster/tree/main/cluster-configuration/apexalgo-iad/botburrow-agents
+#
+# CUSTOMIZATION REQUIRED (if deploying to your own cluster):
+#   1. Update `image:` to point to your container registry
+#   2. Create secrets with keys: HUB_API_KEY, R2_ACCESS_KEY, R2_SECRET_KEY, R2_ENDPOINT
+#   3. Update `HUB_URL` in configmap.yaml to point to your Hub instance
+#   4. Configure imagePullSecrets if using private registry
+#   5. Adjust resource requests/limits for your cluster
+#
+# ENVIRONMENT VARIABLES:
+#   - BOTBURROW_HUB_API_KEY: Mapped from secret HUB_API_KEY (pydantic prefix)
+#   - HUB_URL: Hub API endpoint (from configmap)
+#   - REDIS_URL: Valkey/Redis connection (from configmap)
+#
+# RELATED FILES:
+#   - configmap.yaml: Application configuration
+#   - botburrow-agents-secrets-PLACEHOLDER.yml: Secret template
+#   - namespace.yaml: Namespace definition
+#   - rbac.yaml: ServiceAccount and permissions
+#
+# =============================================================================
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:

@@ -1,10 +1,25 @@
-# Coordinator with git-sync sidecar for live config updates
+# =============================================================================
+# EXAMPLE MANIFEST - DO NOT EDIT FOR DEPLOYMENT
+# =============================================================================
 #
-# This manifest replaces the initContainer approach with a git-sync sidecar
-# that continuously pulls updates from the agent-definitions repository.
-# Changes to agent configs are reflected without requiring pod restarts.
+# This is an EXAMPLE Kubernetes manifest for the coordinator with git-sync.
+# It is NOT deployed directly from this repository.
 #
-# Per ADR-028: Config Distribution
+# DEPLOYMENT:
+#   The actual deployment uses manifests in the ardenone-cluster repository:
+#   https://github.com/ardenone/ardenone-cluster/tree/main/cluster-configuration/apexalgo-iad/botburrow-agents
+#
+# GIT-SYNC SIDECAR:
+#   Uses git-sync sidecar instead of initContainer for live config updates.
+#   Agent definitions are continuously synced from the git repository.
+#   Changes take effect without pod restarts.
+#
+# ALTERNATIVES:
+#   - coordinator.yaml: Uses initContainer (simpler, requires restart for updates)
+#   - This file: Uses git-sync sidecar (more complex, live updates)
+#
+# =============================================================================
+
 ---
 apiVersion: apps/v1
 kind: Deployment
