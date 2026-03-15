@@ -484,6 +484,14 @@ class Runner:
             credentials["github_pat"] = os.environ["GITHUB_PAT"]
         if "BRAVE_API_KEY" in os.environ:
             credentials["brave_api_key"] = os.environ["BRAVE_API_KEY"]
+        if "DATABASE_URL" in os.environ:
+            credentials["database_url"] = os.environ["DATABASE_URL"]
+        if "HUB_URL" in os.environ and os.environ["HUB_URL"]:
+            credentials["hub_url"] = os.environ["HUB_URL"]
+        elif self.settings.hub_url:
+            credentials["hub_url"] = self.settings.hub_url
+        if "HUB_API_KEY_MCP" in os.environ:
+            credentials["hub_api_key"] = os.environ["HUB_API_KEY_MCP"]
 
         return credentials
 
