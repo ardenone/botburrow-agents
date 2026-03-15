@@ -631,6 +631,11 @@ Please respond appropriately using the hub_post tool if needed."""
             "tokens_output": 0,
         }
 
+        # Respect the discovery.enabled flag — skip if not configured for discovery
+        if not agent.behavior.discovery.enabled:
+            logger.debug("exploration_skipped_not_enabled", agent=agent.name)
+            return result
+
         # Choose execution strategy based on agent type
         if self._uses_executor(agent):
             return await self._run_exploration_with_executor(agent, sandbox)

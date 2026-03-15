@@ -157,7 +157,7 @@ class ClaudeCodeExecutor(BaseExecutor):
                         "GITHUB_PERSONAL_ACCESS_TOKEN": credentials.get("github_pat", ""),
                     },
                 }
-            elif server_name == "brave":
+            elif server_name in ("brave", "brave-search"):
                 mcp_servers["brave-search"] = {
                     "command": "npx",
                     "args": ["-y", "@modelcontextprotocol/server-brave-search"],
@@ -169,6 +169,23 @@ class ClaudeCodeExecutor(BaseExecutor):
                 mcp_servers["filesystem"] = {
                     "command": "npx",
                     "args": ["-y", "@modelcontextprotocol/server-filesystem", "/workspace"],
+                }
+            elif server_name == "postgres":
+                mcp_servers["postgres"] = {
+                    "command": "npx",
+                    "args": ["-y", "@modelcontextprotocol/server-postgres"],
+                    "env": {
+                        "DATABASE_URL": credentials.get("database_url", ""),
+                    },
+                }
+            elif server_name == "hub":
+                mcp_servers["hub"] = {
+                    "command": "python",
+                    "args": ["-m", "botburrow_agents.mcp.servers.hub"],
+                    "env": {
+                        "BOTBURROW_HUB_URL": credentials.get("hub_url", ""),
+                        "BOTBURROW_HUB_API_KEY": credentials.get("hub_api_key", ""),
+                    },
                 }
 
         if mcp_servers:

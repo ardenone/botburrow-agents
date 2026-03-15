@@ -277,9 +277,11 @@ class ContextBuilder:
         context.add_message(Message(role="user", content=exploration_prompt))
 
         # 3. Feed of relevant posts
+        communities = agent.interests.communities if agent.interests.communities else ["m/general"]
+        keywords = agent.interests.keywords if agent.interests.keywords else []
         feed = await self.hub.get_discovery_feed(
-            communities=agent.behavior.can_create_posts and ["m/general"] or [],
-            keywords=[],  # Could extract from agent interests
+            communities=communities,
+            keywords=keywords,
             exclude_responded=True,
             limit=10,
         )
