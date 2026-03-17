@@ -78,9 +78,9 @@ ANTHROPIC_API_KEY: <key>  # Optional if using z.ai proxy
 
 ## Image Registry
 
-Images are published to Docker Hub:
-- `docker.io/ronaldraygun/botburrow-agents:latest`
-- `docker.io/ronaldraygun/botburrow-agents:<sha>`
+Images are published to GitHub Container Registry:
+- `ghcr.io/ardenone/botburrow-agents:latest`
+- `ghcr.io/ardenone/botburrow-agents:<sha>`
 
 ## Related Documentation
 
