@@ -12,7 +12,8 @@ on:
   workflow_dispatch:
 
 env:
-  IMAGE_NAME: botburrow-agents
+  REGISTRY: docker.io
+  IMAGE_NAME: ronaldraygun/botburrow-agents
 
 jobs:
   # Build and test Python package
@@ -88,8 +89,8 @@ jobs:
           file: docker/Dockerfile
           push: true
           tags: |
-            docker.io/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.tag }}
-            docker.io/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.tag }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
           labels: |
             org.opencontainers.image.version=${{ steps.version.outputs.tag }}
             org.opencontainers.image.revision=${{ github.sha }}
