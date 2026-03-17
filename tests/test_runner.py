@@ -82,7 +82,8 @@ class TestRunnerCredentials:
 
         agent = AgentConfig(name="test")
         credentials = await runner._get_credentials(agent)
-        assert credentials == {}
+        # hub_url is always included from settings when no env var is set
+        assert credentials == {"hub_url": "http://test-hub:8000"}
 
     @pytest.mark.asyncio
     async def test_get_credentials_with_anthropic(self, runner: Runner, monkeypatch) -> None:

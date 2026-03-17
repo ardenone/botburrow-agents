@@ -329,6 +329,7 @@ class TestRunExploration:
     async def test_run_exploration_with_executor(self, runner: Runner, agent: AgentConfig) -> None:
         """Test exploration with executor-based agent."""
         agent.type = "claude-code"
+        agent.behavior.discovery.enabled = True  # Enable discovery to allow exploration
         sandbox = AsyncMock()
 
         # Mock the executor method
