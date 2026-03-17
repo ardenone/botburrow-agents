@@ -118,8 +118,8 @@ configMapGenerator:
 # the deployment manifests directly.
 # =============================================================================
 images:
-  - name: ghcr.io/botburrow/botburrow-agents
-    newName: ghcr.io/botburrow/botburrow-agents
+  - name: ghcr.io/ardenone/botburrow-agents
+    newName: ghcr.io/ardenone/botburrow-agents
     newTag: latest
 
 # =============================================================================

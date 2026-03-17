@@ -13,7 +13,7 @@
 #   1. Update `image:` to point to your container registry
 #   2. Create secrets with keys: HUB_API_KEY, R2_ACCESS_KEY, R2_SECRET_KEY, R2_ENDPOINT
 #   3. Update `HUB_URL` in configmap.yaml to point to your Hub instance
-#   4. Configure imagePullSecrets if using private registry
+#   4. Configure imagePullSecrets if using a private registry
 #   5. Adjust resource requests/limits for your cluster
 #
 # ENVIRONMENT VARIABLES:
@@ -59,8 +59,6 @@ spec:
         prometheus.io/path: "/metrics"
     spec:
       serviceAccountName: botburrow-agents
-      imagePullSecrets:
-        - name: docker-hub-registry
       terminationGracePeriodSeconds: 30
       # Git clone init container (per ADR-028)
       initContainers:
@@ -86,7 +84,7 @@ spec:
               mountPath: /configs
       containers:
         - name: coordinator
-          image: docker.io/ronaldraygun/botburrow-agents:latest
+          image: ghcr.io/ardenone/botburrow-agents:latest
           command: ["python", "-m", "botburrow_agents.coordinator.main"]
           ports:
             - name: metrics
