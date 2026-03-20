@@ -1,29 +1,24 @@
-# Definitive Answer: When was ronaldraygun/botburrow-agents last built?
+# Definitive Answer: When was this image last built?
 
 **Bead:** bd-3wgu
 **Date:** 2026-03-20
 
+## Question
+When was the `ronaldraygun/botburrow-agents` Docker image last built?
+
 ## Answer
+
+The `ronaldraygun/botburrow-agents:latest` image was **last built on 2026-03-17 at 06:41 UTC** (GitHub Actions run #23181875444), triggered by commit `8f01f19` ("chore(bd-31j): close obsolete mitosis-child beads").
 
 | Property | Value |
 |----------|-------|
-| **Last Build Timestamp** | **2026-03-17T06:42:40Z** |
-| **Last Commit Built** | `8f01f1996eb2c778b4bb4e98a5089736ca08907f` (short: `8f01f19`) |
-| **Commit Message** | "chore(bd-31j): close obsolete mitosis-child beads" |
-| **GitHub Actions Run** | [#23181875444](https://github.com/ardenone/botburrow-agents/actions/runs/23181875444) |
-| **Tags Pushed** | `ronaldraygun/botburrow-agents:latest`, `ronaldraygun/botburrow-agents:8f01f19` |
+| **Last Build** | 2026-03-17T06:41:24Z (UTC) |
+| **Build Completed** | 2026-03-17T06:42:44Z (UTC) |
+| **Commit** | `8f01f19` |
+| **CI Run ID** | 23181875444 |
+| **Registry** | docker.io (Docker Hub) |
+| **Status** | **Deprecated** — no further builds will be published |
 
-## Status
+### Current Image
 
-**DEPRECATED** — No new builds since 2026-03-17. The image registry was migrated to GHCR on 2026-03-17T09:27:25Z (commit `2a2a589`).
-
-## Current Official Image
-
-```yaml
-image: ghcr.io/ardenone/botburrow-agents:latest
-```
-
-## See Also
-
-- `bd-bslk-definitive-answer.md` — Detailed build timestamp investigation
-- `bd-9doc-definitive-answer.md` — Image registry migration details
+Builds now go to **`ghcr.io/ardenone/botburrow-agents`** (since commit `2a2a589` on 2026-03-17T09:27:25Z).
