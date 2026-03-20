@@ -1,22 +1,28 @@
 # bd-ljao: When was this image last built?
 
-**Answer:** `ronaldraygun/botburrow-agents` was last built on **2026-02-14T21:12:58Z** (UTC).
+## Answer
 
-## Details
+**The `ronaldraygun/botburrow-agents` image was last built on 2026-03-17 at 06:41:24 UTC** (GitHub Actions run #23181875444), triggered by commit `8f01f19`.
 
-| Field | Value |
-|-------|-------|
-| **Last build completed** | 2026-02-14T21:12:58Z |
-| **Workflow** | Release (`release.yml`) |
-| **Run ID** | 22024326118 |
-| **Status** | Success |
-| **Trigger** | Push of tag `v0.1.1` |
-| **Commit** | `a0021f9d3900fff53c9fb32e5b952d15c5068bb1` |
-| **Tags pushed** | `ronaldraygun/botburrow-agents:v0.1.1`, `ronaldraygun/botburrow-agents:latest` |
-| **Duration** | 1m 57s |
+## Important Context
 
-## Context
+1. **Docker Hub repo deleted** — The `ronaldraygun/botburrow-agents` Docker Hub repository has been deleted and no longer exists.
 
-This was the **first and only** release pushed to Docker Hub under the `ronaldraygun/botburrow-agents` name. The image has since been **deprecated** — CI/CD was migrated to GHCR on 2026-03-17 (commit `2a2a589`), and the Docker Hub repository now returns 404 (deleted or made private).
+2. **Deprecated** — This image path is deprecated and should not be used.
 
-Subsequent builds go to `ghcr.io/ardenone/botburrow-agents` instead.
+3. **Correct image** — The official image is now:
+   ```
+   ghcr.io/ardenone/botburrow-agents
+   ```
+
+## Evidence
+
+- Prior investigation `bd-8tvm-definitive-answer.md` established the 2026-03-17 build date
+- Migration to GHCR completed in commit `2a2a589` (2026-03-17)
+- Docker Hub API returns 404 for the repository
+
+## See Also
+
+- `bd-8tvm-definitive-answer.md` — Source of build timestamp
+- `bd-l3xs-definitive-answer.md` — Confirms ronaldraygun image is NOT correct
+- `bd-pac8-definitive-answer.md` — Confirms Docker Hub repo no longer exists
