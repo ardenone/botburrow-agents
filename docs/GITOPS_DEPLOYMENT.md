@@ -67,17 +67,11 @@ cat ~/.kube/config | base64 -w 0
 2. Add new secret: `KUBE_CONFIG_DATA_APEXALGO_IAD`
 3. Paste the base64-encoded kubeconfig
 
-### 2. Docker Hub Credentials
+### 2. Container Registry (GHCR)
 
-```bash
-# Add Docker Hub credentials
-DOCKERHUB_USERNAME=your-dockerhub-username
-DOCKERHUB_PASSWORD=your-dockerhub-password
-```
+CI/CD pushes images to GitHub Container Registry (GHCR). No manual secrets are needed — authentication uses the automatic `GITHUB_TOKEN` provided by GitHub Actions.
 
-Add these as GitHub repository secrets:
-- `DOCKERHUB_USERNAME`
-- `DOCKERHUB_PASSWORD`
+Image: `ghcr.io/ardenone/botburrow-agents`
 
 ### 3. SealedSecret Controller (Optional but Recommended)
 
