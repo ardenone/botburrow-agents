@@ -4,6 +4,15 @@
 **Bead ID:** bd-212
 **Worker:** claude-code-glm-47-lima (original), claude-code-glm-5-turbo (update)
 
+## TL;DR: Is ronaldraygun/botburrow-agents the correct/official image?
+
+**NO.** The correct/official image is:
+```
+ghcr.io/ardenone/botburrow-agents:latest
+```
+
+The `ronaldraygun/botburrow-agents` image on Docker Hub is the **legacy** image. All K8s manifests in this repository correctly specify the GHCR image. The cluster still runs the legacy image because ArgoCD is not installed and the GHCR package is private.
+
 ## Executive Summary
 
 The coordinator deployment in apexalgo-iad is using `ronaldraygun/botburrow-agents:latest` instead of the specified `ghcr.io/ardenone/botburrow-agents:latest` because the **GHCR package is private** and the cluster has no pull secret for it. Previous blockers (Docker Hub auth failure, lint errors) have been resolved, but a new blocker emerged after the GHCR migration.
