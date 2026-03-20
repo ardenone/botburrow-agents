@@ -25,6 +25,22 @@
 
 3. **Docker Hub repo status:** The Docker Hub API returns "object not found" — the repository has been deleted or made private.
 
+## Last Release Build (Separate from CI/CD)
+
+The `release.yml` workflow also pushed to Docker Hub for the v0.1.1 release:
+
+| Property | Value |
+|----------|-------|
+| **Release** | v0.1.1 |
+| **Build completed** | 2026-02-14T21:12:58Z |
+| **Run** | [#22024326118](https://github.com/ardenone/botburrow-agents/actions/runs/22024326118) |
+| **Commit** | `a0021f9` — "fix(bd-xou): Fix Docker Hub secret name reference" |
+
 ## Status
 
-**DEPRECATED** - The `ronaldraygun/botburrow-agents` image is no longer maintained. All new builds go to `ghcr.io/ardenone/botburrow-agents`.
+**DEPRECATED** — The `ronaldraygun/botburrow-agents` image is no longer maintained. All new builds go to `ghcr.io/ardenone/botburrow-agents`.
+
+## See Also
+
+- `docs/verification/image-investigation-bd-212.md` — Full parent investigation (bd-212)
+- `bd-93p4-definitive-answer.md` — GHCR migration details
