@@ -1,27 +1,36 @@
-# bd-btw5: Is ronaldraygun/botburrow-agents the correct/official image?
+# Definitive Answer: Is ronaldraygun/botburrow-agents the correct/official image?
 
-## Answer: No
+**Bead:** bd-btw5
+**Date:** 2026-03-20
 
-`ronaldraygun/botburrow-agents` is **not** the correct/official image. It has been deprecated.
+## Answer
 
-## Current Official Image
+**NO** — `ronaldraygun/botburrow-agents` is **NOT** the correct/official image. It is deprecated.
 
+## Correct/Official Image
+
+```yaml
+image: ghcr.io/ardenone/botburrow-agents:latest
 ```
-ghcr.io/ardenone/botburrow-agents:latest
-```
+
+## Summary
+
+| Property | ronaldraygun/botburrow-agents | ardenone/botburrow-agents |
+|----------|-------------------------------|---------------------------|
+| **Registry** | Docker Hub | GitHub Container Registry (GHCR) |
+| **Status** | Deprecated / deleted | Active, continuously built |
+| **Migration date** | 2026-03-17 | Current |
+| **CI/CD** | No longer updated | Built on every push to `main` |
 
 ## Evidence
 
-1. **CI/CD pipeline** (`.github/workflows/ci-cd.yml`, `release.yml`): Builds and pushes to `ghcr.io/ardenone/botburrow-agents`
-2. **All K8s manifests** (`k8s/apexalgo-iad/`): Reference `ghcr.io/ardenone/botburrow-agents:latest`
-3. **Zero references** to `ronaldraygun` in any source code (`.yaml`, `.py`, `.toml` files)
-4. **Docker Hub repo** `ronaldraygun/botburrow-agents` is deleted/private — returns "object not found"
-5. **Migration completed** on 2026-03-17 (commit `2a2a589`) from Docker Hub to GHCR
+1. **Migration commit `2a2a589`** (2026-03-17): CI/CD pipeline was changed from Docker Hub (`ronaldraygun`) to GHCR (`ardenone`).
+2. **Docker Hub repo** `ronaldraygun/botburrow-agents` is deleted or private — Docker API returns "object not found".
+3. **All K8s manifests** already reference `ghcr.io/ardenone/botburrow-agents:latest`.
+4. **CI/CD** (`.github/workflows/ci-cd.yml`) builds and pushes to GHCR with `:latest` and `:<short-sha>` tags.
 
-## Prior Investigation
+## See Also
 
-This confirms findings from:
-- `bd-xwf3-definitive-answer.md`
-- `bd-fi7h-definitive-answer.md`
-- `bd-ur5o-definitive-answer.md`
-- `bd-jj01-definitive-answer.md`
+- `bd-v27h-definitive-answer.md` — Prior definitive answer confirming the same
+- `bd-wmfw-definitive-answer.md` — Last ronaldraygun commit was `8f01f19`
+- `bd-bslk-definitive-answer.md` — When was ronaldraygun last built?
