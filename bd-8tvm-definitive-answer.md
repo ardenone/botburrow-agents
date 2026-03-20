@@ -10,8 +10,8 @@ The Docker Hub repo `ronaldraygun/botburrow-agents` has since been deleted. That
 
 ## See Also
 
-- `bd-6siw-definitive-answer.md` — Same question, same answer
-- `bd-gdyk-definitive-answer.md` — Source of record for this answer
+- `bd-gdyk-definitive-answer.md` — Same question, same answer (source of record)
+- `bd-6siw-definitive-answer.md` — Confirms same answer
 - `bd-4pou-definitive-answer.md` — Confirms same answer
 - `bd-btw5-definitive-answer.md` — ronaldraygun image is NOT the official image
-- `bd-sg24-definitive-answer.md` — Image contains commit `8f01f19`
+- `bd-lrkr-definitive-answer.md` — ronaldraygun is deprecated, use ghcr.io/ardenone/botburrow-agents
