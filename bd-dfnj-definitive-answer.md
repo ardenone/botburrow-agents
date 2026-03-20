@@ -1,29 +1,37 @@
-# bd-dfnj: What commit/version does it contain?
+# Definitive Answer: bd-dfnj
 
-## Definitive Answer
+## Question
+What commit/version does ronaldraygun/botburrow-agents contain?
 
-The `ronaldraygun/botburrow-agents` image contained commit **`8f01f19`** (full: `8f01f1996eb2c778b4bb4e98a5089736ca08907f`).
+## Answer
 
-## Commit Details
+The `ronaldraygun/botburrow-agents` image contains commit **`8f01f19`**.
 
-| Field | Value |
-|-------|-------|
-| **Short SHA** | `8f01f19` |
+| Property | Value |
+|----------|-------|
 | **Full SHA** | `8f01f1996eb2c778b4bb4e98a5089736ca08907f` |
-| **Author** | jedarden |
-| **Date** | 2026-03-17 02:40:41 -0400 (06:40:41 UTC) |
-| **Message** | `chore(bd-31j): close obsolete mitosis-child beads` |
-| **Build** | GitHub Actions run #23181875444, completed 06:41:24 UTC |
+| **Short SHA** | `8f01f19` |
+| **Commit Date** | 2026-03-17T06:42:40Z (2026-03-17 02:40:41 -0400) |
+| **Commit Message** | "chore(bd-31j): close obsolete mitosis-child beads" |
+| **Image Tags** | `ronaldraygun/botburrow-agents:latest`, `ronaldraygun/botburrow-agents:8f01f19` |
+| **Status** | DEPRECATED — no new builds since this commit |
 
-## Current Status
+## Evidence
 
-**The Docker Hub repo has been deleted.** The image is no longer available at `docker.io/ronaldraygun/botburrow-agents`.
+- The CI/CD GitHub Actions run that built the image pushed both `:latest` and `:8f01f19` tags simultaneously
+- The `ronaldraygun/botburrow-agents` Docker Hub repo is now deleted/private
+- CI/CD migrated to GHCR on 2026-03-17 (commit `2a2a589`), so no new images have been pushed to ronaldraygun since
 
-The official image is now **`ghcr.io/ardenone/botburrow-agents`**, which contains the latest commits from the main branch.
+## Current Recommendation
+
+Use the current GHCR image instead:
+```yaml
+image: ghcr.io/ardenone/botburrow-agents:latest
+```
 
 ## See Also
 
-- `bd-cqak-definitive-answer.md` — Original answer with same data
-- `bd-gdyk-definitive-answer.md` — Source of record for build date/commit
-- `bd-8tvm-definitive-answer.md` — When the image was last built
-- `bd-pac8-definitive-answer.md` — Current state: image never existed (repo deleted)
+- `bd-wmfw-definitive-answer.md` — Prior investigation (same answer)
+- `bd-upce-definitive-answer.md` — Another prior investigation (same answer)
+- `bd-bslk-definitive-answer.md` — When was the image last built?
+- `bd-v27h-definitive-answer.md` — Is ronaldraygun the correct/official image? (NO)
