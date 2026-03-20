@@ -13,6 +13,16 @@ ghcr.io/ardenone/botburrow-agents:latest
 
 The `ronaldraygun/botburrow-agents` image on Docker Hub is the **legacy** image. All K8s manifests in this repository correctly specify the GHCR image. The cluster still runs the legacy image because ArgoCD is not installed and the GHCR package is private.
 
+### Definitive Answer (bd-c5c3)
+
+| Question | Answer |
+|----------|--------|
+| Is `ronaldraygun/botburrow-agents` the correct/official image? | **NO** |
+| What is the correct/official image? | `ghcr.io/ardenone/botburrow-agents:latest` |
+| Status of ronaldraygun image | **Deprecated/Legacy** (migrated to GHCR on 2026-03-17) |
+| Last build to ronaldraygun | 2026-02-14T21:12:58Z (v0.1.1 release) |
+| Current CI/CD target | GHCR only (commit 2a2a589) |
+
 ## Executive Summary
 
 The coordinator deployment in apexalgo-iad is using `ronaldraygun/botburrow-agents:latest` instead of the specified `ghcr.io/ardenone/botburrow-agents:latest` because the **GHCR package is private** and the cluster has no pull secret for it. Previous blockers (Docker Hub auth failure, lint errors) have been resolved, but a new blocker emerged after the GHCR migration.
