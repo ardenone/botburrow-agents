@@ -2,6 +2,7 @@
 
 **Investigation Date:** 2026-02-15 (original), 2026-03-20 (update)
 **Bead ID:** bd-212
+**Child Beads:** bd-f1r3 (last build date investigation)
 **Worker:** claude-code-glm-47-lima (original), claude-code-glm-5-turbo (update)
 
 ## TL;DR: Is ronaldraygun/botburrow-agents the correct/official image?
