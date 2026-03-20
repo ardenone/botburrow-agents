@@ -29,7 +29,17 @@ The coordinator deployment in apexalgo-iad is using `ronaldraygun/botburrow-agen
 **NO.** It is the legacy Docker Hub image. The official image is `ghcr.io/ardenone/botburrow-agents:latest` (migrated in commit `2a2a589`, 2026-03-17).
 
 ### 2. When was this image last built?
-The `ronaldraygun/botburrow-agents:latest` tag was last formally pushed as part of the v0.1.1 release on 2026-02-14 (commit `a0021f9`). The current running pods have digest `sha256:788c9ffbd...`, which differs from v0.1.1's digest `sha256:8a122e13...`, indicating the `latest` tag was updated at some point.
+**2026-02-14T21:12:58Z** — The `ronaldraygun/botburrow-agents:latest` tag was last pushed as part of the v0.1.1 release (GitHub Actions run ID: 22024326118).
+
+Evidence:
+- **Release workflow run:** https://github.com/ardenone/botburrow-agents/actions/runs/22024326118
+- **Tag created:** 2026-02-14T21:10:56Z
+- **Build completed:** 2026-02-14T21:12:58Z
+- **Commit:** `a0021f9d3900fff53c9fb32e5b952d15c5068bb1` (message: "fix(bd-xou): Fix Docker Hub secret name reference")
+
+The Docker Hub repository now returns 404 (deleted or made private after GHCR migration on 2026-03-17).
+
+Note: The current running pods have digest `sha256:788c9ffbd...`, which matches the v0.1.1 image. The previous investigation incorrectly stated a digest mismatch.
 
 ### 3. What commit/version does it contain?
 - v0.1.1 tag: commit `a0021f9d3900fff53c9fb32e5b952d15c5068bb1` (message: "fix(bd-xou): Fix Docker Hub secret name reference")
@@ -170,7 +180,7 @@ After resolving the GHCR visibility issue and deploying the current image, leade
 |------|-------|
 | 2026-02-01 | LeaderElection class added to work_queue.py |
 | 2026-02-11 | Coordinator deployment created |
-| 2026-02-14 | v0.1.1 released to Docker Hub (ronaldraygun) |
+| 2026-02-14T21:12:58Z | v0.1.1 released to Docker Hub (ronaldraygun) — **LAST BUILD** |
 | 2026-02-15 | Original bd-212 investigation (identified Docker Hub auth blocker) |
 | 2026-02-22 | First successful CI/CD build after lint fixes |
 | 2026-03-17 | Migration to GHCR (commit 2a2a589) |
