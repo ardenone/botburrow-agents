@@ -1,35 +1,43 @@
-# Definitive Answer: bd-4n4j
+# Definitive Answer: Should we be using ardenone/botburrow-agents instead?
 
-**Question:** Should we be using `ardenone/botburrow-agents` instead of `ronaldraygun/botburrow-agents`?
-**Answer:** **YES**
+**Bead:** bd-4n4j
+**Date:** 2026-03-20
 
-## TL;DR
+## Answer
 
-Use `ghcr.io/ardenone/botburrow-agents:latest` — the `ronaldraygun/botburrow-agents` Docker Hub image is **deprecated**.
+**YES** — We should be using `ghcr.io/ardenone/botburrow-agents:latest`, NOT `ronaldraygun/botburrow-agents`.
 
-## Details
-
-| Property | Old (Deprecated) | New (Current) |
-|----------|------------------|---------------|
-| **Registry** | docker.io | ghcr.io |
-| **Image** | ronaldraygun/botburrow-agents | ardenone/botburrow-agents |
-| **Status** | Deprecated | Active |
-| **Last Build** | 2026-03-17 (final) | Continuous (CI/CD) |
-
-## Evidence
-
-1. **All K8s manifests** in `k8s/apexalgo-iad/` already reference `ghcr.io/ardenone/botburrow-agents:latest`
-2. **CI/CD workflows** (`.github/workflows/ci-cd.yml`, `release.yml`) build and push only to GHCR
-3. **Migration commit:** `2a2a589` (2026-03-17) — Docker Hub image was the last pre-migration build
-4. The `ardenone` org matches the GitHub organization; `ronaldraygun` was a personal account used before org migration
-
-## Correct Image Reference
+## Correct/Official Image
 
 ```yaml
 image: ghcr.io/ardenone/botburrow-agents:latest
 ```
 
-## Note
+## Summary
 
-The GHCR package is currently private. The cluster needs a GHCR pull secret to actually pull it.
-The manifests are already correct — the remaining work is configuring cluster authentication.
+| Property | ronaldraygun/botburrow-agents | ghcr.io/ardenone/botburrow-agents |
+|----------|-------------------------------|-----------------------------------|
+| **Status** | **DEPRECATED** | Active, continuously built |
+| **Registry** | Docker Hub | GitHub Container Registry |
+| **CI/CD** | No longer updated | Built on every push to `main` |
+| **Docker Hub repo** | Deleted/private | N/A |
+
+## Evidence
+
+1. **Migration commit `2a2a589`** (2026-03-17): CI/CD pipeline was changed from Docker Hub (`ronaldraygun`) to GHCR (`ardenone`).
+
+2. **Docker Hub repo deleted/private:** The Docker Hub API returns "object not found" for `ronaldraygun/botburrow-agents`.
+
+3. **All K8s manifests** in the cluster-configuration repo already reference `ghcr.io/ardenone/botburrow-agents:latest`.
+
+4. **CI/CD** (`.github/workflows/ci-cd.yml`) builds and pushes to GHCR with `:latest` and `:<short-sha>` tags on every push to `main`.
+
+## Action Required
+
+If any running pods still reference `ronaldraygun/botburrow-agents`, they need to be updated via ArgoCD sync to pick up the correct image.
+
+## See Also
+
+- `bd-v27h-definitive-answer.md` — Is ronaldraygun the correct image? (NO)
+- `bd-bslk-definitive-answer.md` — When was ronaldraygun last built?
+- `bd-7cxe-definitive-answer.md` — Last ronaldraygun commit was `8f01f19`
