@@ -2,28 +2,15 @@
 
 ## Definitive Answer
 
-**The image was last built on 2026-02-14 at 21:10:56 UTC** when tag `v0.1.1` was pushed, triggering the release workflow.
+**The `ronaldraygun/botburrow-agents` image was last built on 2026-03-17 at 06:41:24 UTC** (GitHub Actions run #23181875444), triggered by commit `8f01f19`.
 
-## Important Clarification
+## Context
 
-The `ronaldraygun/botburrow-agents` **Docker Hub repository does not exist**. The image is published to **GitHub Container Registry (GHCR)**:
+The Docker Hub repo `ronaldraygun/botburrow-agents` has since been deleted. That same day (2026-03-17), all CI/CD and K8s manifests were migrated to `ghcr.io/ardenone/botburrow-agents` via commit `2a2a589`.
 
-- **Registry:** `ghcr.io/ardenone/botburrow-agents`
-- **Latest version:** `v0.1.1` (also tagged as `latest`)
+## See Also
 
-## Evidence
-
-| Source | Finding |
-|--------|---------|
-| Docker Hub API | Returns "object not found" for `ronaldraygun/botburrow-agents` |
-| Release workflow (`.github/workflows/release.yml`) | Pushes to `ghcr.io/ardenone/botburrow-agents` |
-| GitHub Actions | Last successful release: 2026-02-14T21:11:01Z |
-| Git tag `v0.1.1` | Created 2026-02-14 21:10:56 UTC |
-
-## Image Pull Command
-
-```bash
-docker pull ghcr.io/ardenone/botburrow-agents:v0.1.1
-# or
-docker pull ghcr.io/ardenone/botburrow-agents:latest
-```
+- `bd-gdyk-definitive-answer.md` — Same question, same answer (source of record)
+- `bd-4pou-definitive-answer.md` — Confirms same answer
+- `bd-btw5-definitive-answer.md` — ronaldraygun image is NOT the official image
+- `bd-sg24-definitive-answer.md` — Image contains commit `8f01f19`
