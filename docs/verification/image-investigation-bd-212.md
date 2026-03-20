@@ -27,7 +27,15 @@ The `ronaldraygun/botburrow-agents:latest` tag was last formally pushed as part 
 - Current running image: unknown commit (different digest from v0.1.1)
 
 ### 4. Does it include the leader election code?
-**YES.** The v0.1.1 image (commit `a0021f9`) contains the `LeaderElection` class at `src/botburrow_agents/coordinator/work_queue.py:371`. The current running image likely also contains it.
+**YES.** Verified in codebase: `src/botburrow_agents/coordinator/work_queue.py:371-443`.
+
+The `LeaderElection` class implementation:
+- Uses Redis SETNX for atomic leader election
+- 30-second heartbeat TTL (`HEARTBEAT_TTL = 30`)
+- Methods: `try_become_leader()`, `release_leadership()`, `is_leader` property
+- Safe release via Lua script to prevent releasing another instance's leadership
+
+The v0.1.1 image (commit `a0021f9`) and all subsequent images contain this code.
 
 ### 5. Should we be using ardenone/botburrow-agents instead?
 **YES.** Manifests correctly specify `ghcr.io/ardenone/botburrow-agents:latest`, but the cluster cannot pull this image because the GHCR package is private and there is no pull secret configured.
