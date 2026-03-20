@@ -80,7 +80,11 @@ CI/CD builds are **succeeding** and pushing to GHCR:
 | 2026-03-17T06:41Z | 23181875444 | SUCCESS |
 | 2026-02-22T21:21Z | 22285602754 | SUCCESS |
 
-### Root Cause: GHCR Package Is Private
+### Root Cause: GHCR Package Is Private + ArgoCD Not Installed
+
+**ArgoCD is NOT installed** in the apexalgo-iad cluster (no `argocd` namespace, no CRDs). The deployment has ArgoCD annotations (`argocd.argoproj.io/tracking-id`) from a previous install or template, but no sync is occurring. The manifests in git have been updated to `ghcr.io/ardenone/botburrow-agents:latest`, but without ArgoCD or manual `kubectl apply`, the live deployment retains the old `ronaldraygun` image.
+
+Additionally, the GHCR package is **private**:
 
 The migration commit `2a2a589` (2026-03-17) removed `imagePullSecrets` from manifests with the assumption that GHCR would be public:
 
@@ -106,11 +110,11 @@ forgejo-secrets           Opaque
 openai-secret             Opaque
 ```
 
-## Resolution
+## Resolution (Requires Cluster-Admin)
 
-Two options to fix:
+Three issues must be addressed:
 
-### Option 1: Make GHCR Package Public (Recommended)
+### 1. Make GHCR Package Public (Recommended)
 
 ```bash
 # Via GitHub CLI
@@ -123,19 +127,23 @@ gh api /orgs/ardenone/packages/container/botburrow-agents -X PATCH \
 
 This aligns with the migration commit's assumption and doesn't require cluster changes.
 
-### Option 2: Add GHCR Pull Secret
+### 2. Install ArgoCD or Manually Apply Manifests
 
-Create a pull secret in the cluster namespace:
+ArgoCD is not installed in apexalgo-iad. Options:
+- Install ArgoCD using prepared manifests in `k8s/apexalgo-iad/argocd/`
+- Manually apply updated manifests: `kubectl apply -f k8s/apexalgo-iad/coordinator.yaml`
+- Remove stale `imagePullSecrets: [docker-hub-registry]` from live deployment
+
+### 3. (Alternative) Add GHCR Pull Secret
+
+If keeping GHCR private, create a pull secret:
 
 ```bash
-# Create secret from GitHub PAT
 kubectl create secret docker-registry ghcr-registry \
   --docker-server=ghcr.io \
   --docker-username=ardenone \
   --docker-password=<GITHUB_PAT> \
   -n botburrow-agents
-
-# Add imagePullSecrets back to manifests
 ```
 
 ## Impact on bd-1j7 (Leader Election Verification)
@@ -158,7 +166,7 @@ After resolving the GHCR visibility issue and deploying the current image, leade
 | 2026-02-22 | First successful CI/CD build after lint fixes |
 | 2026-03-17 | Migration to GHCR (commit 2a2a589) |
 | 2026-03-17 | Docker Hub secrets removed (commit 0e77461) |
-| 2026-03-20 | Updated investigation (identified GHCR visibility blocker) |
+| 2026-03-20 | Updated investigation (identified GHCR visibility + ArgoCD not installed) |
 
 ## References
 
