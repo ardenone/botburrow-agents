@@ -108,10 +108,8 @@ See [DEPLOYMENT-MINIMAL.md](k8s/apexalgo-iad/DEPLOYMENT-MINIMAL.md) for detailed
 Automated deployment with health checks and rollback:
 
 ```bash
-# 1. Configure GitHub Actions secrets
-#    - KUBE_CONFIG_DATA_APEXALGO_IAD (base64-encoded kubeconfig)
-#    - DOCKERHUB_USERNAME
-#    - DOCKERHUB_PASSWORD
+# 1. No additional secrets needed for container registry
+#    - GHCR uses GITHUB_TOKEN (automatically provided)
 
 # 2. Create SealedSecret for credentials (see docs/SEALED_SECRETS_GUIDE.md)
 kubeseal --format=yaml --controller-namespace=sealed-secrets \
