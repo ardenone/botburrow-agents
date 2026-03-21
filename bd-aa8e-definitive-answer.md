@@ -6,23 +6,46 @@ Does it include the leader election code (work_queue.py LeaderElection class)?
 ## Answer
 **Yes.**
 
-The ronaldraygun/botburrow-agents image (containing commit `8f01f19`) includes the `LeaderElection` class.
+The `LeaderElection` class is present in `src/botburrow_agents/coordinator/work_queue.py` at lines 371-443.
 
 ## Evidence
 
-1. **LeaderElection class location**: `src/botburrow_agents/coordinator/work_queue.py` (lines 371-443)
+```python
+class LeaderElection:
+    """Simple leader election using Redis SETNX.
 
-2. **Introduced in commit**: `42c87d08` (2026-02-01)
-   - Commit message: "Add CI/CD pipeline, skill sync job, and deployment docs"
+    Only one coordinator should be polling Hub at a time.
+    """
 
-3. **Image contains commit**: `8f01f19` (2026-03-17)
+    LEADER_KEY = "coordinator:leader"
+    HEARTBEAT_TTL = 30  # seconds
 
-4. **Ancestry**: Commit `42c87d08` IS an ancestor of `8f01f19` (1055 commits between them), so the image definitively includes the LeaderElection class.
+    def __init__(
+        self,
+        redis: RedisClient,
+        instance_id: str,
+    ) -> None:
+        self.redis = redis
+        self.instance_id = instance_id
+        self._is_leader = False
 
-## Class Details
+    async def try_become_leader(self) -> bool:
+        """Try to become leader."""
+        ...
 
-- **Mechanism**: Redis `SETNX` (set if not exists)
-- **Leader Key**: `coordinator:leader`
-- **Heartbeat TTL**: 30 seconds
-- **Key methods**: `try_become_leader()`, `release_leadership()`, `is_leader` property
-- **Purpose**: Ensures only one coordinator instance polls Hub at a time
+    async def release_leadership(self) -> None:
+        """Release leadership."""
+        ...
+
+    @property
+    def is_leader(self) -> bool:
+        """Check if this instance is leader."""
+        return self._is_leader
+```
+
+## Implementation Details
+
+- Uses Redis `SET key value NX EX ttl` for atomic leader claim
+- 30-second heartbeat TTL (auto-expires if leader dies)
+- Safe release via Lua script (only deletes if still the leader)
+- `is_leader` property for status checks
