@@ -14,7 +14,7 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ardenone/botburrow-agents
-  DOCKERHUB_IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/botburrow-agents
+  DOCKERHUB_IMAGE_NAME: ardenone/botburrow-agents
 
 jobs:
   # Build and test Python package
@@ -83,31 +83,30 @@ jobs:
       - name: Check Docker Hub credentials
         id: dockerhub
         env:
-          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
         run: |
-          if [[ -z "${DOCKERHUB_USERNAME}" || -z "${DOCKERHUB_PASSWORD}" ]]; then
+          if [[ -z "${DOCKERHUB_PASSWORD}" ]]; then
             echo "available=false" >> $GITHUB_OUTPUT
-            echo "::notice::DOCKERHUB_USERNAME/DOCKERHUB_PASSWORD not configured - skipping Docker Hub push"
+            echo "::notice::DOCKERHUB_PASSWORD not configured - skipping Docker Hub push"
             exit 0
           fi
           # Verify credentials have push access via Docker Hub API
           TOKEN=$(curl -s -X POST "https://hub.docker.com/v2/users/login/" \
             -H "Content-Type: application/json" \
-            -d '{"username":"'"${DOCKERHUB_USERNAME}"'","password":"'"${DOCKERHUB_PASSWORD}"'"}' \
+            -d '{"username":"ardenone","password":"'"${DOCKERHUB_PASSWORD}"'"}' \
             | jq -r '.token // empty')
           if [[ -z "${TOKEN}" ]]; then
             echo "available=false" >> $GITHUB_OUTPUT
-            echo "::error::Docker Hub login failed - check DOCKERHUB_USERNAME and DOCKERHUB_PASSWORD secrets"
+            echo "::error::Docker Hub login failed for ardenone - check DOCKERHUB_PASSWORD secret"
             exit 0
           fi
           # Obtain push token from Docker registry auth
-          PUSH_TOKEN=$(curl -s -u "${DOCKERHUB_USERNAME}:${DOCKERHUB_PASSWORD}" \
-            "https://auth.docker.io/token?service=registry.docker.io&scope=repository:${DOCKERHUB_USERNAME}/botburrow-agents:push,pull" \
+          PUSH_TOKEN=$(curl -s -u "ardenone:${DOCKERHUB_PASSWORD}" \
+            "https://auth.docker.io/token?service=registry.docker.io&scope=repository:ardenone/botburrow-agents:push,pull" \
             | jq -r '.token // empty')
           if [[ -z "${PUSH_TOKEN}" ]]; then
             echo "available=false" >> $GITHUB_OUTPUT
-            echo "::error::Docker Hub credentials cannot authenticate to registry for ${DOCKERHUB_USERNAME}/botburrow-agents - use a PAT with Read & Write permissions"
+            echo "::error::Docker Hub credentials cannot authenticate to registry for ardenone/botburrow-agents - use a PAT with Read & Write permissions"
             exit 0
           fi
           # Decode the JWT payload and verify push scope was actually granted.
@@ -121,7 +120,7 @@ jobs:
           GRANTED=$(echo "${ENCODED}" | base64 -d 2>/dev/null | jq -r '.access[]? | select(.type=="repository") | .actions[]?' 2>/dev/null || true)
           if ! echo "${GRANTED}" | grep -q "^push$"; then
             echo "available=false" >> $GITHUB_OUTPUT
-            echo "::error::Docker Hub credentials do not have push access to ${DOCKERHUB_USERNAME}/botburrow-agents - use a PAT with Read & Write permissions"
+            echo "::error::Docker Hub credentials do not have push access to ardenone/botburrow-agents - use a PAT with Read & Write permissions"
             exit 0
           fi
           # Credentials have verified push access — proceed
@@ -131,24 +130,23 @@ jobs:
         if: steps.dockerhub.outputs.available == 'true'
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          username: ardenone
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
       - name: Create Docker Hub repository if not exists
         if: steps.dockerhub.outputs.available == 'true'
         env:
-          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
         run: |
           TOKEN=$(curl -s -X POST "https://hub.docker.com/v2/users/login/" \
             -H "Content-Type: application/json" \
-            -d '{"username":"'"${DOCKERHUB_USERNAME}"'","password":"'"${DOCKERHUB_PASSWORD}"'"}' \
+            -d '{"username":"ardenone","password":"'"${DOCKERHUB_PASSWORD}"'"}' \
             | jq -r .token)
           HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
             -X POST "https://hub.docker.com/v2/repositories/" \
             -H "Authorization: JWT ${TOKEN}" \
             -H "Content-Type: application/json" \
-            -d '{"name":"botburrow-agents","namespace":"'"${DOCKERHUB_USERNAME}"'","description":"botburrow-agents - AI agent coordination platform","is_private":false}')
+            -d '{"name":"botburrow-agents","namespace":"ardenone","description":"botburrow-agents - AI agent coordination platform","is_private":false}')
           if [ "$HTTP_CODE" = "201" ]; then
             echo "Docker Hub repository created"
           elif [ "$HTTP_CODE" = "400" ]; then
