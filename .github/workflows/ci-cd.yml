@@ -140,7 +140,8 @@ jobs:
           elif [ "$HTTP_CODE" = "400" ]; then
             echo "Docker Hub repository already exists"
           else
-            echo "::warning::Unexpected response creating Docker Hub repo: ${HTTP_CODE}"
+            echo "::error::Failed to create Docker Hub repository: HTTP ${HTTP_CODE}"
+            exit 1
           fi
 
       - name: Determine version
