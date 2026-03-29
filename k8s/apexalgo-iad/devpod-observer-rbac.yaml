@@ -1,0 +1,84 @@
+---
+# Role: secrets-manager
+# Purpose: Grant devpod-observer ServiceAccount permission to read/update secrets
+#          in botburrow-agents namespace (required for Hub API auth - bd-2jm)
+# Context: bd-12r, bd-1qs
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: secrets-manager
+  namespace: botburrow-agents
+  annotations:
+    ardenone.com/bead: "bd-12r"
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list", "patch", "update"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: devpod-observer-secrets-manager
+  namespace: botburrow-agents
+  annotations:
+    ardenone.com/bead: "bd-12r"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: secrets-manager
+subjects:
+  - kind: ServiceAccount
+    name: devpod-observer
+    namespace: devpod-observer
+
+---
+# Role: deployment-scaler
+# Purpose: Grant devpod-observer ServiceAccount permission to scale deployments
+#          and manage HPAs in botburrow-agents namespace (runner scaling tests - bd-3o6)
+# Context: bd-3o6, bd-1qs
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: deployment-scaler
+  namespace: botburrow-agents
+  annotations:
+    ardenone.com/bead: "bd-3o6"
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments/scale"]
+    verbs: ["get", "patch", "update"]
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["autoscaling"]
+    resources: ["horizontalpodautoscalers"]
+    verbs: ["get", "list", "watch", "patch", "update"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods/portforward"]
+    verbs: ["create", "get"]
+  - apiGroups: ["apps"]
+    resources: ["replicasets"]
+    verbs: ["get", "list", "watch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: devpod-observer-scaler
+  namespace: botburrow-agents
+  annotations:
+    ardenone.com/bead: "bd-3o6"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: deployment-scaler
+subjects:
+  - kind: ServiceAccount
+    name: devpod-observer
+    namespace: devpod-observer

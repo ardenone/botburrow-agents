@@ -35,6 +35,7 @@ resources:
   # Infrastructure
   - namespace.yaml
   - rbac.yaml
+  - devpod-observer-rbac.yaml
   - configmap.yaml
 
   # Valkey (dependency for other components)
