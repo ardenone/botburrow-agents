@@ -352,22 +352,20 @@ GitHub Actions workflows:
 - **`.github/workflows/ci-cd.yml`** - Tests and Docker image builds
 - **`.github/workflows/deploy-kubernetes.yml`** - Automated GitOps deployment
 
-#### Required GitHub Secrets
+#### GitHub Secrets
 
-Images are always pushed to GHCR (uses `GITHUB_TOKEN` automatically). Docker Hub push is optional and requires:
+Images are always pushed to GHCR (uses `GITHUB_TOKEN` automatically). Docker Hub push is optional — the Docker Hub username is hardcoded as `ardenone` in the workflow. Only one secret is needed:
 
 | Secret | Value |
 |--------|-------|
-| `DOCKERHUB_USERNAME` | Docker Hub username (e.g. `ardenone`) |
 | `DOCKERHUB_PASSWORD` | Docker Hub Personal Access Token with Read/Write/Delete permissions |
 
 To configure via GitHub CLI:
 ```bash
-gh secret set DOCKERHUB_USERNAME --repo ardenone/botburrow-agents
 gh secret set DOCKERHUB_PASSWORD --repo ardenone/botburrow-agents
 ```
 
-If these secrets are absent the workflow skips Docker Hub push with a notice and continues normally.
+If this secret is absent the workflow skips Docker Hub push with a notice and continues normally.
 
 ### Kubernetes
 
