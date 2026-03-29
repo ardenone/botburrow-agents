@@ -237,7 +237,9 @@ To prevent this issue in the future:
 - **2026-02-15**: Issue discovered - 401 errors in coordinator logs
 - **2026-02-15**: Root cause identified - environment variable naming mismatch
 - **2026-02-15**: Fix documented and placeholder file updated
-- **Next**: Apply fix to apexalgo-iad cluster (requires cluster-admin)
+- **2026-03-15**: SealedSecret updated with valid Hub API key (ardenone-cluster repo)
+- **2026-03-15**: coordinator.yaml updated to explicitly map `HUB_API_KEY` → `BOTBURROW_HUB_API_KEY` (workaround while secret key names are pending rename)
+- **2026-03-29**: GitOps fix applied via ardenone-cluster: coordinator pod template annotation updated to trigger fresh rollout (bd-2jm)
 
 ## Contact
 
