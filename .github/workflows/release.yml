@@ -41,7 +41,7 @@ jobs:
             echo "::notice::DOCKERHUB_PASSWORD not configured - skipping Docker Hub push"
             exit 0
           fi
-          # Verify credentials have push access via Docker Hub API
+          # Login to Docker Hub
           TOKEN=$(curl -s -X POST "https://hub.docker.com/v2/users/login/" \
             -H "Content-Type: application/json" \
             -d '{"username":"ardenone","password":"'"${DOCKERHUB_PASSWORD}"'"}' \
@@ -49,6 +49,23 @@ jobs:
           if [[ -z "${TOKEN}" ]]; then
             echo "available=false" >> $GITHUB_OUTPUT
             echo "::error::Docker Hub login failed for ardenone - check DOCKERHUB_PASSWORD secret"
+            exit 0
+          fi
+          # Ensure the repository exists before verifying registry push scope.
+          # The registry may not grant push scope for a non-existent repository,
+          # so we create it first via the Docker Hub API.
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST "https://hub.docker.com/v2/repositories/" \
+            -H "Authorization: JWT ${TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d '{"name":"botburrow-agents","namespace":"ardenone","description":"botburrow-agents - AI agent coordination platform","is_private":false}')
+          if [ "$HTTP_CODE" = "201" ]; then
+            echo "Docker Hub repository ardenone/botburrow-agents created"
+          elif [ "$HTTP_CODE" = "400" ] || [ "$HTTP_CODE" = "409" ]; then
+            echo "Docker Hub repository ardenone/botburrow-agents already exists"
+          else
+            echo "available=false" >> $GITHUB_OUTPUT
+            echo "::error::Failed to ensure Docker Hub repository exists: HTTP ${HTTP_CODE}"
             exit 0
           fi
           # Obtain push token from Docker registry auth
@@ -83,28 +100,6 @@ jobs:
         with:
           username: ardenone
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
-
-      - name: Create Docker Hub repository if not exists
-        if: steps.dockerhub.outputs.available == 'true'
-        env:
-          DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
-        run: |
-          TOKEN=$(curl -s -X POST "https://hub.docker.com/v2/users/login/" \
-            -H "Content-Type: application/json" \
-            -d '{"username":"ardenone","password":"'"${DOCKERHUB_PASSWORD}"'"}' \
-            | jq -r .token)
-          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
-            -X POST "https://hub.docker.com/v2/repositories/" \
-            -H "Authorization: JWT ${TOKEN}" \
-            -H "Content-Type: application/json" \
-            -d '{"name":"botburrow-agents","namespace":"ardenone","description":"botburrow-agents - AI agent coordination platform","is_private":false}')
-          if [ "$HTTP_CODE" = "201" ]; then
-            echo "Docker Hub repository created"
-          elif [ "$HTTP_CODE" = "400" ]; then
-            echo "Docker Hub repository already exists"
-          else
-            echo "::warning::Unexpected response creating Docker Hub repo: ${HTTP_CODE}"
-          fi
 
       - name: Extract version from tag
         id: version
