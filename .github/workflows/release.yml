@@ -68,25 +68,36 @@ jobs:
             echo "::error::Failed to ensure Docker Hub repository exists: HTTP ${HTTP_CODE}"
             exit 0
           fi
-          # Obtain push token from Docker registry auth
-          PUSH_TOKEN=$(curl -s -u "ardenone:${DOCKERHUB_PASSWORD}" \
-            "https://auth.docker.io/token?service=registry.docker.io&scope=repository:ardenone/botburrow-agents:push,pull" \
-            | jq -r '.token // empty')
-          if [[ -z "${PUSH_TOKEN}" ]]; then
-            echo "available=false" >> $GITHUB_OUTPUT
-            echo "::error::Docker Hub credentials cannot authenticate to registry for ardenone/botburrow-agents - use a PAT with Read & Write permissions"
-            exit 0
-          fi
-          # Decode the JWT payload and verify push scope was actually granted.
-          # A read-only PAT returns a token but with pull-only access; checking
-          # only for a non-empty token produces a false positive.
-          ENCODED=$(echo "${PUSH_TOKEN}" | cut -d. -f2 | tr -- '-_' '+/')
-          case $(( ${#ENCODED} % 4 )) in
-            2) ENCODED="${ENCODED}==" ;;
-            3) ENCODED="${ENCODED}=" ;;
-          esac
-          GRANTED=$(echo "${ENCODED}" | base64 -d 2>/dev/null | jq -r '.access[]? | select(.type=="repository") | .actions[]?' 2>/dev/null || true)
-          if ! echo "${GRANTED}" | grep -q "^push$"; then
+          # Obtain push token from Docker registry auth with retries.
+          # A newly-created repository may need a few seconds to propagate
+          # before Docker Hub's auth service grants push scope.
+          PUSH_GRANTED=false
+          for attempt in 1 2 3; do
+            PUSH_TOKEN=$(curl -s -u "ardenone:${DOCKERHUB_PASSWORD}" \
+              "https://auth.docker.io/token?service=registry.docker.io&scope=repository:ardenone/botburrow-agents:push,pull" \
+              | jq -r '.token // empty')
+            if [[ -z "${PUSH_TOKEN}" ]]; then
+              echo "Attempt ${attempt}: Docker Hub registry auth returned no token"
+              [ $attempt -lt 3 ] && sleep 5
+              continue
+            fi
+            # Decode the JWT payload and verify push scope was actually granted.
+            # A read-only PAT returns a token but with pull-only access; checking
+            # only for a non-empty token produces a false positive.
+            ENCODED=$(echo "${PUSH_TOKEN}" | cut -d. -f2 | tr -- '-_' '+/')
+            case $(( ${#ENCODED} % 4 )) in
+              2) ENCODED="${ENCODED}==" ;;
+              3) ENCODED="${ENCODED}=" ;;
+            esac
+            GRANTED=$(echo "${ENCODED}" | base64 -d 2>/dev/null | jq -r '.access[]? | select(.type=="repository") | .actions[]?' 2>/dev/null || true)
+            if echo "${GRANTED}" | grep -q "^push$"; then
+              PUSH_GRANTED=true
+              break
+            fi
+            echo "Attempt ${attempt}: push scope not yet granted (got: $(echo "${GRANTED}" | tr '\n' ','))"
+            [ $attempt -lt 3 ] && sleep 5
+          done
+          if ! $PUSH_GRANTED; then
             echo "available=false" >> $GITHUB_OUTPUT
             echo "::error::Docker Hub credentials do not have push access to ardenone/botburrow-agents - use a PAT with Read & Write permissions"
             exit 0
