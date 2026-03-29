@@ -1,5 +1,4 @@
 # Beads Project Configuration
-issue_prefix: bd
-default_priority: 2
-default_type: task
-workspace: /home/coder/botburrow-agents
+# issue_prefix: botburrow-agents
+# default_priority: 2
+# default_type: task
