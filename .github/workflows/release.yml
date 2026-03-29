@@ -35,13 +35,41 @@ jobs:
         id: dockerhub
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
         run: |
-          if [[ -n "${DOCKERHUB_USERNAME}" ]]; then
-            echo "available=true" >> $GITHUB_OUTPUT
-          else
+          if [[ -z "${DOCKERHUB_USERNAME}" || -z "${DOCKERHUB_PASSWORD}" ]]; then
             echo "available=false" >> $GITHUB_OUTPUT
             echo "::notice::DOCKERHUB_USERNAME/DOCKERHUB_PASSWORD not configured - skipping Docker Hub push"
+            exit 0
           fi
+          # Verify credentials have push access via Docker Hub API
+          TOKEN=$(curl -s -X POST "https://hub.docker.com/v2/users/login/" \
+            -H "Content-Type: application/json" \
+            -d '{"username":"'"${DOCKERHUB_USERNAME}"'","password":"'"${DOCKERHUB_PASSWORD}"'"}' \
+            | jq -r '.token // empty')
+          if [[ -z "${TOKEN}" ]]; then
+            echo "available=false" >> $GITHUB_OUTPUT
+            echo "::error::Docker Hub login failed - check DOCKERHUB_USERNAME and DOCKERHUB_PASSWORD secrets"
+            exit 0
+          fi
+          # Check write permission on the repository (or ability to create it)
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X GET "https://hub.docker.com/v2/repositories/${DOCKERHUB_USERNAME}/botburrow-agents/" \
+            -H "Authorization: Bearer ${TOKEN}")
+          if [[ "$HTTP_CODE" == "200" ]]; then
+            # Repo exists - verify we have push access by checking permissions
+            PUSH_ACCESS=$(curl -s \
+              "https://hub.docker.com/v2/repositories/${DOCKERHUB_USERNAME}/botburrow-agents/" \
+              -H "Authorization: Bearer ${TOKEN}" \
+              | jq -r '.can_edit // false')
+            if [[ "$PUSH_ACCESS" != "true" ]]; then
+              echo "available=false" >> $GITHUB_OUTPUT
+              echo "::error::Docker Hub credentials exist but do not have push access to ${DOCKERHUB_USERNAME}/botburrow-agents - use a token with Read, Write & Delete permissions"
+              exit 0
+            fi
+          fi
+          # Credentials are valid and have push access (or repo doesn't exist yet and will be created)
+          echo "available=true" >> $GITHUB_OUTPUT
 
       - name: Log in to Docker Hub
         if: steps.dockerhub.outputs.available == 'true'
