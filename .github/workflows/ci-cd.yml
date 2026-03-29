@@ -99,6 +99,29 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
+      - name: Create Docker Hub repository if not exists
+        if: steps.dockerhub.outputs.available == 'true'
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
+        run: |
+          TOKEN=$(curl -s -X POST "https://hub.docker.com/v2/users/login/" \
+            -H "Content-Type: application/json" \
+            -d '{"username":"'"${DOCKERHUB_USERNAME}"'","password":"'"${DOCKERHUB_PASSWORD}"'"}' \
+            | jq -r .token)
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST "https://hub.docker.com/v2/repositories/" \
+            -H "Authorization: JWT ${TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d '{"name":"botburrow-agents","namespace":"'"${DOCKERHUB_USERNAME}"'","description":"botburrow-agents - AI agent coordination platform","is_private":false}')
+          if [ "$HTTP_CODE" = "201" ]; then
+            echo "Docker Hub repository created"
+          elif [ "$HTTP_CODE" = "400" ]; then
+            echo "Docker Hub repository already exists"
+          else
+            echo "::warning::Unexpected response creating Docker Hub repo: ${HTTP_CODE}"
+          fi
+
       - name: Determine version
         id: version
         run: |
