@@ -52,16 +52,30 @@ jobs:
             echo "::error::Docker Hub login failed - check DOCKERHUB_USERNAME and DOCKERHUB_PASSWORD secrets"
             exit 0
           fi
-          # Verify push access via Docker registry auth (more accurate than Hub API can_edit)
+          # Obtain push token from Docker registry auth
           PUSH_TOKEN=$(curl -s -u "${DOCKERHUB_USERNAME}:${DOCKERHUB_PASSWORD}" \
             "https://auth.docker.io/token?service=registry.docker.io&scope=repository:${DOCKERHUB_USERNAME}/botburrow-agents:push,pull" \
             | jq -r '.token // empty')
           if [[ -z "${PUSH_TOKEN}" ]]; then
             echo "available=false" >> $GITHUB_OUTPUT
-            echo "::error::Docker Hub credentials cannot obtain push access to ${DOCKERHUB_USERNAME}/botburrow-agents - use a PAT with Read, Write & Delete permissions"
+            echo "::error::Docker Hub credentials cannot authenticate to registry for ${DOCKERHUB_USERNAME}/botburrow-agents - use a PAT with Read & Write permissions"
             exit 0
           fi
-          # Credentials can obtain a push token — proceed
+          # Decode the JWT payload and verify push scope was actually granted.
+          # A read-only PAT returns a token but with pull-only access; checking
+          # only for a non-empty token produces a false positive.
+          ENCODED=$(echo "${PUSH_TOKEN}" | cut -d. -f2 | tr -- '-_' '+/')
+          case $(( ${#ENCODED} % 4 )) in
+            2) ENCODED="${ENCODED}==" ;;
+            3) ENCODED="${ENCODED}=" ;;
+          esac
+          GRANTED=$(echo "${ENCODED}" | base64 -d 2>/dev/null | jq -r '.access[]? | select(.type=="repository") | .actions[]?' 2>/dev/null || true)
+          if ! echo "${GRANTED}" | grep -q "^push$"; then
+            echo "available=false" >> $GITHUB_OUTPUT
+            echo "::error::Docker Hub credentials do not have push access to ${DOCKERHUB_USERNAME}/botburrow-agents - use a PAT with Read & Write permissions"
+            exit 0
+          fi
+          # Credentials have verified push access — proceed
           echo "available=true" >> $GITHUB_OUTPUT
 
       - name: Log in to Docker Hub
