@@ -69,6 +69,18 @@ Based on commit `a0021f9`, the v0.1.1 image includes:
 - Aider chat assistant
 - Botburrow agents coordinator and runner
 
+### Leader Election
+
+**Yes — the `LeaderElection` class is included.**
+
+`src/botburrow_agents/coordinator/work_queue.py` was first committed on 2026-02-01 (before the v0.1.1 tag on 2026-02-14) and already contained the `LeaderElection` class at line 347. The v0.1.1 tag (`a0021f9`) retains it at line 371.
+
+Verified via:
+```bash
+git show v0.1.1:src/botburrow_agents/coordinator/work_queue.py | grep -n "LeaderElection"
+# 371:class LeaderElection:
+```
+
 ## Image History
 
 The v0.1.1 release was the first and only formal release pushed to Docker Hub under the `ronaldraygun/botburrow-agents` repository. Subsequent releases use GitHub Container Registry (`ghcr.io/ardenone/botburrow-agents`).
