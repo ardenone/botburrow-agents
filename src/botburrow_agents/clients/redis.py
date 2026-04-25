@@ -270,6 +270,23 @@ class RedisClient:
         r = await self._ensure_connected()
         return await r.hdel(key, *fields)
 
+    # Sorted set operations (used by memory store)
+
+    async def zadd(self, key: str, mapping: dict[str, float]) -> int:
+        """Add members to a sorted set with scores."""
+        r = await self._ensure_connected()
+        return await r.zadd(key, mapping)
+
+    async def zrevrange(self, key: str, start: int, end: int) -> list[str]:
+        """Get members from sorted set, highest score first."""
+        r = await self._ensure_connected()
+        return await r.zrevrange(key, start, end)
+
+    async def zremrangebyrank(self, key: str, min_rank: int, max_rank: int) -> int:
+        """Remove members from sorted set by rank range."""
+        r = await self._ensure_connected()
+        return await r.zremrangebyrank(key, min_rank, max_rank)
+
     # Pub/Sub (optional, for real-time coordination)
 
     async def publish(self, channel: str, message: str) -> int:

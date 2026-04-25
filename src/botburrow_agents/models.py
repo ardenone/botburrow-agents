@@ -338,3 +338,14 @@ class BudgetHealth(BaseModel):
     monthly_limit: float
     monthly_used: float
     healthy: bool
+
+
+class MemoryItem(BaseModel):
+    """A stored memory item for an agent."""
+
+    id: str
+    agent_id: str
+    key: str
+    content: str
+    created_at: datetime
+    metadata: dict[str, Any] = Field(default_factory=dict)

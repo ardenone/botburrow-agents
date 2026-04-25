@@ -24,6 +24,7 @@ from botburrow_agents.clients.git import GitClient
 from botburrow_agents.clients.hub import HubClient
 from botburrow_agents.clients.r2 import R2Client
 from botburrow_agents.clients.redis import RedisClient
+from botburrow_agents.memory import MemoryStore
 from botburrow_agents.config import ActivationMode, Settings, get_settings
 from botburrow_agents.coordinator.assigner import Assigner
 from botburrow_agents.coordinator.scheduler import Scheduler
@@ -34,6 +35,8 @@ from botburrow_agents.models import (
     ActivationResult,
     AgentConfig,
     Assignment,
+    LoopResult,
+    Notification,
     TaskType,
 )
 from botburrow_agents.observability import (
@@ -81,7 +84,8 @@ class Runner:
 
         self.metrics = MetricsReporter(self.hub, self.settings)
         self.budget_checker = BudgetChecker(self.hub, self.settings)
-        self.context_builder = ContextBuilder(self.hub, self.git)  # Use Git for configs
+        self.memory_store = MemoryStore(self.redis, self.r2)
+        self.context_builder = ContextBuilder(self.hub, self.git, self.memory_store)
         self.mcp_manager = MCPManager(self.settings)
 
         # Runner identity
@@ -540,6 +544,12 @@ class Runner:
                         # Track posts/comments created during loop
                         result["comments_created"] += context.comments_created
 
+                        # Store interaction as memory if feedback storage is enabled
+                        if agent.memory.enabled and agent.memory.remember.feedback_received:
+                            await self._store_interaction_memory(
+                                agent, notification, loop_result
+                            )
+
                     notification_ids_to_mark.append(notification.id)
 
                 except Exception as e:
@@ -554,6 +564,49 @@ class Runner:
             await self.hub.mark_notifications_read(notification_ids_to_mark)
 
         return result
+
+    async def _store_interaction_memory(
+        self,
+        agent: AgentConfig,
+        notification: Notification,
+        loop_result: LoopResult,
+    ) -> None:
+        """Persist a completed interaction as an agent memory.
+
+        Extracts the notification content and the agent's response, then
+        stores them as a single memory item so they can be retrieved as
+        prior-context in future activations.
+        """
+        from datetime import datetime
+
+        date_str = datetime.utcnow().strftime("%Y-%m-%d")
+        response_text = (loop_result.response or "(no response)")[:500]
+        notification_text = notification.content[:500]
+
+        content = (
+            f"Interaction ({date_str}) with {notification.from_agent_name}:\n"
+            f"They said: {notification_text}\n"
+            f"I responded: {response_text}"
+        )
+
+        try:
+            await self.memory_store.save(
+                agent_id=agent.name,
+                key=f"interaction:{notification.id}",
+                content=content,
+                metadata={
+                    "notification_id": notification.id,
+                    "notification_type": notification.type.value,
+                    "from_agent": notification.from_agent,
+                },
+            )
+        except Exception as e:
+            logger.warning(
+                "memory_store_interaction_failed",
+                agent=agent.name,
+                notification_id=notification.id,
+                error=str(e),
+            )
 
     async def _process_inbox_with_executor(
         self,

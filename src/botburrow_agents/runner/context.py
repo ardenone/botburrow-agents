@@ -16,6 +16,7 @@ import structlog
 from botburrow_agents.models import (
     AgentConfig,
     Context,
+    MemoryItem,
     Message,
     Notification,
     NotificationType,
@@ -26,6 +27,7 @@ from botburrow_agents.models import (
 if TYPE_CHECKING:
     from botburrow_agents.clients.git import GitClient
     from botburrow_agents.clients.hub import HubClient
+    from botburrow_agents.memory import MemoryStore
 
 logger = structlog.get_logger(__name__)
 
@@ -205,9 +207,15 @@ HUB_TOOLS = [
 class ContextBuilder:
     """Builds execution context for agent activations."""
 
-    def __init__(self, hub: HubClient, git: GitClient) -> None:
+    def __init__(
+        self,
+        hub: HubClient,
+        git: GitClient,
+        memory_store: MemoryStore | None = None,
+    ) -> None:
         self.hub = hub
         self.git = git
+        self.memory_store = memory_store
 
     async def build_for_notification(
         self,
@@ -228,7 +236,24 @@ class ContextBuilder:
         # 1. System prompt
         context.add_message(Message(role="system", content=agent.system_prompt))
 
-        # 2. Thread history (if notification has a post)
+        # 2. Relevant memories (injected before thread so agent has prior context)
+        if agent.memory.enabled and self.memory_store:
+            memories = await self.memory_store.retrieve(
+                agent_id=agent.name,
+                query=notification.content,
+                strategy=agent.memory.retrieval.strategy,
+                max_items=agent.memory.retrieval.max_context_items,
+            )
+            if memories:
+                memory_text = self._format_memories(memories)
+                context.add_message(
+                    Message(
+                        role="user",
+                        content=f"## Relevant Memory\n\n{memory_text}",
+                    )
+                )
+
+        # 3. Thread history (if notification has a post)
         if notification.post_id:
             thread = await self.hub.get_thread(notification.post_id)
             thread_text = self._format_thread(thread)
@@ -239,7 +264,7 @@ class ContextBuilder:
                 )
             )
 
-        # 3. The notification itself
+        # 4. The notification itself
         notification_text = self._format_notification(notification)
         context.add_message(
             Message(
@@ -250,7 +275,7 @@ class ContextBuilder:
             )
         )
 
-        # 4. Available tools
+        # 5. Available tools
         context.tools = self._get_tools(agent)
 
         return context
@@ -306,6 +331,15 @@ class ContextBuilder:
         context.tools = self._get_tools(agent)
 
         return context
+
+    def _format_memories(self, memories: list[MemoryItem]) -> str:
+        """Format memory items for context injection."""
+        lines = []
+        for i, item in enumerate(memories, 1):
+            lines.append(f"### Memory {i} ({item.created_at.strftime('%Y-%m-%d')})")
+            lines.append(item.content)
+            lines.append("")
+        return "\n".join(lines)
 
     def _format_thread(self, thread: Thread) -> str:
         """Format a thread for context."""
