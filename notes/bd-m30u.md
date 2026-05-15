@@ -45,4 +45,12 @@ Re-confirmed the blocker. No change in state:
 - OpenBao still inaccessible locally (`bao status` → connection refused to 127.0.0.1:8200)
 - No `ardenone` Docker Hub PAT surfaced in any accessible location
 
+Additional access paths exhausted:
+- ardenone-manager `openbao` namespace pods ARE running (`openbao-ardenone-manager-0`, etc.)
+- `kubectl exec` blocked by read-only RBAC on ardenone-manager proxy
+- `/home/coding/.kube/ardenone-manager.kubeconfig` does not exist on disk
+- `rs-manager.kubeconfig` returns auth error (`credentials required`) when pointed at ardenone-manager
+- ArgoCD RO proxy (`argocd-ro-ardenone-manager-ts.ardenone.com:8444`) unreachable (curl exit 6)
+- No `ARDENONE_*`, `PAT`, `PASSWORD`, or `TOKEN` env vars set
+
 This task requires the user to provide the `ardenone` Docker Hub PAT to proceed.
