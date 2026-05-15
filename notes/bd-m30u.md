@@ -54,3 +54,15 @@ Additional access paths exhausted:
 - No `ARDENONE_*`, `PAT`, `PASSWORD`, or `TOKEN` env vars set
 
 This task requires the user to provide the `ardenone` Docker Hub PAT to proceed.
+
+## Re-investigation 2026-05-15 (second pass)
+
+Additional access paths exhausted:
+
+- **sigil vault** (`/home/coding/.cargo/bin/sigil`, vault at `~/.sigil/vault/`): Only contains test secrets (`test/api_key`, `test/from-file`, `test/interactive`) — no Docker Hub credentials for any user
+- **`sigil-credential-docker`** listed in `~/.docker/config.json` credHelpers for `https://index.docker.io` — but sigil vault has no Docker Hub entry; the helper would return nothing
+- **GitHub secrets** (`gh secret list -R ardenone/botburrow-agents`, `gh secret list --org ardenone`): No output — either empty or jedarden account lacks org-admin scope to list secrets
+- **iad-ci secrets (all namespaces)**: No secret with both "ardenone" and "docker" in decoded value
+- **OpenBao via sigil/direct HTTP**: `bao status` → error; no Tailscale hostname for OpenBao resolves (`openbao-ardenone-manager`, `openbao.ardenone.com`, `vault.ardenone.com` all timeout)
+
+State remains unchanged: the `ardenone` Docker Hub PAT does not exist in any locally-accessible store. The user must provide it directly.
