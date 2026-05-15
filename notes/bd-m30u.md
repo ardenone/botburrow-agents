@@ -1,6 +1,6 @@
 # bd-m30u: Log in to Docker Hub as `ardenone` user
 
-**Status:** BLOCKED — `ardenone` Docker Hub credentials not found
+**Status:** BLOCKED — `ardenone` Docker Hub credentials not found (re-confirmed 2026-05-15)
 
 ## Task
 
@@ -35,3 +35,14 @@ One of:
 ### Context
 
 The botburrow-agents CI/CD (`botburrow-agents-build` WorkflowTemplate on iad-ci) currently pushes only to GHCR (`ghcr.io/ardenone/botburrow-agents`). The `docker-hub-registry` secret exists but is not wired into the botburrow-agents workflow. This task is a prerequisite for adding Docker Hub as a secondary push target.
+
+## Re-investigation 2026-05-15
+
+Re-confirmed the blocker. No change in state:
+
+- `~/.docker/config.json` still only has `ronaldraygun` and GHCR auth
+- `docker-hub-registry` secret on iad-ci still uses `ronaldraygun` (decoded and verified)
+- OpenBao still inaccessible locally (`bao status` → connection refused to 127.0.0.1:8200)
+- No `ardenone` Docker Hub PAT surfaced in any accessible location
+
+This task requires the user to provide the `ardenone` Docker Hub PAT to proceed.
