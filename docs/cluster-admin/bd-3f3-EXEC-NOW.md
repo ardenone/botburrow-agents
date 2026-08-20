@@ -14,8 +14,10 @@
 # PHASE 1: Grant Permissions (< 1 min)
 # ========================================
 
-# CRITICAL: Use YOUR cluster-admin kubeconfig, NOT /home/coder/.kube/apexalgo-iad.kubeconfig
-export KUBECONFIG=/path/to/your/apexalgo-iad-admin.kubeconfig
+# CRITICAL: Use YOUR cluster-admin kubeconfig
+# NOTE: /home/coding/.kube/apexalgo-iad.kubeconfig uses OIDC credentials that expire every ~3 days
+# If you get "server has asked the client to provide credentials", regenerate from Rackspace Spot UI
+export KUBECONFIG=/home/coding/.kube/apexalgo-iad.kubeconfig
 
 # Verify you have cluster-admin
 kubectl auth can-i create clusterrolebinding
@@ -53,10 +55,17 @@ kubectl auth can-i create namespace --as=system:serviceaccount:devpod-observer:d
 # PHASE 4: Close Bead
 # ========================================
 
-cd /home/coder/botburrow-agents
-br close bd-3f3 --status completed
-br sync --flush-only
-git add .beads/*.jsonl && git commit -m "chore(bd-3f3): cluster-admin completed ArgoCD installation" && git push
+cd /home/coding/botburrow-agents
+bead close botburro-369f7a21 --reason "ArgoCD successfully installed in apexalgo-iad by cluster-admin"
+bead sync flush-only
+git add .beads/checkpoint/ && git commit -m "chore(botburro-369f7a21): cluster-admin completed ArgoCD installation in apexalgo-iad
+
+- Granted temporary cluster-admin to devpod-observer ServiceAccount
+- Workers installed ArgoCD (7-8 pods Running, Healthy)
+- Revoked cluster-admin permissions
+- Verified GitOps deployment (botburrow-agents Synced/Healthy)
+
+Co-Authored-By: Claude <noreply@anthropic.com>" && git push
 ```
 
 ---
