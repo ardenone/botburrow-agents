@@ -4,7 +4,7 @@ Implements Redis-based work queue with:
 - Priority queues (high, normal, low)
 - Atomic work claiming via BRPOP
 - Deduplication (one task per agent)
-- Circuit breaker for failed agents
+- Circuit breaker for failed agents (see circuit_breaker.py)
 """
 
 from __future__ import annotations
@@ -18,6 +18,11 @@ from typing import TYPE_CHECKING, Any
 import structlog
 
 from botburrow_agents.config import Settings, get_settings
+from botburrow_agents.coordinator.circuit_breaker import (
+    AGENT_BACKOFF,
+    AGENT_FAILURES,
+    CircuitBreaker,
+)
 from botburrow_agents.models import TaskType
 
 if TYPE_CHECKING:
@@ -25,14 +30,28 @@ if TYPE_CHECKING:
 
 logger = structlog.get_logger(__name__)
 
+__all__ = [
+    "ACTIVE_TASKS",
+    "AGENT_BACKOFF",
+    "AGENT_FAILURES",
+    "ConfigCache",
+    "LeaderElection",
+    "QUEUE_HIGH",
+    "QUEUE_LOW",
+    "QUEUE_NORMAL",
+    "WorkItem",
+    "WorkQueue",
+    "jitter",
+]
+
 
 # Queue keys
 QUEUE_HIGH = "work:queue:high"
 QUEUE_NORMAL = "work:queue:normal"
 QUEUE_LOW = "work:queue:low"
 ACTIVE_TASKS = "work:active"  # Hash: agent_id -> runner_id
-AGENT_FAILURES = "work:failures"  # Hash: agent_id -> failure count
-AGENT_BACKOFF = "work:backoff"  # Hash: agent_id -> backoff_until timestamp
+# AGENT_FAILURES / AGENT_BACKOFF live in circuit_breaker.py and are
+# re-exported here for backward compatibility
 
 
 @dataclass
@@ -81,20 +100,51 @@ class WorkQueue:
     - Atomic claiming with BRPOP
     - Deduplication via active tasks tracking
     - Circuit breaker for repeatedly failing agents
+
+    The circuit breaker (closed/open/half-open per agent) is owned by
+    ``CircuitBreaker``; its thresholds are tunable at runtime through the
+    Redis config cache when a ``ConfigCache`` is provided.
     """
 
     def __init__(
         self,
         redis: RedisClient,
         settings: Settings | None = None,
+        config_cache: ConfigCache | None = None,
     ) -> None:
         self.redis = redis
         self.settings = settings or get_settings()
+        self.circuit_breaker = CircuitBreaker(redis, config_cache=config_cache)
 
-        # Circuit breaker settings
-        self.max_failures = 5
-        self.backoff_base = 60  # seconds
-        self.backoff_max = 3600  # 1 hour max
+    # Backward-compatible threshold aliases backed by the circuit breaker
+    # config (pinning them excludes the Redis config cache values)
+
+    @property
+    def max_failures(self) -> int:
+        """Consecutive failures before an agent's circuit opens."""
+        return self.circuit_breaker.config.failure_threshold
+
+    @max_failures.setter
+    def max_failures(self, value: int) -> None:
+        self.circuit_breaker.set_thresholds(failure_threshold=value)
+
+    @property
+    def backoff_base(self) -> int:
+        """Base backoff duration in seconds."""
+        return self.circuit_breaker.config.backoff_base
+
+    @backoff_base.setter
+    def backoff_base(self, value: int) -> None:
+        self.circuit_breaker.set_thresholds(backoff_base=value)
+
+    @property
+    def backoff_max(self) -> int:
+        """Maximum backoff duration in seconds."""
+        return self.circuit_breaker.config.backoff_max
+
+    @backoff_max.setter
+    def backoff_max(self, value: int) -> None:
+        self.circuit_breaker.set_thresholds(backoff_max=value)
 
     async def enqueue(
         self,
@@ -105,10 +155,10 @@ class WorkQueue:
 
         Args:
             work: Work item to enqueue
-            force: Skip deduplication check
+            force: Skip deduplication and circuit breaker checks
 
         Returns:
-            True if enqueued, False if duplicate
+            True if enqueued, False if duplicate or circuit breaker open
         """
         r = await self.redis._ensure_connected()
 
@@ -120,14 +170,11 @@ class WorkQueue:
                 logger.debug("duplicate_work_skipped", agent_id=work.agent_id)
                 return False
 
-            # Check if agent is in backoff
-            backoff_until = await r.hget(AGENT_BACKOFF, work.agent_id)
-            if backoff_until:
-                if float(backoff_until) > time.time():
-                    logger.debug("agent_in_backoff", agent_id=work.agent_id)
-                    return False
-                # Backoff expired, clear it
-                await r.hdel(AGENT_BACKOFF, work.agent_id)
+            # Circuit breaker: skip activations for OPEN agents. An agent
+            # whose recovery window elapsed (HALF_OPEN) admits one probe.
+            if not await self.circuit_breaker.allow_activation(work.agent_id):
+                logger.debug("circuit_open_activation_skipped", agent_id=work.agent_id)
+                return False
 
         # Choose queue by priority
         queue_key = self._get_queue_key(work.priority)
@@ -192,6 +239,9 @@ class WorkQueue:
     ) -> None:
         """Mark work as complete.
 
+        Feeds the outcome to the circuit breaker: success closes the
+        circuit, failure counts toward opening it.
+
         Args:
             work: Completed work item
             success: Whether task succeeded
@@ -202,33 +252,15 @@ class WorkQueue:
         await r.hdel(ACTIVE_TASKS, work.agent_id)
 
         if success:
-            # Clear failure count on success
-            await r.hdel(AGENT_FAILURES, work.agent_id)
-            await r.hdel(AGENT_BACKOFF, work.agent_id)
+            state = await self.circuit_breaker.record_success(work.agent_id)
         else:
-            # Increment failure count
-            failures = await r.hincrby(AGENT_FAILURES, work.agent_id, 1)
-
-            if failures >= self.max_failures:
-                # Enter circuit breaker backoff
-                backoff_secs = min(
-                    self.backoff_base * (2 ** (failures - self.max_failures)),
-                    self.backoff_max,
-                )
-                backoff_until = time.time() + backoff_secs
-                await r.hset(AGENT_BACKOFF, work.agent_id, str(backoff_until))
-
-                logger.warning(
-                    "agent_circuit_breaker",
-                    agent_id=work.agent_id,
-                    failures=failures,
-                    backoff_seconds=backoff_secs,
-                )
+            state = await self.circuit_breaker.record_failure(work.agent_id)
 
         logger.debug(
             "work_completed",
             agent_id=work.agent_id,
             success=success,
+            circuit_state=state.value,
         )
 
     async def get_queue_stats(self) -> dict[str, Any]:
@@ -251,11 +283,8 @@ class WorkQueue:
         }
 
     async def clear_backoff(self, agent_id: str) -> None:
-        """Manually clear backoff for an agent."""
-        r = await self.redis._ensure_connected()
-        await r.hdel(AGENT_BACKOFF, agent_id)
-        await r.hdel(AGENT_FAILURES, agent_id)
-        logger.info("backoff_cleared", agent_id=agent_id)
+        """Manually clear backoff for an agent (force its circuit closed)."""
+        await self.circuit_breaker.reset(agent_id)
 
     def _get_queue_key(self, priority: str) -> str:
         """Get queue key for priority."""

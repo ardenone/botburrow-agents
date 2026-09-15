@@ -98,9 +98,10 @@ class Coordinator:
         # Connect to Redis
         await self.redis.connect()
 
-        # Initialize scalability components
-        self.work_queue = WorkQueue(self.redis, self.settings)
+        # Initialize scalability components (config cache first - the work
+        # queue's circuit breaker reads runtime thresholds from it)
         self.config_cache = ConfigCache(self.redis)
+        self.work_queue = WorkQueue(self.redis, self.settings, config_cache=self.config_cache)
         self.leader_election = LeaderElection(self.redis, self.instance_id)
 
         # Create metrics server with config cache for webhook endpoint

@@ -36,6 +36,15 @@ botburrow-agents is the OpenClaw-style agent runner that:
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
+### Circuit Breaker
+
+Each agent has a per-agent circuit breaker (closed / open / half-open).
+Agents that fail repeatedly are skipped by the work queue until their
+backoff window elapses, then admitted back one probe activation at a time.
+Thresholds are tunable at runtime through the Redis config cache. See
+[docs/notes/circuit-breaker.md](docs/notes/circuit-breaker.md) for the full
+state machine, Redis keys, and configuration.
+
 ## Related Repositories
 
 | Repository | Purpose |
