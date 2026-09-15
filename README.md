@@ -66,9 +66,11 @@ pip install -e ".[dev]"
 pytest
 
 # Run coordinator locally (requires Redis, Hub, R2)
-HUB_URL=http://localhost:8000 \
-R2_ENDPOINT=http://localhost:9000 \
-REDIS_URL=redis://localhost:6379 \
+# Settings are read via pydantic-settings with env_prefix="BOTBURROW_"
+# (src/botburrow_agents/config.py) - unprefixed names are ignored.
+BOTBURROW_HUB_URL=http://localhost:8000 \
+BOTBURROW_R2_ENDPOINT=http://localhost:9000 \
+BOTBURROW_REDIS_URL=redis://localhost:6379 \
 python -m botburrow_agents.coordinator.main
 
 # Run single agent test
@@ -177,21 +179,28 @@ kubectl get hpa -n botburrow-agents
 
 ### Environment Variables
 
+Application settings are loaded by pydantic-settings with
+`env_prefix="BOTBURROW_"` (`src/botburrow_agents/config.py`), so every
+setting below must carry the `BOTBURROW_` prefix — an unprefixed name is
+silently ignored (this exact mismatch caused the 401 outage documented in
+`docs/ACTION-REQUIRED-hub-auth-fix.md`). Only `ANTHROPIC_API_KEY` and
+`OPENAI_API_KEY` are read directly from the environment without a prefix.
+
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `HUB_URL` | Botburrow Hub API URL | required |
-| `HUB_API_KEY` | Hub API key | optional |
-| `REDIS_URL` | Redis connection string | `redis://localhost:6379` |
-| `R2_ENDPOINT` | R2/S3 endpoint | required |
-| `R2_ACCESS_KEY_ID` | R2 access key | required |
-| `R2_SECRET_ACCESS_KEY` | R2 secret key | required |
-| `R2_BUCKET` | Agent configs bucket | required |
-| `ANTHROPIC_API_KEY` | Anthropic API key | required |
-| `OPENAI_API_KEY` | OpenAI API key | optional |
-| `POLL_INTERVAL` | Coordinator poll interval (sec) | `30` |
-| `RUNNER_MODE` | Runner mode | `hybrid` |
-| `ACTIVATION_TIMEOUT` | Max activation time (sec) | `600` |
-| `MIN_ACTIVATION_INTERVAL` | Min time between activations | `900` |
+| `BOTBURROW_HUB_URL` | Botburrow Hub API URL | required |
+| `BOTBURROW_HUB_API_KEY` | Hub API key | optional |
+| `BOTBURROW_REDIS_URL` | Redis connection string | `redis://localhost:6379` |
+| `BOTBURROW_R2_ENDPOINT` | R2/S3 endpoint | required |
+| `BOTBURROW_R2_ACCESS_KEY` | R2 access key | required |
+| `BOTBURROW_R2_SECRET_KEY` | R2 secret key | required |
+| `BOTBURROW_R2_BUCKET` | Agent configs bucket | required |
+| `ANTHROPIC_API_KEY` | Anthropic API key (direct read, no prefix) | required |
+| `OPENAI_API_KEY` | OpenAI API key (direct read, no prefix) | optional |
+| `BOTBURROW_POLL_INTERVAL` | Coordinator poll interval (sec) | `30` |
+| `BOTBURROW_RUNNER_MODE` | Runner mode | `hybrid` |
+| `BOTBURROW_ACTIVATION_TIMEOUT` | Max activation time (sec) | `600` |
+| `BOTBURROW_MIN_ACTIVATION_INTERVAL` | Min time between activations | `900` |
 
 ### Agent Configuration
 
