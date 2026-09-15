@@ -105,28 +105,25 @@ See [DEPLOYMENT-MINIMAL.md](k8s/apexalgo-iad/DEPLOYMENT-MINIMAL.md) for detailed
 
 #### GitOps Deployment (Recommended for Production)
 
-Automated deployment with health checks and rollback:
+Automated deployment via ArgoCD with health checks and self-heal:
 
 ```bash
-# 1. No additional secrets needed for container registry
-#    - GHCR uses GITHUB_TOKEN (automatically provided)
+# 1. No GitHub secrets needed — CI credentials are cluster-side in iad-ci
 
 # 2. Create SealedSecret for credentials (see docs/SEALED_SECRETS_GUIDE.md)
 kubeseal --format=yaml --controller-namespace=sealed-secrets \
   < /tmp/botburrow-agents-secret.yml > k8s/apexalgo-iad/botburrow-agents-sealedsecret.yml
 
-# 3. Push to main branch - automatic deployment
-git add .
+# 3. Push to main branch — ArgoCD syncs the manifests automatically
+git add k8s/apexalgo-iad/botburrow-agents-sealedsecret.yml
 git commit -m "feat: deploy botburrow-agents"
 git push origin main
-
-# GitHub Actions will:
-# - Run tests
-# - Build Docker images
-# - Deploy to Kubernetes
-# - Run health checks
-# - Rollback on failure
 ```
+
+Images are built by the `botburrow-agents-build` Argo Workflow (iad-ci) and
+pinned into the manifests as a semver tag; rolling a new image out is a
+manifest edit + push, and rollback is `git revert`. Never `kubectl apply` by
+hand against the cluster — ArgoCD `selfHeal` reverts it.
 
 See [docs/GITOPS_DEPLOYMENT.md](docs/GITOPS_DEPLOYMENT.md) for complete GitOps guide.
 
@@ -336,36 +333,38 @@ Structured JSON logs via structlog:
 
 ### GitOps Automation
 
-**Recommended deployment method:** GitHub Actions + kubectl with SealedSecrets
+**Deployment method:** ArgoCD on `apexalgo-iad` with SealedSecrets
 
-The project includes a complete GitOps deployment solution:
-- **Automated deployment** on push to main branch
+- **Automated sync** from `main` (prune + self-heal, no approval gate)
 - **SealedSecret integration** for secure credentials
-- **Health checks** and automated rollback on failure
-- **Manual approval gate** for production deployments
+- **Rollback** by reverting the manifest commit — ArgoCD converges
 
 See [docs/GITOPS_DEPLOYMENT.md](docs/GITOPS_DEPLOYMENT.md) for complete setup and usage.
 
 ### CI/CD
 
-GitHub Actions workflows:
-- **`.github/workflows/ci-cd.yml`** - Tests and Docker image builds
-- **`.github/workflows/deploy-kubernetes.yml`** - Automated GitOps deployment
+CI runs on **Argo Workflows in the `iad-ci` cluster** — GitHub Actions are
+disabled org-wide and the old `.github/workflows/` flows have been deleted.
 
-#### GitHub Secrets
+- **Template:** `botburrow-agents-build` (`argo-workflows` namespace),
+  manifest in `jedarden/declarative-config` under
+  `k8s/iad-ci/argo-workflows/botburrow-agents-workflowtemplate.yml`
+- **What it does:** resolves the version from `VERSION` (auto-bumps the
+  patch if the commit didn't change it), then builds `docker/Dockerfile`
+  with kaniko and pushes `ghcr.io/ardenone/botburrow-agents:<version>`
+- **Trigger:** submitted by hand (Argo UI at `argo-ci.ardenone.com`, or
+  `kubectl create` with a `workflowTemplateRef`) — no push webhook yet
 
-Images are always pushed to GHCR (uses `GITHUB_TOKEN` automatically). Docker Hub push is optional — the Docker Hub username is hardcoded as `ardenone` in the workflow. Only one secret is needed:
+#### CI credentials
 
-| Secret | Value |
-|--------|-------|
-| `DOCKERHUB_PASSWORD` | Docker Hub Personal Access Token with Read/Write/Delete permissions |
+No GitHub secrets exist or are needed. CI credentials are cluster-side
+ExternalSecrets on iad-ci (`forgejo-webhook-token` for repo access,
+`ghcr-registry` for the GHCR push) — see
+[docs/DOCKERHUB_SETUP.md](docs/DOCKERHUB_SETUP.md).
 
-To configure via GitHub CLI:
-```bash
-gh secret set DOCKERHUB_PASSWORD --repo ardenone/botburrow-agents
-```
-
-If this secret is absent the workflow skips Docker Hub push with a notice and continues normally.
+Deployment is handled by the ArgoCD Application `botburrow-agents`
+(automated sync from `main`, `k8s/apexalgo-iad/` path) — see
+[docs/GITOPS_DEPLOYMENT.md](docs/GITOPS_DEPLOYMENT.md).
 
 ### Kubernetes
 

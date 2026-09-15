@@ -1,99 +1,66 @@
-# Docker Hub Setup for CI/CD
+# Container Registry & CI Credentials
+
+> **This file was named for the old Docker Hub setup.** That flow is gone: CI
+> runs on Argo Workflows in `iad-ci` (GitHub Actions are disabled org-wide and
+> must never be re-enabled), and the pipeline pushes to **GHCR only**. No
+> Docker Hub push exists, and no GitHub secret is required. The filename is
+> kept so existing links keep working.
 
 ## Overview
 
-The CI/CD pipeline is configured to push Docker images to both GitHub Container Registry (GHCR) and Docker Hub. The Docker Hub push is optional and only executes when credentials are configured.
+Images are built by the `botburrow-agents-build` WorkflowTemplate (Argo
+Workflows, `iad-ci` cluster, `argo-workflows` namespace) and pushed to:
 
-## What's Already Configured
+- `ghcr.io/ardenone/botburrow-agents:<version>` — pinned semver, e.g. `0.1.2`
 
-The `.github/workflows/ci-cd.yml` workflow includes:
-- Docker Hub login as `ardenone` user (hardcoded username)
-- Automatic repository creation if it doesn't exist
-- Push scope verification to ensure credentials have proper permissions
-- Graceful handling if credentials are not configured
+There is no `:latest` tag and no short-SHA tag. The version comes from the
+repo's `VERSION` file (see "Versioning" in
+[docs/GITOPS_DEPLOYMENT.md](GITOPS_DEPLOYMENT.md)).
 
-## Required Configuration
+## Where credentials live (nowhere on GitHub)
 
-To enable Docker Hub push, set the following GitHub secret:
+The old flow needed a `DOCKERHUB_PASSWORD` GitHub secret. That prerequisite is
+gone — CI credentials are cluster-side in `iad-ci`, provisioned through
+ExternalSecrets from OpenBao and referenced by the WorkflowTemplate in
+`declarative-config`:
 
-### GitHub Secret: `DOCKERHUB_PASSWORD`
+| Secret (ns `argo-workflows`) | Feeds | Purpose |
+|---|---|---|
+| `forgejo-webhook-token` | version-bump + clone steps | Read/push the repo on `git.ardenone.com` |
+| `ghcr-registry` | kaniko `dockerconfigjson` mount | Authenticate the push to `ghcr.io` |
 
-**Value:** Docker Hub Personal Access Token (PAT) with **Read & Write** permissions
+Nothing to configure per-run and nothing to store in GitHub: a build only
+needs a submission (see [docs/GITOPS_DEPLOYMENT.md](GITOPS_DEPLOYMENT.md) for
+how to trigger one).
 
-**How to create:**
-1. Log in to Docker Hub as `ardenone`
-2. Go to Account Settings → Security → New Access Token
-3. Create a token with "Read & Write" permissions
-4. Copy the generated token
+## ⚠️ Known gap: `ghcr-registry` is not currently provisioned
 
-**How to set the secret:**
+The template mounts `secretName: ghcr-registry`, but the ExternalSecret that
+provisioned it
+(`declarative-config/k8s/iad-ci/argo-workflows/ghcr-registry-externalsecret.yml.disabled`)
+is disabled, so a build will fail until the template is re-pointed at a live
+secret (e.g. `ghcr-jedarden-registry`) or the ExternalSecret is re-enabled.
+This is a `declarative-config` change — fix it there, not here. Tracked on
+bead `botburro-6d349f13`.
 
-Using GitHub CLI:
-```bash
-gh secret set DOCKERHUB_PASSWORD --repo ardenone/botburrow-agents
-```
-
-Or via GitHub UI:
-1. Go to repository Settings → Secrets and variables → Actions
-2. Click "New repository secret"
-3. Name: `DOCKERHUB_PASSWORD`
-4. Value: paste the Docker Hub PAT
-5. Click "Add secret"
-
-## What Happens After Configuration
-
-Once `DOCKERHUB_PASSWORD` is set, the CI/CD workflow will:
-1. Log in to Docker Hub as `ardenone` on every push to `main`
-2. Verify the repository exists (create it if needed)
-3. Confirm push permissions are granted
-4. Push built images to both GHCR and Docker Hub
-
-## Images Pushed
-
-- `ardenone/botburrow-agents:<short-sha>` - Versioned image
-- `ardenone/botburrow-agents:latest` - Latest image
-
-## Verification
-
-After the next CI run, verify images are pushed:
+## Checking what was pushed
 
 ```bash
-# Check latest images on Docker Hub
-curl -s https://hub.docker.com/v2/repositories/ardenone/botburrow-agents/tags/ | jq -r '.results[].name'
+# Tags published to GHCR (needs a token with read:packages for private images)
+curl -s https://ghcr.io/v2/ardenone/botburrow-agents/tags/list | jq -r '.tags[]'
 
-# Pull and test the image
-docker pull ardenone/botburrow-agents:latest
-docker run --rm ardenone/botburrow-agents:latest --help
+# Pull and smoke-test
+docker pull ghcr.io/ardenone/botburrow-agents:<version>
+docker run --rm ghcr.io/ardenone/botburrow-agents:<version> --help
 ```
 
-## If Credentials Are Not Set
+## If Docker Hub is ever needed again
 
-The workflow will **continue normally** with a notice:
-```
-DOCKERHUB_PASSWORD not configured - skipping Docker Hub push
-```
-
-Images will still be pushed to GHCR successfully.
-
-## Troubleshooting
-
-### "Docker Hub login failed for ardenone"
-- Verify `DOCKERHUB_PASSWORD` is set correctly
-- Ensure the PAT has Read & Write permissions
-- Check that the `ardenone` Docker Hub account is active
-
-### "Docker Hub credentials do not have push access"
-- The PAT may be read-only
-- Regenerate the PAT with "Read & Write" permissions
-
-### "Failed to ensure Docker Hub repository exists"
-- Check API rate limits for Docker Hub
-- Verify the `ardenone` account has permission to create repositories
-
-## Current Status
-
-- ✅ CI/CD workflow configured for Docker Hub push
-- ✅ Username hardcoded as `ardenone`
-- ⏳ Awaiting `DOCKERHUB_PASSWORD` secret to be set by repository maintainer
-
-Once the secret is configured, Docker Hub push will activate automatically on the next push to `main`.
+Other CI templates in this org publish to Docker Hub under `ronaldraygun/*`
+by mounting a `docker-hub-registry` dockerconfigjson secret sourced from
+OpenBao (`rs-manager/iad-ci/docker/build`) — see
+`declarative-config/k8s/iad-ci/argo-workflows/docker-hub-registry-externalsecret.yml`.
+Adding a second kaniko `--destination` plus that secret to the botburrow
+template would restore Docker Hub publishing. Until someone does that
+deliberately, treat Docker Hub as out of the pipeline. Note the org rule:
+pinned semver tags only — never `:latest`.
