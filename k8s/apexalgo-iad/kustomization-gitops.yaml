@@ -107,7 +107,7 @@ configMapGenerator:
 #   kubectl apply -f botburrow-agents-sealedsecrets.yml
 #
 # Required secrets:
-#   - botburrow-agents-secrets (HUB_API_KEY, R2_*, FORGEJO_*, GITHUB_*)
+#   - botburrow-agents-secrets (BOTBURROW_HUB_API_KEY, BOTBURROW_R2_*, FORGEJO_*, GITHUB_*)
 #   - mcp-credentials (GITHUB_PAT, BRAVE_API_KEY, ANTHROPIC_API_KEY)
 # =============================================================================
 

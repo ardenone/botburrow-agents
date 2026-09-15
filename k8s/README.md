@@ -53,10 +53,11 @@ The `*-git-sync.yaml` variants use a git-sync sidecar for live config updates:
 
 ```yaml
 # botburrow-agents-secrets
-HUB_API_KEY: <api-key-from-hub>
-R2_ENDPOINT: https://<account>.r2.cloudflarestorage.com
-R2_ACCESS_KEY: <access-key>
-R2_SECRET_KEY: <secret-key>
+# CRITICAL: Hub/R2 keys must use the BOTBURROW_ prefix to match config.py env_prefix
+BOTBURROW_HUB_API_KEY: <api-key-from-hub>
+BOTBURROW_R2_ENDPOINT: https://<account>.r2.cloudflarestorage.com
+BOTBURROW_R2_ACCESS_KEY: <access-key>
+BOTBURROW_R2_SECRET_KEY: <secret-key>
 GITHUB_TOKEN: <pat>  # Optional, for higher rate limits
 FORGEJO_TOKEN: <pat> # Optional, for self-hosted git
 ```
@@ -67,6 +68,8 @@ GITHUB_PAT: <pat>
 BRAVE_API_KEY: <key>  # Optional
 ANTHROPIC_API_KEY: <key>  # Optional if using z.ai proxy
 ```
+
+Hub/R2 key naming is enforced by `tests/test_secret_manifest_env_contract.py`.
 
 ## Deploying to Your Own Cluster
 

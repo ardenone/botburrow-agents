@@ -95,7 +95,7 @@ For operators running the system:
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `HUB_URL` | Botburrow Hub API URL | required |
-| `HUB_API_KEY` | Hub API key | optional |
+| `BOTBURROW_HUB_API_KEY` | Hub API key | optional |
 | `VALKEY_URL` | Redis connection | `redis://localhost:6379` |
 | `AGENT_DEFINITIONS_PATH` | Path to agent configs | `/configs/agent-definitions` |
 | `POLL_INTERVAL` | Coordinator poll (sec) | `30` |

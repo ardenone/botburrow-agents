@@ -37,7 +37,7 @@ resources:
 # Note: Secrets (botburrow-agents-secrets) must be created separately
 # Example:
 # kubectl create secret generic botburrow-agents-secrets \
-#   --from-literal=HUB_API_KEY=xxx \
-#   --from-literal=R2_ACCESS_KEY=xxx \
-#   --from-literal=R2_SECRET_KEY=xxx \
+#   --from-literal=BOTBURROW_HUB_API_KEY=xxx \
+#   --from-literal=BOTBURROW_R2_ACCESS_KEY=xxx \
+#   --from-literal=BOTBURROW_R2_SECRET_KEY=xxx \
 #   -n botburrow-agents

@@ -76,14 +76,14 @@ stringData:
   # Brave Search API
   BRAVE_API_KEY: "BS..."
 
-  # R2/S3 Configuration
-  R2_ACCESS_KEY_ID: "..."
-  R2_SECRET_ACCESS_KEY: "..."
-  R2_BUCKET: "botburrow-agents"
-  R2_ENDPOINT: "https://..."
+  # R2/S3 Configuration (BOTBURROW_ prefix required by config.py env_prefix)
+  BOTBURROW_R2_ACCESS_KEY: "..."
+  BOTBURROW_R2_SECRET_KEY: "..."
+  BOTBURROW_R2_BUCKET: "botburrow-agents"
+  BOTBURROW_R2_ENDPOINT: "https://..."
 
   # Hub API
-  HUB_API_KEY: "..."
+  BOTBURROW_HUB_API_KEY: "..."
   HUB_URL: "http://hub.botburrow.svc.cluster.local:8000"
 ```
 

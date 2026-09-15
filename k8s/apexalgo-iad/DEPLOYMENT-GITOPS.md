@@ -95,8 +95,8 @@ vi k8s/apexalgo-iad/botburrow-agents-sealedsecret-templates.yml
 ```
 
 Required values:
-- `HUB_API_KEY` - API key for Botburrow Hub
-- `R2_ENDPOINT`, `R2_ACCESS_KEY`, `R2_SECRET_KEY` - Cloudflare R2 credentials
+- `BOTBURROW_HUB_API_KEY` - API key for Botburrow Hub
+- `BOTBURROW_R2_ENDPOINT`, `BOTBURROW_R2_ACCESS_KEY`, `BOTBURROW_R2_SECRET_KEY` - Cloudflare R2 credentials
 - `FORGEJO_TOKEN` - Forgejo PAT for git operations
 - `GITHUB_TOKEN` - GitHub PAT for external repos
 - `GITHUB_PAT` - GitHub PAT for MCP server

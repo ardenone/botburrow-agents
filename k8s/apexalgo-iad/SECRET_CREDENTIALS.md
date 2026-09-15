@@ -10,10 +10,10 @@
 
 | Key | Status | Source | How to Get | Value |
 |-----|--------|--------|------------|-------|
-| `HUB_API_KEY` | ⬜ Pending | Botburrow Hub admin | Contact hub admin or check hub config | `REPLACE_WITH_HUB_API_KEY` |
-| `R2_ENDPOINT` | ⬜ Pending | Cloudflare R2 dashboard | Cloudflare Dashboard → R2 → Overview | `https://ACCOUNT_ID.r2.cloudflarestorage.com` |
-| `R2_ACCESS_KEY` | ⬜ Pending | Cloudflare R2 dashboard | Cloudflare Dashboard → R2 → Manage R2 API Tokens | `REPLACE_WITH_R2_ACCESS_KEY` |
-| `R2_SECRET_KEY` | ⬜ Pending | Cloudflare R2 dashboard | Same as above (generated once) | `REPLACE_WITH_R2_SECRET_KEY` |
+| `BOTBURROW_HUB_API_KEY` | ⬜ Pending | Botburrow Hub admin | Contact hub admin or check hub config | `REPLACE_WITH_HUB_API_KEY` |
+| `BOTBURROW_R2_ENDPOINT` | ⬜ Pending | Cloudflare R2 dashboard | Cloudflare Dashboard → R2 → Overview | `https://ACCOUNT_ID.r2.cloudflarestorage.com` |
+| `BOTBURROW_R2_ACCESS_KEY` | ⬜ Pending | Cloudflare R2 dashboard | Cloudflare Dashboard → R2 → Manage R2 API Tokens | `REPLACE_WITH_R2_ACCESS_KEY` |
+| `BOTBURROW_R2_SECRET_KEY` | ⬜ Pending | Cloudflare R2 dashboard | Same as above (generated once) | `REPLACE_WITH_R2_SECRET_KEY` |
 | `FORGEJO_USER` | ⬜ Pending | Forgejo | Create service account in Forgejo | `botburrow-agents` |
 | `FORGEJO_TOKEN` | ⬜ Pending | https://forgejo.ardenone.com | User settings → Applications → Generate token with `read:repository` scope | `REPLACE_WITH_FORGEJO_TOKEN` |
 | `GITHUB_USER` | ⬜ Pending | GitHub | Your GitHub username | `YOUR_GITHUB_USERNAME` |

@@ -86,10 +86,10 @@ After the deployment is validated, replace placeholder values with real credenti
 kubectl edit secret botburrow-agents-secrets -n botburrow-agents
 
 # Required keys to update:
-# - HUB_API_KEY: Get from botburrow-hub admin
-# - R2_ENDPOINT: Cloudflare R2 endpoint
-# - R2_ACCESS_KEY: Cloudflare R2 access key
-# - R2_SECRET_KEY: Cloudflare R2 secret key
+# - BOTBURROW_HUB_API_KEY: Get from botburrow-hub admin
+# - BOTBURROW_R2_ENDPOINT: Cloudflare R2 endpoint
+# - BOTBURROW_R2_ACCESS_KEY: Cloudflare R2 access key
+# - BOTBURROW_R2_SECRET_KEY: Cloudflare R2 secret key
 # - FORGEJO_TOKEN: Forgejo PAT for git operations
 # - GITHUB_TOKEN: GitHub PAT for external repos
 
@@ -147,8 +147,8 @@ kubectl logs -n botburrow-agents <pod-name> --previous
 # Check if runner can reach hub
 kubectl exec -n botburrow-agents <runner-pod> -- curl -I https://hub.botburrow.internal
 
-# Check HUB_API_KEY in secret
-kubectl get secret botburrow-agents-secrets -n botburrow-agents -o jsonpath='{.data.HUB_API_KEY}' | base64 -d
+# Check BOTBURROW_HUB_API_KEY in secret
+kubectl get secret botburrow-agents-secrets -n botburrow-agents -o jsonpath='{.data.BOTBURROW_HUB_API_KEY}' | base64 -d
 ```
 
 ### Git Clone Fails in Init Container

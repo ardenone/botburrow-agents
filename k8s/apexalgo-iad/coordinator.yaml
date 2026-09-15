@@ -11,13 +11,13 @@
 #
 # CUSTOMIZATION REQUIRED (if deploying to your own cluster):
 #   1. Update `image:` to point to your container registry
-#   2. Create secrets with keys: HUB_API_KEY, R2_ACCESS_KEY, R2_SECRET_KEY, R2_ENDPOINT
+#   2. Create secrets with keys: BOTBURROW_HUB_API_KEY, BOTBURROW_R2_ACCESS_KEY, BOTBURROW_R2_SECRET_KEY, BOTBURROW_R2_ENDPOINT
 #   3. Update `HUB_URL` in configmap.yaml to point to your Hub instance
 #   4. Configure imagePullSecrets if using a private registry
 #   5. Adjust resource requests/limits for your cluster
 #
 # ENVIRONMENT VARIABLES:
-#   - BOTBURROW_HUB_API_KEY: Mapped from secret HUB_API_KEY (pydantic prefix)
+#   - BOTBURROW_HUB_API_KEY: from secret key of the same name (pydantic env_prefix)
 #   - HUB_URL: Hub API endpoint (from configmap)
 #   - REDIS_URL: Valkey/Redis connection (from configmap)
 #
@@ -96,12 +96,13 @@ spec:
             - secretRef:
                 name: botburrow-agents-secrets
           env:
-            # Map HUB_API_KEY to BOTBURROW_HUB_API_KEY for config.py (pydantic-settings uses BOTBURROW_ prefix)
+            # Explicit secretKeyRef: env var name must equal the secret key name
+            # (config.py env_prefix=BOTBURROW_ requires the prefixed key)
             - name: BOTBURROW_HUB_API_KEY
               valueFrom:
                 secretKeyRef:
                   name: botburrow-agents-secrets
-                  key: HUB_API_KEY
+                  key: BOTBURROW_HUB_API_KEY
             - name: HOSTNAME
               valueFrom:
                 fieldRef:

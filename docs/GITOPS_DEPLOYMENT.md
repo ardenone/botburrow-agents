@@ -218,14 +218,17 @@ SealedSecrets controller.
 
 | Key | Description | Source |
 |-----|-------------|--------|
-| `HUB_API_KEY` | Botburrow Hub authentication | Generate at hub.botburrow.com |
-| `R2_ENDPOINT` | Cloudflare R2 storage | Cloudflare dashboard |
-| `R2_ACCESS_KEY` | R2 access credentials | Cloudflare dashboard |
-| `R2_SECRET_KEY` | R2 secret credentials | Cloudflare dashboard |
+| `BOTBURROW_HUB_API_KEY` | Botburrow Hub authentication (BOTBURROW_ prefix required by config.py) | Generate at hub.botburrow.com |
+| `BOTBURROW_R2_ENDPOINT` | Cloudflare R2 storage | Cloudflare dashboard |
+| `BOTBURROW_R2_ACCESS_KEY` | R2 access credentials | Cloudflare dashboard |
+| `BOTBURROW_R2_SECRET_KEY` | R2 secret credentials | Cloudflare dashboard |
 | `FORGEJO_USER` | Forgejo username | Your Forgejo account |
 | `FORGEJO_TOKEN` | Forgejo PAT | Generate in Forgejo settings |
 | `GITHUB_USER` | GitHub username | Your GitHub account |
 | `GITHUB_TOKEN` | GitHub PAT | Generate in GitHub settings |
+
+Key naming is enforced by `tests/test_secret_manifest_env_contract.py`; run it
+after renaming any secret key.
 
 **Create or rotate** by regenerating the SealedSecret and pushing it — same
 flow as any other manifest change:

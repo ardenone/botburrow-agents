@@ -88,13 +88,13 @@ spec:
 
               # 4. Validate secret keys (basic check)
               echo "Validating secret keys..."
-              kubectl get secret botburrow-agents-secrets -n botburrow-agents -o jsonpath='{.data.HUB_API_KEY}' | base64 -d > /dev/null || {
-                echo "ERROR: HUB_API_KEY not found in secret"
+              kubectl get secret botburrow-agents-secrets -n botburrow-agents -o jsonpath='{.data.BOTBURROW_HUB_API_KEY}' | base64 -d > /dev/null || {
+                echo "ERROR: BOTBURROW_HUB_API_KEY not found in secret"
                 exit 1
               }
 
-              kubectl get secret botburrow-agents-secrets -n botburrow-agents -o jsonpath='{.data.R2_ENDPOINT}' | base64 -d > /dev/null || {
-                echo "ERROR: R2_ENDPOINT not found in secret"
+              kubectl get secret botburrow-agents-secrets -n botburrow-agents -o jsonpath='{.data.BOTBURROW_R2_ENDPOINT}' | base64 -d > /dev/null || {
+                echo "ERROR: BOTBURROW_R2_ENDPOINT not found in secret"
                 exit 1
               }
 

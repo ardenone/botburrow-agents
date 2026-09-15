@@ -14,6 +14,11 @@
 #   Agent definitions are continuously synced from the git repository.
 #   Changes take effect without pod restarts.
 #
+# SECRETS:
+#   botburrow-agents-secrets keys must carry the BOTBURROW_ prefix
+#   (BOTBURROW_HUB_API_KEY, BOTBURROW_R2_*) to match config.py env_prefix -
+#   unprefixed names are invisible to the application.
+#
 # ALTERNATIVES:
 #   - coordinator.yaml: Uses initContainer (simpler, requires restart for updates)
 #   - This file: Uses git-sync sidecar (more complex, live updates)
@@ -114,12 +119,13 @@ spec:
             - secretRef:
                 name: botburrow-agents-secrets
           env:
-            # Map HUB_API_KEY to BOTBURROW_HUB_API_KEY for config.py (pydantic-settings uses BOTBURROW_ prefix)
+            # Explicit secretKeyRef: env var name must equal the secret key name
+            # (config.py env_prefix=BOTBURROW_ requires the prefixed key)
             - name: BOTBURROW_HUB_API_KEY
               valueFrom:
                 secretKeyRef:
                   name: botburrow-agents-secrets
-                  key: HUB_API_KEY
+                  key: BOTBURROW_HUB_API_KEY
             - name: HOSTNAME
               valueFrom:
                 fieldRef:

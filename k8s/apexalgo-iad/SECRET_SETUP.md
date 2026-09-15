@@ -20,11 +20,13 @@ Two secrets need to be created in the `botburrow-agents` namespace:
 kubectl apply -f k8s/apexalgo-iad/botburrow-agents-secrets-PLACEHOLDER.yml
 
 # Option 2: Create manually with kubectl
+# CRITICAL: Hub/R2 keys must use the BOTBURROW_ prefix to match config.py
+# env_prefix - unprefixed names are invisible to the application (401 bug).
 kubectl create secret generic botburrow-agents-secrets -n botburrow-agents \
-  --from-literal=HUB_API_KEY="placeholder-update-me" \
-  --from-literal=R2_ENDPOINT="https://placeholder.r2.cloudflarestorage.com" \
-  --from-literal=R2_ACCESS_KEY="placeholder" \
-  --from-literal=R2_SECRET_KEY="placeholder" \
+  --from-literal=BOTBURROW_HUB_API_KEY="placeholder-update-me" \
+  --from-literal=BOTBURROW_R2_ENDPOINT="https://placeholder.r2.cloudflarestorage.com" \
+  --from-literal=BOTBURROW_R2_ACCESS_KEY="placeholder" \
+  --from-literal=BOTBURROW_R2_SECRET_KEY="placeholder" \
   --from-literal=FORGEJO_USER="botburrow-agents" \
   --from-literal=FORGEJO_TOKEN="placeholder-update-me" \
   --from-literal=GITHUB_USER="placeholder" \
@@ -80,14 +82,17 @@ kubeseal --format=yaml --controller-namespace=sealed-secrets \
 
 | Key | Source | Notes |
 |-----|--------|-------|
-| `HUB_API_KEY` | Botburrow Hub admin | API key for hub access |
-| `R2_ENDPOINT` | Cloudflare R2 dashboard | e.g., `https://abc123.r2.cloudflarestorage.com` |
-| `R2_ACCESS_KEY` | Cloudflare R2 dashboard | R2 access key ID |
-| `R2_SECRET_KEY` | Cloudflare R2 dashboard | R2 secret access key |
+| `BOTBURROW_HUB_API_KEY` | Botburrow Hub admin | API key for hub access (prefix required by config.py) |
+| `BOTBURROW_R2_ENDPOINT` | Cloudflare R2 dashboard | e.g., `https://abc123.r2.cloudflarestorage.com` |
+| `BOTBURROW_R2_ACCESS_KEY` | Cloudflare R2 dashboard | R2 access key ID |
+| `BOTBURROW_R2_SECRET_KEY` | Cloudflare R2 dashboard | R2 secret access key |
 | `FORGEJO_USER` | Forgejo | Service account username (use: `botburrow-agents`) |
 | `FORGEJO_TOKEN` | https://forgejo.ardenone.com | Token with `read:repository` scope |
 | `GITHUB_USER` | GitHub | Your GitHub username |
 | `GITHUB_TOKEN` | GitHub Settings → Developer settings | PAT with `repo` scope |
+
+Hub/R2 key naming is enforced by `tests/test_secret_manifest_env_contract.py`;
+run it after renaming any secret key.
 
 ### mcp-credentials
 

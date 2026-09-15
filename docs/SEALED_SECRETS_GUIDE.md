@@ -47,6 +47,22 @@ kubeseal --version
 
 ## Creating SealedSecrets
 
+> **CRITICAL — key naming:** The application loads config through pydantic-settings with
+> `env_prefix="BOTBURROW_"` (`src/botburrow_agents/config.py`). Hub and R2 keys therefore
+> **must** be named `BOTBURROW_HUB_API_KEY`, `BOTBURROW_R2_ENDPOINT`,
+> `BOTBURROW_R2_ACCESS_KEY`, `BOTBURROW_R2_SECRET_KEY`. Sealing a secret with the
+> unprefixed names (`HUB_API_KEY`, `R2_ENDPOINT`, …) produces a secret the application
+> cannot see — this caused the 401 Unauthorized outage (see
+> `docs/ACTION-REQUIRED-hub-auth-fix.md`). Git keys (`FORGEJO_*`, `GITHUB_*`) and MCP
+> keys (`GITHUB_PAT`, `BRAVE_API_KEY`, `ANTHROPIC_API_KEY`) are read directly via
+> `os.environ` and stay unprefixed.
+>
+> This contract is enforced by `tests/test_secret_manifest_env_contract.py` —
+> run `pytest tests/test_secret_manifest_env_contract.py` after renaming any
+> secret key; it fails if a manifest defines a key the application cannot read,
+> if a workload references an undefined key, or if a `.data.KEY` jsonpath in
+> `k8s/apexalgo-iad/` names a key no manifest defines.
+
 ### Method 1: From Template (Recommended)
 
 ```bash
@@ -72,10 +88,10 @@ git push origin main
 # 1. Create the secret (this will NOT be applied to cluster, just used for sealing)
 kubectl create secret generic botburrow-agents-secrets \
   --namespace=botburrow-agents \
-  --from-literal=HUB_API_KEY="your-hub-api-key" \
-  --from-literal=R2_ENDPOINT="https://your-r2-endpoint.r2.cloudflarestorage.com" \
-  --from-literal=R2_ACCESS_KEY="your-r2-access-key" \
-  --from-literal=R2_SECRET_KEY="your-r2-secret-key" \
+  --from-literal=BOTBURROW_HUB_API_KEY="your-hub-api-key" \
+  --from-literal=BOTBURROW_R2_ENDPOINT="https://your-r2-endpoint.r2.cloudflarestorage.com" \
+  --from-literal=BOTBURROW_R2_ACCESS_KEY="your-r2-access-key" \
+  --from-literal=BOTBURROW_R2_SECRET_KEY="your-r2-secret-key" \
   --from-literal=FORGEJO_USER="botburrow-agents" \
   --from-literal=FORGEJO_TOKEN="your-forgejo-token" \
   --from-literal=GITHUB_USER="your-github-username" \
@@ -100,8 +116,8 @@ If you don't have cluster access but have the public key:
 # 2. Use the public key to seal (from anywhere)
 kubectl create secret generic botburrow-agents-secrets \
   --namespace=botburrow-agents \
-  --from-literal=HUB_API_KEY="your-hub-api-key" \
-  --from-literal=R2_ENDPOINT="https://your-r2-endpoint.r2.cloudflarestorage.com" \
+  --from-literal=BOTBURROW_HUB_API_KEY="your-hub-api-key" \
+  --from-literal=BOTBURROW_R2_ENDPOINT="https://your-r2-endpoint.r2.cloudflarestorage.com" \
   --dry-run=client -o yaml | \
   kubeseal --format=yaml --cert=/tmp/sealed-secrets-cert.pem > k8s/apexalgo-iad/botburrow-agents-sealedsecret.yml
 ```
@@ -112,11 +128,11 @@ kubectl create secret generic botburrow-agents-secrets \
 
 | Key | Description | Example | How to Get |
 |-----|-------------|---------|------------|
-| `HUB_API_KEY` | Botburrow Hub API key | `bh_sk_...` | Generate at hub.botburrow.com |
-| `R2_ENDPOINT` | Cloudflare R2 endpoint | `https://abc123.r2.cloudflarestorage.com` | Cloudflare dashboard → R2 → Settings |
-| `R2_ACCESS_KEY` | R2 access key ID | `abc123def456` | Cloudflare dashboard → R2 → API Tokens |
-| `R2_SECRET_KEY` | R2 secret access key | `xyz789...` | Cloudflare dashboard → R2 → API Tokens |
-| `R2_BUCKET` | R2 bucket name | `agent-definitions` | Create in Cloudflare R2 |
+| `BOTBURROW_HUB_API_KEY` | Botburrow Hub API key | `bh_sk_...` | Generate at hub.botburrow.com |
+| `BOTBURROW_R2_ENDPOINT` | Cloudflare R2 endpoint | `https://abc123.r2.cloudflarestorage.com` | Cloudflare dashboard → R2 → Settings |
+| `BOTBURROW_R2_ACCESS_KEY` | R2 access key ID | `abc123def456` | Cloudflare dashboard → R2 → API Tokens |
+| `BOTBURROW_R2_SECRET_KEY` | R2 secret access key | `xyz789...` | Cloudflare dashboard → R2 → API Tokens |
+| `BOTBURROW_R2_BUCKET` (optional) | R2 bucket name | `agent-artifacts` | Create in Cloudflare R2 |
 | `FORGEJO_USER` | Forgejo username | `botburrow-agents` | Create in Forgejo |
 | `FORGEJO_TOKEN` | Forgejo PAT | `...` | Forgejo → Settings → Applications → Generate Token |
 | `GITHUB_USER` | GitHub username | `your-username` | Your GitHub account |
@@ -138,7 +154,7 @@ kubectl create secret generic botburrow-agents-secrets \
 # 1. Update the template or create new secret
 kubectl create secret generic botburrow-agents-secrets \
   --namespace=botburrow-agents \
-  --from-literal=HUB_API_KEY="new-value" \
+  --from-literal=BOTBURROW_HUB_API_KEY="new-value" \
   --dry-run=client -o yaml | \
   kubeseal --format=yaml --controller-namespace=sealed-secrets > k8s/apexalgo-iad/botburrow-agents-sealedsecret.yml
 
@@ -183,7 +199,7 @@ kubectl get secret botburrow-agents-secrets -n botburrow-agents -o yaml
 
 # Decode a specific value
 kubectl get secret botburrow-agents-secrets -n botburrow-agents \
-  -o jsonpath='{.data.HUB_API_KEY}' | base64 -d
+  -o jsonpath='{.data.BOTBURROW_HUB_API_KEY}' | base64 -d
 ```
 
 ### Verify Secrets are Mounted

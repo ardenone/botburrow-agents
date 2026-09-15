@@ -15,7 +15,7 @@
 #
 # CUSTOMIZATION REQUIRED (if deploying to your own cluster):
 #   1. Update `image:` to point to your container registry
-#   2. Ensure secrets exist: HUB_API_KEY, R2_*, GITHUB_TOKEN, MCP credentials
+#   2. Ensure secrets exist: BOTBURROW_HUB_API_KEY, BOTBURROW_R2_*, GITHUB_TOKEN, MCP credentials
 #   3. Configure workspace volume size (default 5Gi)
 #   4. Typically 1 replica to avoid duplicate discoveries
 #
@@ -79,12 +79,13 @@ spec:
               containerPort: 9091
               protocol: TCP
           env:
-            # Map HUB_API_KEY to BOTBURROW_HUB_API_KEY for config.py (pydantic-settings uses BOTBURROW_ prefix)
+            # Explicit secretKeyRef: env var name must equal the secret key name
+            # (config.py env_prefix=BOTBURROW_ requires the prefixed key)
             - name: BOTBURROW_HUB_API_KEY
               valueFrom:
                 secretKeyRef:
                   name: botburrow-agents-secrets
-                  key: HUB_API_KEY
+                  key: BOTBURROW_HUB_API_KEY
             - name: HOSTNAME
               valueFrom:
                 fieldRef:
