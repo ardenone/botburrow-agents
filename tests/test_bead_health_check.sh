@@ -1,336 +1,259 @@
-#!/bin/bash
-# Integration tests for bead health check
+#!/usr/bin/env bash
+# Integration tests for scripts/bead-health-check.sh.
 #
-# Tests:
-# 1. Unclaimed in_progress beads detection and auto-fix
-# 2. Expired claims detection and auto-fix
-# 3. Low claim success rate detection
-# 4. Incident bead creation
+# Runs the script against fixture workspaces served by the stub `br` CLI
+# (tests/fixtures/br_stub.sh) so the tests are hermetic: no real bead store
+# is touched, and the corrupt states under test (in_progress with no
+# claimant) can be built exactly.
 #
 # Usage:
-#   ./test_bead_health_check.sh
+#   ./tests/test_bead_health_check.sh
 
-set -euo pipefail
-
-# ============================================================================
-# Configuration
-# ============================================================================
+set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-HEALTH_CHECK_SCRIPT="$SCRIPT_DIR/../scripts/bead-health-check.sh"
-TEST_WORKSPACE="/tmp/bead-health-check-test-$$"
+# shellcheck source=tests/lib/bead_health_test_lib.sh
+source "$SCRIPT_DIR/lib/bead_health_test_lib.sh"
 
-# Colors
-GREEN='\033[0;32m'
-RED='\033[0;31m'
-YELLOW='\033[1;33m'
-NC='\033[0m'
+SUITE_NAME="Bead Health Check Script Tests"
 
-# Test counters
-TESTS_RUN=0
-TESTS_PASSED=0
-TESTS_FAILED=0
+# ---------------------------------------------------------------------------
+# Fixture helpers
+# ---------------------------------------------------------------------------
 
-# ============================================================================
-# Helper Functions
-# ============================================================================
-
-log_info() {
-    echo -e "${NC}[INFO] $1${NC}"
+hours_ago_json_quoted() {
+    printf '"%s"' "$(hours_ago_ts "$1")"
 }
 
-log_success() {
-    echo -e "${GREEN}[PASS] $1${NC}"
+count_incidents() {
+    fixture_incidents | jq 'length'
 }
 
-log_error() {
-    echo -e "${RED}[FAIL] $1${NC}"
-}
-
-log_test() {
-    echo -e "${YELLOW}[TEST] $1${NC}"
-}
-
-# Setup test workspace
-setup_workspace() {
-    log_info "Setting up test workspace: $TEST_WORKSPACE"
-
-    # Create workspace
-    mkdir -p "$TEST_WORKSPACE"
-    cd "$TEST_WORKSPACE"
-
-    # Initialize beads
-    br init
-
-    log_success "Test workspace initialized"
-}
-
-# Cleanup test workspace
-cleanup_workspace() {
-    log_info "Cleaning up test workspace: $TEST_WORKSPACE"
-
-    if [ -d "$TEST_WORKSPACE" ]; then
-        rm -rf "$TEST_WORKSPACE"
-    fi
-
-    log_success "Test workspace cleaned up"
-}
-
-# Run a test
-run_test() {
-    local test_name="$1"
-    local test_function="$2"
-
-    TESTS_RUN=$((TESTS_RUN + 1))
-
-    log_test "$test_name"
-
-    if $test_function; then
-        TESTS_PASSED=$((TESTS_PASSED + 1))
-        log_success "$test_name"
-        return 0
-    else
-        TESTS_FAILED=$((TESTS_FAILED + 1))
-        log_error "$test_name"
-        return 1
-    fi
-}
-
-# Assert condition
-assert_true() {
-    local condition="$1"
-    local message="$2"
-
-    if eval "$condition"; then
-        return 0
-    else
-        log_error "Assertion failed: $message"
-        return 1
-    fi
-}
-
-assert_equal() {
-    local actual="$1"
-    local expected="$2"
-    local message="$3"
-
-    if [ "$actual" = "$expected" ]; then
-        return 0
-    else
-        log_error "Assertion failed: $message (expected: $expected, actual: $actual)"
-        return 1
-    fi
-}
-
-# Create a bead with specific state (bypassing normal workflow)
-create_test_bead() {
-    local title="$1"
-    local status="$2"
-    local claimed_by="${3:-null}"
-    local claim_timestamp="${4:-null}"
-
-    cd "$TEST_WORKSPACE"
-
-    # Create bead
-    local bead_id=$(br create --title "$title" --priority 2 | grep -oP 'Created issue \K[a-z0-9-]+')
-
-    # Manually update JSONL to set specific state
-    if [ "$status" != "open" ]; then
-        # Read current JSONL
-        local jsonl_file="$TEST_WORKSPACE/.beads/issues.jsonl"
-        local temp_file="$jsonl_file.tmp"
-
-        # Update the bead's state
-        while IFS= read -r line; do
-            local line_id=$(echo "$line" | jq -r '.id')
-
-            if [ "$line_id" = "$bead_id" ]; then
-                # Update this bead's state
-                echo "$line" | jq ".status = \"$status\" | .claimed_by = $claimed_by | .claim_timestamp = $claim_timestamp"
-            else
-                echo "$line"
-            fi
-        done < "$jsonl_file" > "$temp_file"
-
-        mv "$temp_file" "$jsonl_file"
-
-        # Sync to database
-        br sync --flush-only
-    fi
-
-    echo "$bead_id"
-}
-
-# ============================================================================
+# ---------------------------------------------------------------------------
 # Tests
-# ============================================================================
+# ---------------------------------------------------------------------------
 
-# Test 1: Detect unclaimed in_progress beads
-test_unclaimed_in_progress_detection() {
-    cd "$TEST_WORKSPACE"
+# Check-only mode must flag an in_progress bead with no claimant, list its
+# id, and not mutate anything.
+test_check_only_detects_unclaimed_in_progress() {
+    new_workspace
+    local ws="$WS"
+    local bead_id="bd-fixture1"
+    add_bead "Stuck task" in_progress
 
-    # Create unclaimed in_progress bead
-    local bead_id=$(create_test_bead "Test unclaimed bead" "in_progress" "null" "null")
+    local out
+    out=$(run_health "$ws" --check-only)
 
-    # Run health check (check-only mode)
-    local output
-    output=$("$HEALTH_CHECK_SCRIPT" --workspace="$TEST_WORKSPACE" --check-only 2>&1 || true)
+    assert_exit 1 "$(last_rc)" "violations must exit 1"
+    assert_contains "unclaimed in_progress beads" "$out"
+    assert_contains "$bead_id" "$out" "output must name the stuck bead"
 
-    # Verify detection
-    assert_true "echo '$output' | grep -q 'unclaimed in_progress beads'" \
-        "Should detect unclaimed in_progress beads"
-
-    assert_true "echo '$output' | grep -q '$bead_id'" \
-        "Should list the specific bead ID"
-
-    # Clean up
-    br update "$bead_id" --status open
-
-    return 0
+    # check-only must not repair or create incidents
+    assert_equals "in_progress" "$(fixture_bead "$bead_id" | jq -r .status)" \
+        "check-only must leave the bead untouched"
+    assert_equals 0 "$(count_incidents)" "check-only must not create incidents"
 }
 
-# Test 2: Auto-fix unclaimed in_progress beads
-test_unclaimed_in_progress_autofix() {
-    cd "$TEST_WORKSPACE"
+# --auto-fix must reset an unclaimed in_progress bead to open, clearing the
+# claim metadata with it.
+test_autofix_resets_unclaimed_in_progress() {
+    new_workspace
+    local ws="$WS"
+    local bead_id="bd-fixture1"
+    add_bead "Stuck task" in_progress
 
-    # Create unclaimed in_progress bead
-    local bead_id=$(create_test_bead "Test autofix bead" "in_progress" "null" "null")
+    run_health "$ws" --auto-fix >/dev/null
 
-    # Verify initial state
-    local initial_status
-    initial_status=$(br show "$bead_id" --json | jq -r '.status')
-    assert_equal "$initial_status" "in_progress" "Initial status should be in_progress"
-
-    # Run health check with auto-fix
-    "$HEALTH_CHECK_SCRIPT" --workspace="$TEST_WORKSPACE" --auto-fix 2>&1 || true
-
-    # Verify bead was reset to open
-    local fixed_status
-    fixed_status=$(br show "$bead_id" --json | jq -r '.status')
-    assert_equal "$fixed_status" "open" "Status should be reset to open"
-
-    # Verify incident bead was created
-    local incident_count
-    incident_count=$(br list --all --json | jq '[.[] | select(.title | contains("ALERT"))] | length')
-    assert_true "[ $incident_count -gt 0 ]" "Incident bead should be created"
-
-    return 0
+    assert_exit 1 "$(last_rc)" "auto-fixed violations still exit 1"
+    local bead
+    bead=$(fixture_bead "$bead_id")
+    assert_equals "open" "$(jq -r .status <<< "$bead")" "bead must be reset to open"
+    assert_equals "null" "$(jq -r .claimed_by <<< "$bead")" "claimant must be cleared"
+    assert_equals "null" "$(jq -r .claim_timestamp <<< "$bead")" "claim timestamp must be cleared"
 }
 
-# Test 3: Expired claims detection
-test_expired_claims_detection() {
-    cd "$TEST_WORKSPACE"
+# --auto-fix must create a P0 incident bead describing the violation.
+test_autofix_creates_incident_bead_for_unclaimed() {
+    new_workspace
+    local ws="$WS"
+    local bead_id="bd-fixture1"
+    add_bead "Stuck task" in_progress
 
-    # Create bead with old claim timestamp (2 hours ago)
-    local old_timestamp
-    old_timestamp=$(date -u -d "2 hours ago" +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || \
-                    date -u -v-2H +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null)
+    run_health "$ws" --auto-fix >/dev/null
 
-    local bead_id=$(create_test_bead "Test expired claim" "in_progress" "\"worker-123\"" "\"$old_timestamp\"")
-
-    # Run health check (check-only mode)
-    local output
-    output=$("$HEALTH_CHECK_SCRIPT" --workspace="$TEST_WORKSPACE" --check-only 2>&1 || true)
-
-    # Verify detection (will only trigger if > threshold)
-    # For this test, we just verify the check runs without error
-    assert_true "[ $? -eq 0 ] || [ $? -eq 1 ]" "Health check should run"
-
-    # Clean up
-    br update "$bead_id" --status open
-
-    return 0
+    assert_equals 1 "$(count_incidents)" "exactly one incident bead expected"
+    local incident
+    incident=$(fixture_incidents | jq '.[0]')
+    assert_equals "human" "$(jq -r .issue_type <<< "$incident")" "incident type must be human"
+    assert_equals 0 "$(jq -r .priority <<< "$incident")" "unclaimed-bead incident must be P0"
+    assert_contains "ALERT: 1 unclaimed in_progress beads detected" \
+        "$(jq -r .title <<< "$incident")"
+    assert_contains "$bead_id" "$(jq -r .description <<< "$incident")" \
+        "incident must list the affected bead"
+    assert_contains "$ws" "$(jq -r .description <<< "$incident")" \
+        "incident must name the workspace"
 }
 
-# Test 4: Multiple unclaimed beads
-test_multiple_unclaimed_beads() {
-    cd "$TEST_WORKSPACE"
+# More expired claims than EXPIRED_CLAIM_THRESHOLD must fail the check.
+test_detects_expired_claims_above_threshold() {
+    new_workspace
+    local ws="$WS"
+    add_bead "Expired 1" in_progress worker-a "$(hours_ago_json_quoted 2)"
+    add_bead "Expired 2" in_progress worker-b "$(hours_ago_json_quoted 3)"
+    add_bead "Expired 3" in_progress worker-c "$(hours_ago_json_quoted 5)"
+    add_bead "Expired 4" in_progress worker-d "$(hours_ago_json_quoted 6)"
 
-    # Create multiple unclaimed in_progress beads
-    local bead1=$(create_test_bead "Test bead 1" "in_progress" "null" "null")
-    local bead2=$(create_test_bead "Test bead 2" "in_progress" "null" "null")
-    local bead3=$(create_test_bead "Test bead 3" "in_progress" "null" "null")
+    local out
+    out=$(run_health "$ws" --check-only)
 
-    # Run health check with auto-fix
-    "$HEALTH_CHECK_SCRIPT" --workspace="$TEST_WORKSPACE" --auto-fix 2>&1 || true
-
-    # Verify all beads were fixed
-    local bead1_status=$(br show "$bead1" --json | jq -r '.status')
-    local bead2_status=$(br show "$bead2" --json | jq -r '.status')
-    local bead3_status=$(br show "$bead3" --json | jq -r '.status')
-
-    assert_equal "$bead1_status" "open" "Bead 1 should be reset to open"
-    assert_equal "$bead2_status" "open" "Bead 2 should be reset to open"
-    assert_equal "$bead3_status" "open" "Bead 3 should be reset to open"
-
-    return 0
+    assert_exit 1 "$(last_rc)" "expired claims above threshold must exit 1"
+    assert_contains "expired claims" "$out"
+    assert_contains "bd-fixture4" "$out" "output must name an expired bead"
 }
 
-# Test 5: Healthy system (no issues)
-test_healthy_system() {
-    cd "$TEST_WORKSPACE"
+# A couple of expired claims is within threshold and must stay green —
+# this is the normal "worker died mid-task" case, not starvation.
+test_expired_claims_within_threshold_are_healthy() {
+    new_workspace
+    local ws="$WS"
+    add_bead "Expired 1" in_progress worker-a "$(hours_ago_json_quoted 2)"
+    add_bead "Expired 2" in_progress worker-b "$(hours_ago_json_quoted 3)"
 
-    # Create normal beads
-    br create --title "Normal bead 1" --priority 2
-    br create --title "Normal bead 2" --priority 2
+    local out
+    out=$(run_health "$ws" --check-only)
 
-    # Run health check
-    local output
-    output=$("$HEALTH_CHECK_SCRIPT" --workspace="$TEST_WORKSPACE" --check-only 2>&1)
-
-    # Verify no issues detected
-    assert_true "echo '$output' | grep -q 'All health checks passed'" \
-        "Should report all checks passed"
-
-    return 0
+    assert_exit 0 "$(last_rc)" "expired claims within threshold must not fail"
+    assert_contains "within threshold" "$out"
 }
 
-# ============================================================================
-# Main
-# ============================================================================
+# --auto-fix must reset every expired claim and raise a P1 incident.
+test_autofix_resets_expired_claims_and_creates_incident() {
+    new_workspace
+    local ws="$WS"
+    add_bead "Expired 1" in_progress worker-a "$(hours_ago_json_quoted 2)"
+    add_bead "Expired 2" in_progress worker-b "$(hours_ago_json_quoted 3)"
+    add_bead "Expired 3" in_progress worker-c "$(hours_ago_json_quoted 5)"
+    add_bead "Expired 4" in_progress worker-d "$(hours_ago_json_quoted 6)"
 
-main() {
-    echo "========================================"
-    echo "  Bead Health Check Integration Tests"
-    echo "========================================"
-    echo ""
+    run_health "$ws" --auto-fix >/dev/null
 
-    # Verify health check script exists
-    if [ ! -x "$HEALTH_CHECK_SCRIPT" ]; then
-        log_error "Health check script not found or not executable: $HEALTH_CHECK_SCRIPT"
-        exit 1
-    fi
+    assert_exit 1 "$(last_rc)"
+    local status
+    status=$(fixture_state | jq -r '[.[] | select(.id | startswith("bd-fixture")) | .status] | unique | join(",")')
+    assert_equals "open" "$status" "all expired claims must be reset to open"
 
-    # Setup
-    setup_workspace
-
-    # Run tests
-    run_test "Test 1: Detect unclaimed in_progress beads" test_unclaimed_in_progress_detection
-    run_test "Test 2: Auto-fix unclaimed in_progress beads" test_unclaimed_in_progress_autofix
-    run_test "Test 3: Detect expired claims" test_expired_claims_detection
-    run_test "Test 4: Fix multiple unclaimed beads" test_multiple_unclaimed_beads
-    run_test "Test 5: Healthy system check" test_healthy_system
-
-    # Cleanup
-    cleanup_workspace
-
-    # Report
-    echo ""
-    echo "========================================"
-    echo "  Test Results"
-    echo "========================================"
-    echo "Total:  $TESTS_RUN"
-    echo -e "${GREEN}Passed: $TESTS_PASSED${NC}"
-    echo -e "${RED}Failed: $TESTS_FAILED${NC}"
-    echo ""
-
-    if [ $TESTS_FAILED -eq 0 ]; then
-        log_success "All tests passed! ✅"
-        exit 0
-    else
-        log_error "Some tests failed ❌"
-        exit 1
-    fi
+    assert_equals 1 "$(count_incidents)"
+    local incident
+    incident=$(fixture_incidents | jq '.[0]')
+    assert_equals 1 "$(jq -r .priority <<< "$incident")" "expired-claims incident must be P1"
+    assert_contains "ALERT: 4 expired claims detected" "$(jq -r .title <<< "$incident")"
 }
 
-main
+# A success rate below LOW_SUCCESS_RATE_THRESHOLD must fail the check even
+# in check-only mode (where no incident is raised).
+test_detects_low_claim_success_rate() {
+    new_workspace
+    local ws="$WS"
+    set_stats 10 2
+
+    local out
+    out=$(run_health "$ws" --check-only)
+
+    assert_exit 1 "$(last_rc)" "low claim success rate must exit 1"
+    assert_contains "below 50" "$out"
+    assert_contains "20%" "$out" "output must report the computed rate"
+    assert_equals 0 "$(count_incidents)" "check-only must not create incidents"
+}
+
+# Outside check-only mode a low success rate raises a P1 incident bead
+# (this check has no auto-fix — it only alerts).
+test_low_claim_success_rate_creates_incident() {
+    new_workspace
+    local ws="$WS"
+    set_stats 10 2
+
+    run_health "$ws" >/dev/null
+
+    assert_exit 1 "$(last_rc)"
+    assert_equals 1 "$(count_incidents)"
+    local incident
+    incident=$(fixture_incidents | jq '.[0]')
+    assert_equals "human" "$(jq -r .issue_type <<< "$incident")"
+    assert_equals 1 "$(jq -r .priority <<< "$incident")"
+    assert_contains "ALERT: Low claim success rate" "$(jq -r .title <<< "$incident")"
+}
+
+# A clean workspace must exit 0 — the guard's green path. This regressed
+# once: a miscount made every healthy run report a P0 violation.
+test_healthy_workspace_exits_zero() {
+    new_workspace
+    local ws="$WS"
+    add_bead "Queued task" open
+
+    local out
+    out=$(run_health "$ws" --check-only)
+
+    assert_exit 0 "$(last_rc)" "healthy workspace must exit 0"
+    assert_contains "All health checks passed" "$out"
+    assert_not_contains "[ERROR]" "$out" "no errors on a healthy workspace"
+}
+
+# An in_progress bead with a live claimant and fresh timestamp is healthy —
+# regression guard for the bd-8q53 false-positive class.
+test_claimed_in_progress_bead_is_healthy() {
+    new_workspace
+    local ws="$WS"
+    add_bead "Active task" in_progress worker-9 "$(printf '"%s"' "$(now_ts)")"
+
+    local out
+    out=$(run_health "$ws" --check-only)
+
+    assert_exit 0 "$(last_rc)" "a live claim must not be flagged"
+    assert_contains "All health checks passed" "$out"
+}
+
+# Usage contract: a bad workspace path exits 1 without touching any store.
+test_unknown_workspace_exits_one() {
+    new_workspace
+    local ws="$WS"
+
+    run_health "/nonexistent/workspace-$$" --check-only >/dev/null
+
+    assert_exit 1 "$(last_rc)" "missing workspace must exit 1"
+}
+
+# --auto-fix on a healthy workspace must be a no-op: exit 0, no resets, no
+# incidents. The monitor runs every workspace with --auto-fix on a timer, so
+# a fix path that damages live claims would be worse than the starvation it
+# guards against.
+test_autofix_on_healthy_workspace_is_a_noop() {
+    new_workspace
+    local ws="$WS"
+    add_bead "Queued task" open
+    add_bead "Active task" in_progress worker-9 "$(printf '"%s"' "$(now_ts)")"
+
+    local out
+    out=$(run_health "$ws" --auto-fix)
+
+    assert_exit 0 "$(last_rc)" "healthy workspace must exit 0 even under --auto-fix"
+    assert_contains "All health checks passed" "$out"
+    assert_equals 0 "$(count_incidents)" "no incidents on a healthy workspace"
+    assert_equals "in_progress" "$(fixture_bead bd-fixture2 | jq -r .status)" \
+        "a live claim must survive an auto-fix run"
+}
+
+# ---------------------------------------------------------------------------
+
+bead_health_test_main \
+    test_check_only_detects_unclaimed_in_progress \
+    test_autofix_resets_unclaimed_in_progress \
+    test_autofix_creates_incident_bead_for_unclaimed \
+    test_detects_expired_claims_above_threshold \
+    test_expired_claims_within_threshold_are_healthy \
+    test_autofix_resets_expired_claims_and_creates_incident \
+    test_detects_low_claim_success_rate \
+    test_low_claim_success_rate_creates_incident \
+    test_healthy_workspace_exits_zero \
+    test_claimed_in_progress_bead_is_healthy \
+    test_unknown_workspace_exits_one \
+    test_autofix_on_healthy_workspace_is_a_noop

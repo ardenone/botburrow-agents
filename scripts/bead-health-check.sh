@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Bead Health Check - Detects and recovers from stuck beads
 #
 # Detects:
@@ -141,8 +141,11 @@ check_unclaimed_in_progress() {
     local unclaimed_beads
     unclaimed_beads=$(echo "$in_progress_beads" | jq -r '.[] | select(.claimed_by == null) | .id' 2>/dev/null || echo "")
 
+    # grep -c already prints 0 when nothing matches; appending `|| echo "0"`
+    # produced a two-line "0\n0" that broke the integer comparisons below and
+    # made every clean workspace report a P0 violation.
     local unclaimed_count
-    unclaimed_count=$(echo "$unclaimed_beads" | grep -c "^bd-" 2>/dev/null || echo "0")
+    unclaimed_count=$(echo "$unclaimed_beads" | grep -c "^bd-" || true)
 
     if [ "$unclaimed_count" -eq 0 ]; then
         log_success "No unclaimed in_progress beads found"
@@ -222,7 +225,7 @@ check_expired_claims() {
         '.[] | select(.claim_timestamp != null and .claim_timestamp < $cutoff) | .id' 2>/dev/null || echo "")
 
     local expired_count
-    expired_count=$(echo "$expired_beads" | grep -c "^bd-" 2>/dev/null || echo "0")
+    expired_count=$(echo "$expired_beads" | grep -c "^bd-" || true)
 
     if [ "$expired_count" -eq 0 ]; then
         log_success "No expired claims found"
@@ -296,14 +299,17 @@ check_claim_success_rate() {
         return 0
     fi
 
-    # Calculate success rate
+    # Calculate success rate as an integer percentage. bash arithmetic on
+    # purpose: the previous bc pipeline silently disabled this whole check
+    # wherever bc is not installed (the failure fell back to a rate of 0,
+    # and the threshold comparison then also failed and read as healthy).
     local success_rate
-    success_rate=$(echo "scale=2; ($successful_claims * 100) / $total_claims" | bc -l 2>/dev/null || echo "0")
+    success_rate=$((successful_claims * 100 / total_claims))
 
     log_info "Claim success rate: ${success_rate}% ($successful_claims/$total_claims)"
 
     # Compare with threshold
-    if (( $(echo "$success_rate < $LOW_SUCCESS_RATE_THRESHOLD" | bc -l) )); then
+    if [ "$success_rate" -lt "$LOW_SUCCESS_RATE_THRESHOLD" ]; then
         log_error "Claim success rate is below ${LOW_SUCCESS_RATE_THRESHOLD}% threshold (P1 severity)"
 
         if [ "$CHECK_ONLY" = false ]; then

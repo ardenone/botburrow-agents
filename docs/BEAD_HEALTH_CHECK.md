@@ -182,44 +182,43 @@ Consider:
 
 ## Testing
 
-**File:** `tests/test_bead_health_check.sh`
+The guard is covered by two hermetic bash suites plus a pytest wrapper that
+wires them into the repo's standard `pytest tests/` invocation.
 
-**Run Tests:**
+**Files:**
+- `tests/test_bead_health_check.sh` — the health-check script (11 tests)
+- `tests/test_bead_health_monitor.sh` — the periodic monitor (4 tests)
+- `tests/lib/bead_health_test_lib.sh` — shared harness (fixtures, assertions, runner)
+- `tests/fixtures/br_stub.sh` — test double for the `br` CLI
+- `tests/test_bead_health_scripts.py` — pytest wrapper (runs both suites)
+
+**Why a stubbed `br`:** the scripts shell out to `br` (bead-rs). Running the
+real CLI against a fixture workspace would couple the tests to one backend's
+schema, and the corrupt states under test (in_progress with no claimant) are
+exactly the states the real CLI refuses to create. The stub serves bead state
+from a JSON file the test controls and exits 64 on any subcommand the scripts
+don't actually use, so script drift fails loudly.
+
+**Coverage:**
+1. ✅ Detect unclaimed in_progress beads (check-only flags, auto-fix resets + P0 incident)
+2. ✅ Detect expired claims (above/below the >3 threshold; auto-fix resets + P1 incident)
+3. ✅ Detect low claim success rate (<50%; P1 incident outside check-only)
+4. ✅ Healthy workspace exits 0 — including under `--auto-fix` (live claims must survive)
+5. ✅ Exit codes 0/1 for both scripts; monitor skip paths (missing dir, no `.beads/`)
+
+**Run them:**
 ```bash
-cd /home/coder/botburrow-agents
-./tests/test_bead_health_check.sh
+cd /home/coding/botburrow-agents
+bash tests/test_bead_health_check.sh
+bash tests/test_bead_health_monitor.sh
+# or via the repo's standard pytest invocation:
+.venv/bin/python -m pytest tests/test_bead_health_scripts.py
 ```
 
-**Test Coverage:**
-1. ✅ Detect unclaimed in_progress beads
-2. ✅ Auto-fix unclaimed beads
-3. ✅ Detect expired claims
-4. ✅ Fix multiple unclaimed beads
-5. ✅ Healthy system check (no false positives)
-
-**Expected Output:**
-```
-========================================
-  Bead Health Check Integration Tests
-========================================
-
-[TEST] Test 1: Detect unclaimed in_progress beads
-[PASS] Test 1: Detect unclaimed in_progress beads
-
-[TEST] Test 2: Auto-fix unclaimed in_progress beads
-[PASS] Test 2: Auto-fix unclaimed in_progress beads
-
-...
-
-========================================
-  Test Results
-========================================
-Total:  5
-Passed: 5
-Failed: 0
-
-[PASS] All tests passed! ✅
-```
+**CI:** both suites gate the image build — the `botburrow-agents-build`
+WorkflowTemplate (declarative-config, `k8s/iad-ci/argo-workflows/`) runs them
+in a `run-tests` step before `docker-build`, so a regression in the
+starvation guard fails the build instead of the fleet.
 
 ## Manual Verification
 

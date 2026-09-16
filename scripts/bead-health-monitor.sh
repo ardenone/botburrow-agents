@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Bead Health Monitor - Periodic health check runner
 #
 # Runs health checks on all workspaces with beads every 5 minutes.
@@ -7,6 +7,10 @@
 # Usage:
 #   ./bead-health-monitor.sh [--interval=300]
 #   ./bead-health-monitor.sh --once  # Run once and exit
+#
+# The workspace list can be overridden with BOTBURROW_HEALTH_WORKSPACES
+# (colon- or space-separated paths) — used by tests to point the monitor at
+# fixture workspaces and by cron/systemd units to avoid editing the script.
 
 set -euo pipefail
 
@@ -44,6 +48,12 @@ for arg in "$@"; do
             ;;
     esac
 done
+
+# Environment override of the workspace list takes precedence over the
+# built-in defaults (colon- or space-separated).
+if [ -n "${BOTBURROW_HEALTH_WORKSPACES:-}" ]; then
+    read -r -a WORKSPACES <<< "${BOTBURROW_HEALTH_WORKSPACES//:/ }"
+fi
 
 # ============================================================================
 # Helper Functions
