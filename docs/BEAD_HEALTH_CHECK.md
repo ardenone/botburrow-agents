@@ -190,8 +190,8 @@ The guard is covered by two hermetic bash suites plus a pytest wrapper that
 wires them into the repo's standard `pytest tests/` invocation.
 
 **Files:**
-- `tests/test_bead_health_check.sh` — the health-check script (15 tests)
-- `tests/test_bead_health_monitor.sh` — the periodic monitor (4 tests)
+- `tests/test_bead_health_check.sh` — the health-check script (17 tests)
+- `tests/test_bead_health_monitor.sh` — the periodic monitor (10 tests)
 - `tests/lib/bead_health_test_lib.sh` — shared harness (fixtures, assertions, runner)
 - `tests/fixtures/bead_stub.sh` — test double for the `bead` CLI
 - `tests/test_bead_health_scripts.py` — pytest wrapper (runs both suites)
@@ -209,6 +209,19 @@ subcommand the scripts don't actually use, so script drift fails loudly.
 3. ✅ Healthy workspace exits 0 — including under `--auto-fix` (live claims must survive)
 4. ✅ CLI failures fail the check instead of reading as an empty, healthy store
 5. ✅ Exit codes 0/1 for both scripts; monitor skip paths (missing dir, no `.beads/`)
+6. ✅ Monitor skip paths and their exit codes: an override yielding no
+   workspaces is a clean no-op (exit 0, nothing checked); a missing sibling
+   check script counts the workspace as failed (exit 1, never a silent skip)
+7. ✅ `BOTBURROW_HEALTH_WORKSPACES` replaces the built-in defaults (the
+   hard-coded paths are not consulted while it is set), in both the
+   colon- and space-separated forms
+8. ✅ Direct execution: the harness runs the monitor as a program, not via
+   an explicit `bash` — the monitor's `#!/usr/bin/env bash` shebang (and,
+   through it, the check script's) is exercised, and the suites preflight
+   the exec bit they depend on
+9. ✅ Monitor failure aggregation: the loop continues past a failure and the
+   exit code is the failed-workspace count (`exit $failed_count`), verified
+   for a count > 1
 
 **Mutation-verified** (2026-09-16): each detection's named test was confirmed
 to go red by breaking that detection in a scratch copy of the script —
@@ -222,6 +235,14 @@ pass its own named test. A failing assertion now fails the test wherever it
 sits. The same run caught a script bug: the `bead list` failure message was
 printed inside a command substitution and swallowed, so a CLI failure exited
 1 with no reason shown — it now goes to stderr.
+
+The monitor suite's new tests were mutation-verified the same way (2026-09-16,
+against the real script, restored after each break): deleting the env-override
+block fails the override tests; turning the absent-check-script branch into a
+silent `return 0` fails only `test_monitor_fails_when_check_script_is_absent`;
+replacing `exit $failed_count` with `exit 1` fails the aggregation test's
+exit-2 assertion; stripping the monitor's exec bit trips the harness preflight
+with a named reason instead of a run of rc-126 failures.
 
 **The third, retired detection:** the claim success rate check (alert below
 50%) survives only in the bead-forge era. Its sole data source was

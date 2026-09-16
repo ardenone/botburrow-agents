@@ -102,13 +102,20 @@ run_health() {
     printf '%s\n' "$out"
 }
 
-# Run the health monitor with --once against colon-separated workspaces.
-# Exit code stored like run_health.
+# Run the health monitor with --once against colon- or space-separated
+# workspaces. Exit code stored like run_health.
+#
+# The monitor is EXECUTED directly, not handed to an explicit `bash`: cron
+# and the systemd unit run it as a program, and its #!/usr/bin/env bash
+# shebang is the only interpreter line that exists (/bin/bash does not exist
+# on NixOS). A lost exec bit or broken shebang must therefore fail the suite
+# rather than be masked by the harness. (The monitor in turn executes the
+# check script directly, so this one path exercises both shebangs.)
 run_monitor_once() {
     local workspaces="$1"
     local out
     out=$(PATH="$STUB_BIN:$PATH" BOTBURROW_HEALTH_WORKSPACES="$workspaces" \
-        bash "$HEALTH_MONITOR_SCRIPT" --once 2>&1)
+        "$HEALTH_MONITOR_SCRIPT" --once 2>&1)
     printf '%s' "$?" > "$SUITE_ROOT/last-rc"
     printf '%s\n' "$out"
 }
@@ -223,6 +230,16 @@ bead_health_test_main() {
     for artifact in "$HEALTH_CHECK_SCRIPT" "$HEALTH_MONITOR_SCRIPT" "$BEAD_STUB"; do
         if [ ! -f "$artifact" ]; then
             echo "[FAIL] required file missing: $artifact"
+            exit 1
+        fi
+        # All three are executed as programs under test — the scripts via
+        # their #!/usr/bin/env bash shebangs (there is no /bin/bash on NixOS
+        # to fall back to), the stub through a PATH symlink. A lost exec bit
+        # must fail here with a reason, not as a cryptic run of rc-126s.
+        if [ ! -x "$artifact" ]; then
+            echo "[FAIL] required file is not executable: $artifact"
+            echo "       production runs it directly, so the exec bit is part"
+            echo "       of the contract under test (chmod +x and re-run)."
             exit 1
         fi
     done
