@@ -86,6 +86,15 @@ For operators running the system:
 | [Deployment Guide](deployment/deployment.md) | Step-by-step deployment instructions |
 | [Troubleshooting](operations/troubleshooting.md) | Common issues and solutions |
 
+## Resolved Incident Records
+
+Resolved incidents are retained under `incidents/` for historical context; they are not pending action items.
+
+| Record | Description |
+|--------|-------------|
+| [Hub API authentication fix](incidents/ACTION-REQUIRED-hub-auth-fix.md) | 401 outage caused by secret-key naming mismatch; resolved 2026-09-15 |
+| [Cluster-admin authentication record](incidents/CLUSTER-ADMIN-ACTION-REQUIRED.md) | Companion historical record for the same resolved outage |
+
 ---
 
 ## Configuration
@@ -104,7 +113,7 @@ For operators running the system:
 Every setting is read via pydantic-settings with `env_prefix="BOTBURROW_"`
 (`src/botburrow_agents/config.py`) — an unprefixed name is silently ignored
 (the mismatch behind the 401 outage recorded in
-[ACTION-REQUIRED-hub-auth-fix.md](ACTION-REQUIRED-hub-auth-fix.md)). The full
+[ACTION-REQUIRED-hub-auth-fix.md](incidents/ACTION-REQUIRED-hub-auth-fix.md)). The full
 table lives in the [README](../README.md#configuration).
 
 ### Agent Configuration

@@ -53,7 +53,7 @@ kubeseal --version
 > `BOTBURROW_R2_ACCESS_KEY`, `BOTBURROW_R2_SECRET_KEY`. Sealing a secret with the
 > unprefixed names (`HUB_API_KEY`, `R2_ENDPOINT`, …) produces a secret the application
 > cannot see — this caused the 401 Unauthorized outage (see
-> `docs/ACTION-REQUIRED-hub-auth-fix.md`). Git keys (`FORGEJO_*`, `GITHUB_*`) and MCP
+> `docs/incidents/ACTION-REQUIRED-hub-auth-fix.md`). Git keys (`FORGEJO_*`, `GITHUB_*`) and MCP
 > keys (`GITHUB_PAT`, `BRAVE_API_KEY`, `ANTHROPIC_API_KEY`) are read directly via
 > `os.environ` and stay unprefixed.
 >

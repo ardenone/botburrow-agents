@@ -14,8 +14,8 @@
 > manifest change (see [docs/GITOPS_DEPLOYMENT.md](docs/GITOPS_DEPLOYMENT.md)).
 > Bead IDs (`bd-q21`, `bd-2jm`) are from the retired bead-forge backend,
 > kept for provenance only. Companion records:
-> [docs/ACTION-REQUIRED-hub-auth-fix.md](docs/ACTION-REQUIRED-hub-auth-fix.md)
-> and [docs/CLUSTER-ADMIN-ACTION-REQUIRED.md](docs/CLUSTER-ADMIN-ACTION-REQUIRED.md).
+> [docs/incidents/ACTION-REQUIRED-hub-auth-fix.md](docs/incidents/ACTION-REQUIRED-hub-auth-fix.md)
+> and [docs/incidents/CLUSTER-ADMIN-ACTION-REQUIRED.md](docs/incidents/CLUSTER-ADMIN-ACTION-REQUIRED.md).
 
 ## Status
 ~~🔴 **BLOCKED** - Requires cluster-admin permissions to edit secrets in apexalgo-iad cluster~~ → **Resolved 2026-09-15** by commit `e52694d`

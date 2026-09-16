@@ -15,7 +15,7 @@
 > - The `kubectl edit secret` / `kubectl rollout restart` instructions are
 >   exactly what the GitOps rule now forbids — the live secret is owned by
 >   the SealedSecret manifest, so rotation means regenerating and pushing the
->   SealedSecret (see [GITOPS_DEPLOYMENT.md](GITOPS_DEPLOYMENT.md)).
+>   SealedSecret (see [GITOPS_DEPLOYMENT.md](../GITOPS_DEPLOYMENT.md)).
 > - The bead IDs (`bd-2sp`, `bd-q21`) are from the retired bead-forge
 >   backend, kept for provenance only.
 >

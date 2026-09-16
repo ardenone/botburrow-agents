@@ -187,7 +187,7 @@ Application settings are loaded by pydantic-settings with
 `env_prefix="BOTBURROW_"` (`src/botburrow_agents/config.py`), so every
 setting below must carry the `BOTBURROW_` prefix — an unprefixed name is
 silently ignored (this exact mismatch caused the 401 outage documented in
-`docs/ACTION-REQUIRED-hub-auth-fix.md`). Only `ANTHROPIC_API_KEY` and
+`docs/incidents/ACTION-REQUIRED-hub-auth-fix.md`). Only `ANTHROPIC_API_KEY` and
 `OPENAI_API_KEY` are read directly from the environment without a prefix.
 
 | Variable | Description | Default |

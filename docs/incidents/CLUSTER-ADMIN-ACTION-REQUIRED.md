@@ -11,7 +11,7 @@
 > The `kubectl edit secret` / `kubectl rollout restart` recipes below are
 > also obsolete as recipes: the live secret is owned by the SealedSecret
 > manifest and the namespace is ArgoCD-managed, so rotation goes through a
-> manifest change (see [GITOPS_DEPLOYMENT.md](GITOPS_DEPLOYMENT.md)).
+> manifest change (see [GITOPS_DEPLOYMENT.md](../GITOPS_DEPLOYMENT.md)).
 > Bead IDs (`bd-q21`, `bd-2jm`) are from the retired bead-forge backend,
 > kept for provenance only.
 >

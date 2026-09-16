@@ -1,6 +1,6 @@
 """Guard the contract between secret manifests and the env vars the app reads.
 
-The 401 outage (docs/ACTION-REQUIRED-hub-auth-fix.md) happened because the
+The 401 outage (docs/incidents/ACTION-REQUIRED-hub-auth-fix.md) happened because the
 secret manifests and sealing docs carried keys like ``HUB_API_KEY`` while the
 application reads ``BOTBURROW_HUB_API_KEY`` (pydantic-settings
 ``env_prefix="BOTBURROW_"`` in ``config.py``). These tests fail if any secret
