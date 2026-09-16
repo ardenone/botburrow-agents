@@ -117,6 +117,52 @@ test_autofix_incident_is_unique_ref_deduped() {
     local calls
     calls=$(cat "$BEAD_STUB_LOG")
     assert_contains "--unique-ref" "$calls" "incident creates must carry a unique-ref binding"
+    # The ref binds (day, workspace, violation): a same-day incident from a
+    # different workspace must land on its own ref, so pin this workspace's
+    # name inside the ref value, not just the flag's presence.
+    assert_contains "$(basename "$ws")-expired-claims" "$calls" \
+        "the unique-ref binding must be scoped to this workspace"
+}
+
+# One auto-fix run must separate the two claim classes: the stale unclaimed
+# bead is reset through `bead update`, while a live, freshly-updated claim in
+# the same workspace keeps its status and its assignee — and is never even
+# passed to `bead update`.
+test_autofix_resets_stale_but_spares_live_claim() {
+    new_workspace
+    local ws="$WS"
+    add_bead "Stale unclaimed" in_progress
+    add_bead "Live claim" in_progress worker-live "$(printf '"%s"' "$(now_ts)")"
+    add_bead "Queued task" open
+
+    local out
+    out=$(run_health "$ws" --auto-fix)
+
+    assert_exit 1 "$(last_rc)" "the stale bead is still a violation"
+    assert_equals "open" "$(fixture_bead bd-fixture1 | jq -r .status)" \
+        "the stale bead must be reset to open"
+    assert_equals "null" "$(fixture_bead bd-fixture1 | jq -r .assignee)" \
+        "the stale bead's assignee must be cleared"
+    assert_equals "in_progress" "$(fixture_bead bd-fixture2 | jq -r .status)" \
+        "a live claim in the same workspace must survive auto-fix"
+    assert_equals "worker-live" "$(fixture_bead bd-fixture2 | jq -r .assignee)" \
+        "the live claim must keep its assignee"
+    assert_equals "open" "$(fixture_bead bd-fixture3 | jq -r .status)" \
+        "a queued bystander must be untouched"
+
+    local calls
+    calls=$(cat "$BEAD_STUB_LOG")
+    assert_contains "update bd-fixture1" "$calls" \
+        "the reset must go through bead update on the stale bead"
+    assert_not_contains "update bd-fixture2" "$calls" \
+        "the live claim must never be handed to bead update"
+
+    local incident_desc
+    incident_desc=$(fixture_incidents | jq -r '.[0].description')
+    assert_contains "bd-fixture1" "$incident_desc" \
+        "the incident must list the stale bead"
+    assert_not_contains "bd-fixture2" "$incident_desc" \
+        "the incident must not implicate the live claim"
 }
 
 # More expired claims than EXPIRED_CLAIM_THRESHOLD must fail the check.
@@ -175,8 +221,14 @@ test_autofix_releases_expired_claims_via_watchdog() {
     assert_equals 1 "$(count_incidents)"
     local incident
     incident=$(fixture_incidents | jq '.[0]')
+    assert_equals "human" "$(jq -r .issue_type <<< "$incident")" \
+        "expired-claims incident must be type human"
     assert_equals 1 "$(jq -r .priority <<< "$incident")" "expired-claims incident must be P1"
     assert_contains "ALERT: 4 expired claims detected" "$(jq -r .title <<< "$incident")"
+    assert_contains "$ws" "$(jq -r .description <<< "$incident")" \
+        "incident must name the workspace it came from"
+    assert_contains "bd-fixture1" "$(jq -r .description <<< "$incident")" \
+        "incident must list the affected beads"
 }
 
 # Watchdog liveness gating: stale beads whose assignee still holds a valid
@@ -291,6 +343,27 @@ test_unknown_workspace_exits_one() {
     assert_exit 1 "$(last_rc)" "missing workspace must exit 1"
 }
 
+# Below the >3 threshold, --auto-fix still releases the stale claims (the
+# watchdog runs for real, not --dry-run) but raises no incident — the P1
+# incident path is reserved for starvation-scale staleness.
+test_autofix_within_threshold_releases_without_incident() {
+    new_workspace
+    local ws="$WS"
+    add_bead "Expired 1" in_progress worker-a "$(hours_ago_json_quoted 2)"
+    add_bead "Expired 2" in_progress worker-b "$(hours_ago_json_quoted 3)"
+
+    local out
+    out=$(run_health "$ws" --auto-fix)
+
+    assert_exit 0 "$(last_rc)" "within-threshold staleness must stay green"
+    assert_contains "within threshold" "$out"
+    assert_equals "open,open" "$(fixture_state | jq -r \
+        '[.[] | select(.id | startswith("bd-fixture")) | .status] | join(",")')" \
+        "auto-fix must still release the stale claims"
+    assert_equals 0 "$(count_incidents)" \
+        "no incident below the starvation threshold"
+}
+
 # --auto-fix on a healthy workspace must be a no-op: exit 0, no resets, no
 # incidents. The monitor runs every workspace with --auto-fix on a timer, so
 # a fix path that damages live claims would be worse than the starvation it
@@ -316,10 +389,12 @@ test_autofix_on_healthy_workspace_is_a_noop() {
 bead_health_test_main \
     test_check_only_detects_unclaimed_in_progress \
     test_autofix_resets_unclaimed_in_progress \
+    test_autofix_resets_stale_but_spares_live_claim \
     test_autofix_creates_incident_bead_for_unclaimed \
     test_autofix_incident_is_unique_ref_deduped \
     test_detects_expired_claims_above_threshold \
     test_expired_claims_within_threshold_are_healthy \
+    test_autofix_within_threshold_releases_without_incident \
     test_autofix_releases_expired_claims_via_watchdog \
     test_watchdog_held_claims_are_reported_but_not_released \
     test_check_only_watchdog_is_dry_run \
