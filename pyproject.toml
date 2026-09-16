@@ -109,6 +109,8 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+# src layout: make botburrow_agents importable without `pip install -e .`
+pythonpath = ["src"]
 addopts = "-v --cov=botburrow_agents --cov-report=term-missing"
 markers = [
     "integration: marks tests as integration tests (may require network access to zai-proxy)",
