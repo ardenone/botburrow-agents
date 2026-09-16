@@ -45,13 +45,40 @@ bead `botburro-6d349f13`.
 
 ## Checking what was pushed
 
+GHCR's registry API requires a bearer token before it answers anything — even
+a public package's `tags/list` returns `401 UNAUTHORIZED` to a bare anonymous
+curl. Fetch a token first, then pass it on the API call:
+
 ```bash
-# Tags published to GHCR (needs a token with read:packages for private images)
-curl -s https://ghcr.io/v2/ardenone/botburrow-agents/tags/list | jq -r '.tags[]'
+# Step 1: anonymous pull token (public images)
+GHCR_TOKEN="$(curl -s "https://ghcr.io/token?scope=repository:ardenone/botburrow-agents:pull" | jq -r .token)"
+
+# Step 2: list the published tags
+curl -s -H "Authorization: Bearer $GHCR_TOKEN" \
+  https://ghcr.io/v2/ardenone/botburrow-agents/tags/list | jq -r '.tags[]'
 
 # Pull and smoke-test
 docker pull ghcr.io/ardenone/botburrow-agents:<version>
 docker run --rm ghcr.io/ardenone/botburrow-agents:<version> --help
+```
+
+If step 1 itself returns `401 UNAUTHORIZED`, the package is private or doesn't
+exist yet — the anonymous token endpoint only serves public packages. Until
+the `ghcr-registry` gap above is closed and a build succeeds, expect exactly
+that for this image.
+
+Private images additionally need a credential with `read:packages` (a GitHub
+PAT) in place of the anonymous token. Keep the token in a variable — never
+embed the literal in this doc, a command line, or a log; fetch it by
+retrieval path (e.g. from OpenBao):
+
+```bash
+GHCR_TOKEN="$(bao-as <inst> bao kv get -field=token secret/<path-to-ghcr-pat>)"
+curl -s -H "Authorization: Bearer $GHCR_TOKEN" \
+  https://ghcr.io/v2/ardenone/botburrow-agents/tags/list | jq -r '.tags[]'
+
+# The same credential authenticates docker for private pulls:
+printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u <user> --password-stdin
 ```
 
 ## If Docker Hub is ever needed again
