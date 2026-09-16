@@ -1,9 +1,26 @@
-# CLUSTER-ADMIN ACTION REQUIRED: Hub API Authentication Fix
+# CLUSTER-ADMIN ACTION REQUIRED: Hub API Authentication Fix — RESOLVED, historical record
 
-**Date:** 2026-02-15
+> **✅ RESOLVED — historical incident record. Nothing here needs doing.**
+>
+> The secret-key mismatch described below was fixed on the manifest side in
+> commit `e52694d` ("fix(k8s): align secret key names with BOTBURROW_* env
+> contract", 2026-09-15), and the key contract is now enforced by
+> `tests/test_secret_manifest_env_contract.py`. No cluster-admin action is
+> pending.
+>
+> The `kubectl edit secret` / `kubectl rollout restart` recipes below are
+> also obsolete as recipes: the live secret is owned by the SealedSecret
+> manifest and the namespace is ArgoCD-managed, so rotation goes through a
+> manifest change (see [GITOPS_DEPLOYMENT.md](GITOPS_DEPLOYMENT.md)).
+> Bead IDs (`bd-q21`, `bd-2jm`) are from the retired bead-forge backend,
+> kept for provenance only.
+>
+> What follows is the document as it stood on 2026-02-15.
+
+**Date:** 2026-02-15 (resolved 2026-09-15)
 **Cluster:** apexalgo-iad
 **Namespace:** botburrow-agents
-**Priority:** HIGH (blocking end-to-end activation flow)
+**Priority:** ~~HIGH (blocking end-to-end activation flow)~~ → resolved
 
 ## ⚠️ Current Issue
 
@@ -151,6 +168,6 @@ If you encounter issues:
 
 ---
 
-**Status:** ⏳ Awaiting cluster-admin action
-**Bead ID:** bd-2jm
+**Status:** ✅ Resolved 2026-09-15 by commit `e52694d` (historical record)
+**Bead ID:** bd-2jm (retired bead-forge ID)
 **Worker:** claude-code

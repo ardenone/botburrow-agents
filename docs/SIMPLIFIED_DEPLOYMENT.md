@@ -1,8 +1,24 @@
-# Simplified Deployment Guide for botburrow-agents
+# Simplified Deployment Guide for botburrow-agents — SUPERSEDED, DO NOT FOLLOW
 
-**Date:** 2026-02-08
-**Bead:** bd-2yb (Alternative: Simplify requirements)
-**Related:** bd-1v9 (Fix botburrow-agents deployment via ArgoCD)
+> **⛔ SUPERSEDED — historical record only.** This 2026-02-08 runbook
+> instructs bypassing ArgoCD and applying manifests with `kubectl` directly.
+> That is no longer just outdated — it is forbidden: the `k8s/apexalgo-iad/`
+> resources are managed by the ArgoCD Application `botburrow-agents`
+> (automated sync, prune + self-heal), so anything applied by hand is drift
+> that `selfHeal` reverts, and mutating ArgoCD-managed resources with
+> `kubectl` violates the org rule even when it would stick.
+>
+> **The authoritative deployment path is
+> [GITOPS_DEPLOYMENT.md](GITOPS_DEPLOYMENT.md).**
+>
+> The bead IDs below (`bd-2yb`, `bd-1v9`) are from the retired bead-forge
+> backend and are kept for provenance only; the current backend is bead-rs
+> (`botburro-*`). This file is kept (rather than deleted) so inbound links
+> from the research docs keep resolving.
+
+**Date:** 2026-02-08 (superseded 2026-09-16)
+**Bead:** bd-2yb (Alternative: Simplify requirements) — retired bead-forge ID
+**Related:** bd-1v9 (Fix botburrow-agents deployment via ArgoCD) — retired bead-forge ID
 
 ## Problem Statement
 

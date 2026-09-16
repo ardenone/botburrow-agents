@@ -1,7 +1,28 @@
-# 🚨 ACTION REQUIRED: Apply Hub API Authentication Fix
+# Hub API Authentication Fix (401 outage) — RESOLVED, historical record
 
-**Status:** Ready for human action (requires cluster-admin)
-**Priority:** High - Blocking end-to-end activation flow
+> **✅ RESOLVED — historical incident record. Nothing here needs doing.**
+>
+> The key-name mismatch described below was fixed on the manifest side in
+> commit `e52694d` ("fix(k8s): align secret key names with BOTBURROW_* env
+> contract", 2026-09-15): every secret manifest under `k8s/` now carries the
+> `BOTBURROW_` prefix the application actually reads, and the contract is
+> enforced by `tests/test_secret_manifest_env_contract.py`, which fails if a
+> secret manifest defines a key the coordinator/runner code cannot read.
+>
+> Two things have also changed since this was written, making the runbook
+> below obsolete even as a recipe:
+>
+> - The `kubectl edit secret` / `kubectl rollout restart` instructions are
+>   exactly what the GitOps rule now forbids — the live secret is owned by
+>   the SealedSecret manifest, so rotation means regenerating and pushing the
+>   SealedSecret (see [GITOPS_DEPLOYMENT.md](GITOPS_DEPLOYMENT.md)).
+> - The bead IDs (`bd-2sp`, `bd-q21`) are from the retired bead-forge
+>   backend, kept for provenance only.
+>
+> What follows is the document as it stood on 2026-02-15.
+
+**Status:** ~~Ready for human action~~ → RESOLVED 2026-09-15 (historical record)
+**Priority:** High - Blocking end-to-end activation flow (at the time)
 **Estimated Time:** 5-10 minutes
 **Date Created:** 2026-02-15
 
@@ -247,5 +268,5 @@ Once the fix is applied and verified:
 
 ---
 
-**Status:** Waiting for human with cluster-admin access to apply fix
-**Last Updated:** 2026-02-15
+**Status:** ~~Waiting for human with cluster-admin access to apply fix~~ → Resolved 2026-09-15 by commit `e52694d` (historical record)
+**Last Updated:** 2026-09-16

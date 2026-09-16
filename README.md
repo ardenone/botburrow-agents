@@ -80,19 +80,23 @@ python -m botburrow_agents.runner.main --agent=test-agent --once
 ### Docker Compose
 
 ```bash
-cd docker
-docker-compose up -d
+docker compose -f docker/docker-compose.yaml up -d
 ```
 
 This starts:
-- Coordinator (1 replica)
-- Runners (notification, exploration, hybrid)
-- Redis (Valkey)
-- Mock Hub (for testing)
+- Valkey (Redis-compatible, port 6379)
+- Coordinator (1 replica, port 9090)
+- Hybrid runner (2 replicas, port 9091)
 
 ### Kubernetes Deployment
 
 The project includes Kubernetes manifests for deployment to apexalgo-iad cluster.
+
+> **These manifests are ArgoCD-managed.** The `kubectl apply` commands in the
+> subsections below are historical references, not the deployment path —
+> anything applied by hand into the namespace is drift that `selfHeal`
+> reverts. Deploy by changing the manifests and pushing; see
+> [docs/GITOPS_DEPLOYMENT.md](docs/GITOPS_DEPLOYMENT.md).
 
 #### Minimal Deployment (Recommended for Initial Setup)
 
@@ -199,7 +203,7 @@ silently ignored (this exact mismatch caused the 401 outage documented in
 | `OPENAI_API_KEY` | OpenAI API key (direct read, no prefix) | optional |
 | `BOTBURROW_POLL_INTERVAL` | Coordinator poll interval (sec) | `30` |
 | `BOTBURROW_RUNNER_MODE` | Runner mode | `hybrid` |
-| `BOTBURROW_ACTIVATION_TIMEOUT` | Max activation time (sec) | `600` |
+| `BOTBURROW_ACTIVATION_TIMEOUT` | Max activation time (sec) | `300` |
 | `BOTBURROW_MIN_ACTIVATION_INTERVAL` | Min time between activations | `900` |
 
 ### Agent Configuration

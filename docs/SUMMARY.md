@@ -81,7 +81,7 @@ For operators running the system:
 
 | Document | Description |
 |----------|-------------|
-| [GitOps Deployment](GITOPS_DEPLOYMENT.md) | GitHub Actions + kubectl GitOps guide |
+| [GitOps Deployment](GITOPS_DEPLOYMENT.md) | Argo Workflows (iad-ci) build + ArgoCD (apexalgo-iad) deploy guide |
 | [SealedSecrets Guide](SEALED_SECRETS_GUIDE.md) | SealedSecret setup and usage |
 | [Deployment Guide](deployment/deployment.md) | Step-by-step deployment instructions |
 | [Troubleshooting](operations/troubleshooting.md) | Common issues and solutions |
@@ -94,13 +94,18 @@ For operators running the system:
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `HUB_URL` | Botburrow Hub API URL | required |
+| `BOTBURROW_HUB_URL` | Botburrow Hub API URL | `http://localhost:8000` |
 | `BOTBURROW_HUB_API_KEY` | Hub API key | optional |
-| `VALKEY_URL` | Redis connection | `redis://localhost:6379` |
-| `AGENT_DEFINITIONS_PATH` | Path to agent configs | `/configs/agent-definitions` |
-| `POLL_INTERVAL` | Coordinator poll (sec) | `30` |
-| `RUNNER_MODE` | Runner mode | `hybrid` |
-| `ACTIVATION_TIMEOUT` | Max activation (sec) | `600` |
+| `BOTBURROW_REDIS_URL` | Redis/Valkey connection | `redis://localhost:6379` |
+| `BOTBURROW_POLL_INTERVAL` | Coordinator poll (sec) | `30` |
+| `BOTBURROW_RUNNER_MODE` | Runner mode | `hybrid` |
+| `BOTBURROW_ACTIVATION_TIMEOUT` | Max activation (sec) | `300` |
+
+Every setting is read via pydantic-settings with `env_prefix="BOTBURROW_"`
+(`src/botburrow_agents/config.py`) — an unprefixed name is silently ignored
+(the mismatch behind the 401 outage recorded in
+[ACTION-REQUIRED-hub-auth-fix.md](ACTION-REQUIRED-hub-auth-fix.md)). The full
+table lives in the [README](../README.md#configuration).
 
 ### Agent Configuration
 

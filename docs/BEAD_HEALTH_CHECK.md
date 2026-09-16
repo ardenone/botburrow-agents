@@ -1,8 +1,8 @@
 # Bead Health Check System
 
-**Status:** Implemented (bd-2wni)
+**Status:** Implemented (bd-2wni — retired bead-forge ID, kept for provenance; the current backend is bead-rs)
 **Created:** 2026-02-16
-**Related:** bd-8q53 (Worker starvation incident)
+**Related:** bd-8q53 (Worker starvation incident — retired bead-forge ID)
 
 ## Overview
 
@@ -49,7 +49,7 @@ When invalid states are detected:
 
 # Check current workspace
 cd ~/botburrow-agents
-../scripts/bead-health-check.sh --workspace=$(pwd) --auto-fix
+./scripts/bead-health-check.sh --workspace=$(pwd) --auto-fix
 ```
 
 **Features:**
@@ -114,7 +114,7 @@ main() {
 **Cron Setup:**
 ```bash
 # Add to crontab: run every 5 minutes
-*/5 * * * * /home/coder/botburrow-agents/scripts/bead-health-monitor.sh --once
+*/5 * * * * /home/coding/botburrow-agents/scripts/bead-health-monitor.sh --once
 ```
 
 **Systemd Timer Setup:**
@@ -136,7 +136,7 @@ Description=Bead Health Check
 
 [Service]
 Type=oneshot
-ExecStart=/home/coder/botburrow-agents/scripts/bead-health-monitor.sh --once
+ExecStart=/home/coding/botburrow-agents/scripts/bead-health-monitor.sh --once
 ```
 
 ## Incident Bead Format
@@ -171,7 +171,7 @@ All beads were automatically reset to 'open' status.
 2026-02-16T12:34:56Z
 
 ## Workspace
-/home/coder/botburrow-agents
+/home/coding/botburrow-agents
 
 ## Prevention
 Consider:
@@ -222,10 +222,23 @@ starvation guard fails the build instead of the fleet.
 
 ## Manual Verification
 
-### Create Invalid State
+> **Note (2026-09-16):** the live-corruption drill below is a recipe from
+> the retired bead-forge era. This workspace is now on bead-rs: the live
+> store is SQLite (`.beads/beads.db`), not `.beads/issues.jsonl`, and hand-
+> editing a bead store — here or in any shape — is how the SEAM store got
+> corrupted on 2026-08-14. Do **not** recreate the invalid state by hand on a
+> live workspace. The hermetic suites above are the supported way to exercise
+> the guard: they serve bead state from a fixture via a stubbed CLI, so all
+> three violation types can be driven deterministically and safely.
+>
+> The scripts themselves still shell out to the deprecated `br` CLI; that
+> interface is pinned by `tests/fixtures/br_stub.sh` (unused subcommands
+> exit 64), so any drift between scripts and tests fails loudly.
+
+### Create Invalid State (bead-forge era — historical, do not run today)
 
 ```bash
-cd /home/coder/botburrow-agents
+cd /home/coding/botburrow-agents
 
 # Create a bead
 bead_id=$(br create --title "Test stuck bead" | grep -oP 'Created issue \K[a-z0-9-]+')
@@ -345,13 +358,13 @@ Health checks log structured data suitable for monitoring:
 
 ```bash
 # Check if script exists and is executable
-ls -la /home/coder/botburrow-agents/scripts/bead-health-check.sh
+ls -la /home/coding/botburrow-agents/scripts/bead-health-check.sh
 
 # Make executable if needed
-chmod +x /home/coder/botburrow-agents/scripts/bead-health-check.sh
+chmod +x /home/coding/botburrow-agents/scripts/bead-health-check.sh
 
 # Test manually
-cd /home/coder/botburrow-agents
+cd /home/coding/botburrow-agents
 ./scripts/bead-health-check.sh --workspace=$(pwd) --check-only
 ```
 
@@ -409,13 +422,13 @@ br create --type human --title "Test incident" --priority 1
 
 ## Related Documentation
 
-- **Root cause analysis:** `analysis/bd-8q53-worker-starvation-root-cause.md`
-- **Worker starvation incident:** `BD-8Q53-RESOLVED.md`
-- **Bead worker documentation:** `BEAD_WORKERS.md`
-- **Engineering fix bead:** bd-vn3u
+- **Root cause analysis:** `../analysis/bd-8q53-worker-starvation-root-cause.md`
+- **Worker starvation incident:** `../BD-8Q53-RESOLVED.md`
+- **Bead worker documentation:** `../BEAD_WORKERS.md`
+- **Engineering fix bead:** bd-vn3u (retired bead-forge ID)
 
 ## See Also
 
-- [Bead Workers](BEAD_WORKERS.md) - Self-scaling worker pool
+- [Bead Workers](../BEAD_WORKERS.md) - Self-scaling worker pool
 - [Worker Status](../scripts/worker-status.sh) - Monitor worker health
 - [Worker Naming](../scripts/worker-naming.sh) - NATO alphabet naming
