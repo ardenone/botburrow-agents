@@ -239,9 +239,13 @@ flow as any other manifest change:
 ```bash
 cp k8s/apexalgo-iad/botburrow-agents-secret.yml.template /tmp/botburrow-agents-secret.yml
 # edit /tmp/botburrow-agents-secret.yml with real values, then:
-kubeseal --format=yaml --controller-namespace=sealed-secrets \
-  < /tmp/botburrow-agents-secret.yml > k8s/apexalgo-iad/botburrow-agents-sealedsecret.yml
-git add k8s/apexalgo-iad/botburrow-agents-sealedsecret.yml
+# (--controller-name is required: the Service here is named for its Helm
+#  release, not the upstream default `sealed-secrets`)
+kubeseal --format=yaml \
+  --controller-namespace=sealed-secrets \
+  --controller-name=sealed-secrets-apexalgo-iad \
+  < /tmp/botburrow-agents-secret.yml > k8s/apexalgo-iad/botburrow-agents-sealedsecrets.yml
+git add k8s/apexalgo-iad/botburrow-agents-sealedsecrets.yml
 git commit -m "feat: update SealedSecret" && git push origin main
 ```
 
