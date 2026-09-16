@@ -118,6 +118,23 @@ class TestCircuitStates:
 
         assert await breaker.get_state("agent-1") is CircuitState.HALF_OPEN
 
+    async def test_junk_backoff_value_resolves_closed(
+        self, breaker: CircuitBreaker, fake_redis: fakeredis.FakeRedis
+    ) -> None:
+        """A corrupt backoff entry is tolerated as CLOSED, not a wedged circuit."""
+        await fake_redis.hset(AGENT_BACKOFF, "agent-1", "not-a-timestamp")
+
+        assert await breaker.get_state("agent-1") is CircuitState.CLOSED
+        assert await breaker.allow_activation("agent-1") is True
+
+        # Driving the agent over the threshold overwrites the junk with a
+        # valid epoch, so the breaker still opens
+        for _ in range(5):
+            await breaker.record_failure("agent-1")
+        assert await breaker.get_state("agent-1") is CircuitState.OPEN
+        backoff = await fake_redis.hget(AGENT_BACKOFF, "agent-1")
+        assert float(backoff) > time.time()
+
     async def test_success_closes_circuit(
         self, breaker: CircuitBreaker, fake_redis: fakeredis.FakeRedis
     ) -> None:
@@ -431,6 +448,59 @@ class TestRuntimeConfig:
         breaker._config_loaded_at = 0.0
         assert await breaker.record_failure("agent-1") is CircuitState.OPEN
 
+    async def test_removed_config_entry_keeps_last_loaded_config(
+        self,
+        fake_redis: fakeredis.FakeRedis,
+        config_cache: ConfigCache,
+    ) -> None:
+        """A deleted cache entry leaves the last-loaded thresholds in effect."""
+        await CircuitBreaker.save_runtime_config(
+            config_cache, CircuitBreakerConfig(failure_threshold=2)
+        )
+        breaker = CircuitBreaker(make_client(fake_redis), config_cache=config_cache)
+        assert await breaker.record_failure("agent-1") is CircuitState.CLOSED
+
+        # Operator removes the shared entry; a refresh must keep the loaded
+        # threshold (2) rather than silently reverting to the default (5)
+        await fake_redis.delete(f"cache:agent:{CircuitBreaker.CONFIG_CACHE_ID}")
+        breaker._config_loaded_at = 0.0
+        assert await breaker.record_failure("agent-1") is CircuitState.OPEN
+
+    async def test_backoff_aliases_pin_breaker_over_config_cache(
+        self,
+        fake_redis: fakeredis.FakeRedis,
+        settings: Settings,
+        config_cache: ConfigCache,
+    ) -> None:
+        """The WorkQueue.backoff_base/backoff_max aliases beat the cache.
+
+        Pinned knobs survive a config-cache refresh while unpinned ones
+        (here the failure threshold) still follow the shared config.
+        """
+        await CircuitBreaker.save_runtime_config(
+            config_cache,
+            CircuitBreakerConfig(failure_threshold=2, backoff_base=10, backoff_max=100),
+        )
+        work_queue = WorkQueue(
+            make_client(fake_redis), settings, config_cache=config_cache
+        )
+        work_queue.backoff_base = 30
+        work_queue.backoff_max = 500
+
+        # Second failure opens the circuit at the cache-driven threshold of 2,
+        # using the pinned 30s base backoff instead of the cache's 10s
+        await work_queue.complete(work_item("agent-1"), success=False)
+        await work_queue.complete(work_item("agent-1"), success=False)
+
+        breaker = work_queue.circuit_breaker
+        assert await breaker.get_state("agent-1") is CircuitState.OPEN
+        assert breaker.config.failure_threshold == 2
+        assert breaker.config.backoff_base == 30
+        assert breaker.config.backoff_max == 500
+
+        status = await breaker.get_status("agent-1")
+        assert status["backoff_seconds_remaining"] == pytest.approx(30, abs=2)
+
     async def test_work_queue_threshold_aliases_pin_breaker(
         self,
         fake_redis: fakeredis.FakeRedis,
@@ -471,6 +541,17 @@ class TestObservability:
         assert opening["state"] == CircuitState.OPEN.value
         assert opening["backoff_seconds_remaining"] == pytest.approx(120, abs=2)
         assert opening["thresholds"]["failure_threshold"] == 5
+
+    async def test_get_status_tolerates_junk_failure_count(
+        self, breaker: CircuitBreaker, fake_redis: fakeredis.FakeRedis
+    ) -> None:
+        """A corrupt failure count is reported as zero, not an error."""
+        await fake_redis.hset(AGENT_FAILURES, "agent-1", "garbage")
+
+        status = await breaker.get_status("agent-1")
+
+        assert status["state"] == CircuitState.CLOSED.value
+        assert status["failures"] == 0
 
     async def test_get_all_states_classifies_agents(
         self, breaker: CircuitBreaker, fake_redis: fakeredis.FakeRedis
