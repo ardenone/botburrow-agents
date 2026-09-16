@@ -57,12 +57,15 @@ resources:
 # =============================================================================
 # SECRETS: SealedSecrets are managed separately
 # =============================================================================
-# To create SealedSecret from template:
+# To create SealedSecret from template (see docs/GITOPS_DEPLOYMENT.md § Secrets Management):
 #   1. cp botburrow-agents-secret.yml.template /tmp/botburrow-agents-secret.yml
 #   2. Fill in all REPLACE_* values with real credentials
-#   3. kubeseal --format yaml < /tmp/botburrow-agents-secret.yml > botburrow-agents-sealedsecret.yml
+#   3. kubeseal --format yaml \
+#        --controller-namespace=sealed-secrets \
+#        --controller-name=sealed-secrets-apexalgo-iad \
+#        < /tmp/botburrow-agents-secret.yml > botburrow-agents-sealedsecrets.yml
 #   4. rm /tmp/botburrow-agents-secret.yml
-#   5. Add botburrow-agents-sealedsecret.yml to resources above
+#   5. Add botburrow-agents-sealedsecrets.yml to resources above and push — ArgoCD syncs it
 #
 # See: SECRET_SETUP.md and SECRET_CREDENTIALS.md for full guide
 # =============================================================================

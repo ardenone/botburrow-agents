@@ -1,6 +1,22 @@
-# 🚨 HUMAN ACTION REQUIRED: bd-2sp
+# 🚨 HUMAN ACTION REQUIRED: bd-2sp — RESOLVED, DO NOT ACT ON THIS
 
-**Status:** ✅ **ALL PREPARATION COMPLETE** - Ready for cluster-admin execution
+> **✅ RESOLVED — historical record only. Nothing here needs doing.** The
+> outage was fixed on the manifest side (commit `e52694d`, 2026-09-15); see
+> [docs/incidents/ACTION-REQUIRED-hub-auth-fix.md](docs/incidents/ACTION-REQUIRED-hub-auth-fix.md).
+>
+> The fix path below is gone: `scripts/fix-hub-auth.sh` was deleted on
+> 2026-09-16 because its `kubectl apply` of the Secret and `kubectl rollout
+> restart` of the coordinator deployments are live mutations of
+> ArgoCD-managed resources that `selfHeal` reverts — exactly what the GitOps
+> rule forbids. **The only secret rotation path is the manifest-side
+> SealedSecret flow in
+> [docs/GITOPS_DEPLOYMENT.md § Secrets Management](docs/GITOPS_DEPLOYMENT.md#secrets-management)**
+> (helper: `k8s/apexalgo-iad/scripts/create-sealedsecret.sh`).
+>
+> Bead IDs (`bd-2sp`, `bd-2jm`) are from the retired bead-forge backend,
+> kept for provenance only.
+
+**Status:** ~~Ready for cluster-admin execution~~ → RESOLVED 2026-09-15 (historical record)
 **Date:** 2026-02-15
 **Bead:** bd-2sp
 
@@ -18,29 +34,13 @@ The Hub API authentication fix is **100% ready to apply**. All scripts, document
 1. Machine with cluster-admin kubeconfig for apexalgo-iad cluster
 2. Hub API key from https://botburrow.ardenone.com/admin
 
-### Apply Fix
+### ~~Apply Fix~~ — historical; the script and this live-mutation path no longer exist
 
-```bash
-# SSH to machine with cluster-admin kubeconfig
-ssh <machine-with-admin-access>
-
-# Set cluster-admin kubeconfig for apexalgo-iad
-export KUBECONFIG=/path/to/apexalgo-iad-admin.kubeconfig
-
-# Clone/pull the repo if needed
-cd /path/to/botburrow-agents
-git pull origin main
-
-# Run automated fix script
-./scripts/fix-hub-auth.sh
-
-# Follow the prompts:
-# 1. Review current secret keys
-# 2. Confirm update (type "yes")
-# 3. Provide Hub API key if prompted
-# 4. Confirm coordinator restart (type "yes")
-# 5. Watch logs to verify no 401 errors
-```
+The 2026-02-15 procedure (SSH to an admin machine, export a cluster-admin
+kubeconfig, run `./scripts/fix-hub-auth.sh`, confirm its prompts) described a
+live secret edit plus pod restarts — both forbidden under the GitOps rule
+today. Rotation happens through the SealedSecret manifest; see the banner
+above.
 
 ### Verify Fix
 
@@ -52,9 +52,16 @@ kubectl logs deployment/coordinator -n botburrow-agents --tail=50
 kubectl exec deployment/coordinator -n botburrow-agents -- env | grep BOTBURROW_HUB_API_KEY
 ```
 
-### Mark Complete
+### ~~Mark Complete~~ — done; nothing to run
+
+The fix was applied on the manifest side (commit `e52694d`, 2026-09-15) and
+the bead was closed. The historical block below is also obsolete as syntax:
+`br` is the retired bead-forge CLI (the current CLI is `bead`), and bead
+state lives in `.beads/checkpoint/`, published automatically after each
+mutation — it is not staged with `git add .beads/*.jsonl`.
 
 ```bash
+# historical (2026-02-15) — do not run
 cd /home/coder/botburrow-agents
 br close bd-2sp --status completed
 br sync --flush-only
@@ -130,29 +137,14 @@ kubectl auth can-i update secrets -n botburrow-agents
 
 ---
 
-## Alternative: Manual Fix (10 minutes)
+## ~~Alternative: Manual Fix (10 minutes)~~ — forbidden under the GitOps rule
 
-If you prefer manual execution instead of the script:
-
-```bash
-export KUBECONFIG=/path/to/apexalgo-iad-admin.kubeconfig
-
-# Edit secret
-kubectl edit secret botburrow-agents-secrets -n botburrow-agents
-
-# Change key names (keep base64 values):
-# HUB_API_KEY → BOTBURROW_HUB_API_KEY
-# R2_ENDPOINT → BOTBURROW_R2_ENDPOINT
-# R2_ACCESS_KEY → BOTBURROW_R2_ACCESS_KEY
-# R2_SECRET_KEY → BOTBURROW_R2_SECRET_KEY
-
-# Restart coordinator
-kubectl rollout restart deployment coordinator -n botburrow-agents
-kubectl rollout restart deployment coordinator-git-sync -n botburrow-agents
-
-# Verify
-kubectl logs -f deployment/coordinator -n botburrow-agents --tail=50
-```
+The historical manual variant — `kubectl edit secret botburrow-agents-secrets`
+followed by `kubectl rollout restart` of the coordinator deployments — is not
+available any more, not merely discouraged: the live Secret is owned by the
+SealedSecret manifest in an ArgoCD-managed namespace, so that edit is drift
+`selfHeal` reverts and a GitOps violation regardless. There is no
+manual-kubectl variant of this fix.
 
 ---
 
@@ -160,7 +152,7 @@ kubectl logs -f deployment/coordinator -n botburrow-agents --tail=50
 
 - **Readiness check:** `docs/bd-2sp-ready-for-human.md`
 - **Comprehensive guide:** `docs/hub-api-authentication-fix.md`
-- **Fix script:** `scripts/fix-hub-auth.sh`
+- **Fix script:** `scripts/fix-hub-auth.sh` (deleted 2026-09-16 — see banner)
 - **Placeholder:** `k8s/apexalgo-iad/botburrow-agents-secrets-PLACEHOLDER.yml`
 
 ---

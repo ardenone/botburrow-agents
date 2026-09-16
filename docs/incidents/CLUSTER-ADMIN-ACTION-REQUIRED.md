@@ -12,6 +12,13 @@
 > also obsolete as recipes: the live secret is owned by the SealedSecret
 > manifest and the namespace is ArgoCD-managed, so rotation goes through a
 > manifest change (see [GITOPS_DEPLOYMENT.md](../GITOPS_DEPLOYMENT.md)).
+> The fix script they pointed at, `scripts/fix-hub-auth.sh`, was **deleted
+> on 2026-09-16** — it applied the Secret and restarted the coordinator
+> deployments with `kubectl`, which are live mutations of ArgoCD-managed
+> resources that `selfHeal` reverts. Do not recreate it; the only rotation
+> path is the manifest-side SealedSecret flow in
+> [GITOPS_DEPLOYMENT.md § Secrets Management](../GITOPS_DEPLOYMENT.md#secrets-management)
+> (helper: `k8s/apexalgo-iad/scripts/create-sealedsecret.sh`).
 > Bead IDs (`bd-q21`, `bd-2jm`) are from the retired bead-forge backend,
 > kept for provenance only.
 >
@@ -41,37 +48,43 @@ Environment variable naming mismatch between secret and application:
 | **Secret contains** | `HUB_API_KEY` (no prefix) |
 | **Application expects** | `BOTBURROW_HUB_API_KEY` (with prefix) |
 
-## ✅ Solution: Run Automated Fix Script
+## ~~✅ Solution: Run Automated Fix Script~~ — retired 2026-09-16
 
-### Prerequisites
+> **⛔ This section is kept as history only.** `scripts/fix-hub-auth.sh` was
+> deleted on 2026-09-16: it applied the Secret and restarted the coordinator
+> deployments with `kubectl`, which are live mutations of ArgoCD-managed
+> resources — forbidden under the GitOps rule, and futile besides, since
+> `selfHeal` reverts them. Do not recreate it.
 
-1. **Cluster access** with secret edit permissions:
-   ```bash
-   # Verify you have the right kubeconfig
-   export KUBECONFIG=/path/to/apexalgo-iad.kubeconfig
-   kubectl get secret botburrow-agents-secrets -n botburrow-agents
-   ```
+### Current rotation path (the only one)
 
-2. **Hub API key** (if not already in secret):
-   - Get from https://botburrow.ardenone.com/admin
-   - Or ask botburrow-hub administrator
-
-### Execution Steps
-
-**RECOMMENDED: Use automated script**
+Rotate by regenerating and pushing the SealedSecret, per
+[GITOPS_DEPLOYMENT.md § Secrets Management](../GITOPS_DEPLOYMENT.md#secrets-management):
 
 ```bash
-# 1. Navigate to workspace
-cd /home/coder/botburrow-agents
-
-# 2. Set kubeconfig (if not already set)
-export KUBECONFIG=/path/to/apexalgo-iad.kubeconfig
-
-# 3. Run the fix script
-./scripts/fix-hub-auth.sh
+cp k8s/apexalgo-iad/botburrow-agents-secret.yml.template /tmp/botburrow-agents-secret.yml
+# edit /tmp/botburrow-agents-secret.yml with real values, then:
+# (--controller-name is required: the Service here is named for its Helm
+#  release, not the upstream default `sealed-secrets`)
+kubeseal --format=yaml \
+  --controller-namespace=sealed-secrets \
+  --controller-name=sealed-secrets-apexalgo-iad \
+  < /tmp/botburrow-agents-secret.yml > k8s/apexalgo-iad/botburrow-agents-sealedsecrets.yml
+git add k8s/apexalgo-iad/botburrow-agents-sealedsecrets.yml
+git commit -m "feat: update SealedSecret" && git push origin main
 ```
 
-**What the script does:**
+ArgoCD syncs the SealedSecret, the SealedSecrets controller updates the
+Secret, and the rollout happens through the manifest change — no live
+`kubectl` mutation. `k8s/apexalgo-iad/scripts/create-sealedsecret.sh`
+wraps the same flow.
+
+### Historical record (2026-02-15)
+
+The original steps — export a cluster-admin kubeconfig, run
+`./scripts/fix-hub-auth.sh`, confirm the prompts — described a
+live-mutation path that no longer exists in the repo. What the script did
+at the time:
 1. ✅ Shows current secret keys (first 20 chars for safety)
 2. ✅ Asks for confirmation before making changes
 3. ✅ Extracts current values from secret (supports both old and new key names)
@@ -81,34 +94,11 @@ export KUBECONFIG=/path/to/apexalgo-iad.kubeconfig
 7. ✅ Waits for rollout completion
 8. ✅ Tails logs for 30 seconds to verify no more 401 errors
 
-**Script is safe:**
-- Uses `set -euo pipefail` (fail fast on errors)
-- Asks for confirmation before changes
-- Preserves all existing secret values
-- Only updates key names (adds BOTBURROW_ prefix)
-
-### Alternative: Manual Fix
-
-If you prefer manual control:
-
-```bash
-# 1. Edit secret
-kubectl edit secret botburrow-agents-secrets -n botburrow-agents
-
-# 2. Rename keys (keep base64 values unchanged):
-#    HUB_API_KEY → BOTBURROW_HUB_API_KEY
-#    R2_ENDPOINT → BOTBURROW_R2_ENDPOINT
-#    R2_ACCESS_KEY → BOTBURROW_R2_ACCESS_KEY
-#    R2_SECRET_KEY → BOTBURROW_R2_SECRET_KEY
-
-# 3. Restart coordinator
-kubectl rollout restart deployment coordinator -n botburrow-agents
-kubectl rollout restart deployment coordinator-git-sync -n botburrow-agents
-
-# 4. Wait for rollout
-kubectl rollout status deployment coordinator -n botburrow-agents
-kubectl rollout status deployment coordinator-git-sync -n botburrow-agents
-```
+The "Alternative: Manual Fix" of the same date — `kubectl edit secret
+botburrow-agents-secrets` plus `kubectl rollout restart` of the
+coordinator deployments — is likewise gone: the live Secret is owned by the
+SealedSecret manifest, so that edit is drift `selfHeal` reverts and a GitOps
+violation regardless. There is no manual-kubectl variant of this fix.
 
 ## 🧪 Verification Steps
 
@@ -141,28 +131,34 @@ kubectl get pods -n botburrow-agents | grep coordinator
 
 ## 📚 Related Documentation
 
-- **Detailed fix guide:** `docs/hub-api-authentication-fix.md`
-- **Automated script:** `scripts/fix-hub-auth.sh`
+- **Detailed fix guide:** `docs/hub-api-authentication-fix.md` (also a historical record — see its banner)
+- **Automated script:** `scripts/fix-hub-auth.sh` (deleted 2026-09-16 — see header)
 - **Updated placeholder:** `k8s/apexalgo-iad/botburrow-agents-secrets-PLACEHOLDER.yml`
 - **Original issue:** Bead bd-q21 (HUMAN: Fix coordinator Hub API authentication)
 
 ## 🔐 Security Notes
 
-- Script uses `stringData` field (automatically base64 encodes)
+Notes on the deleted script, kept for the record:
+
+- Script used `stringData` field (automatically base64 encodes)
 - No secrets are logged or displayed (except first 20 chars for verification)
 - Preserves all existing secret values (Git tokens, R2 credentials)
 - Only updates environment variable names (adds BOTBURROW_ prefix)
 
+The SealedSecret flow replaces this entirely: plaintext values only ever
+live in a temporary file outside the repo, and what gets committed is the
+kubeseal output.
+
 ## ⏱️ Estimated Time
 
-- **Automated script:** ~3-5 minutes (including rollout wait)
-- **Manual edit:** ~5-10 minutes
+Historical, for the deleted script: ~3-5 minutes (automated), ~5-10 minutes
+(manual edit). The manifest-side rotation path takes about the same.
 
 ## 📞 Support
 
 If you encounter issues:
-1. Check script output for specific error messages
-2. Verify kubectl permissions: `kubectl auth can-i update secret -n botburrow-agents`
+1. Verify the SealedSecret synced: `kubectl get sealedsecrets -n botburrow-agents`
+2. Verify kubectl read access: `kubectl auth can-i get secret -n botburrow-agents`
 3. Check coordinator logs: `kubectl logs deployment/coordinator -n botburrow-agents`
 4. Contact: Bot for follow-up debugging
 

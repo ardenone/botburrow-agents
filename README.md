@@ -126,11 +126,15 @@ Automated deployment via ArgoCD with health checks and self-heal:
 # 1. No GitHub secrets needed — CI credentials are cluster-side in iad-ci
 
 # 2. Create SealedSecret for credentials (see docs/SEALED_SECRETS_GUIDE.md)
-kubeseal --format=yaml --controller-namespace=sealed-secrets \
-  < /tmp/botburrow-agents-secret.yml > k8s/apexalgo-iad/botburrow-agents-sealedsecret.yml
+#    (--controller-name is required: the Service is named for its Helm
+#     release, not the upstream default `sealed-secrets`)
+kubeseal --format=yaml \
+  --controller-namespace=sealed-secrets \
+  --controller-name=sealed-secrets-apexalgo-iad \
+  < /tmp/botburrow-agents-secret.yml > k8s/apexalgo-iad/botburrow-agents-sealedsecrets.yml
 
 # 3. Push to main branch — ArgoCD syncs the manifests automatically
-git add k8s/apexalgo-iad/botburrow-agents-sealedsecret.yml
+git add k8s/apexalgo-iad/botburrow-agents-sealedsecrets.yml
 git commit -m "feat: deploy botburrow-agents"
 git push origin main
 ```

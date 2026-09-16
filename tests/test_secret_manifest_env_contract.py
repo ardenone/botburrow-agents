@@ -30,8 +30,9 @@ SECRET_MANIFESTS = [
     REPO_ROOT / "k8s/apexalgo-iad/botburrow-agents-sealedsecrets.yml.template",
 ]
 
-# Keys kept in the secret for parity with the live cluster secret (and the
-# preservation logic in scripts/fix-hub-auth.sh) but not read by the Python
+# Keys kept in the secret for parity with the live cluster secret (as it
+# stood when the 2026-02 401 incident was fixed on the manifest side - see
+# docs/incidents/ACTION-REQUIRED-hub-auth-fix.md) but not read by the Python
 # code. Every entry here is a deliberate, documented exception; a new key
 # landing in a manifest without being read anywhere must fail instead of
 # being added here.
@@ -232,3 +233,45 @@ def test_jsonpath_secret_reads_reference_defined_keys() -> None:
                 f"{sorted(allowed)}. Update consumers in the same change that "
                 f"renames a secret key."
             )
+
+
+# The controller Service is named for its Helm release, not the upstream
+# default `sealed-secrets`. SealedSecrets are encrypted for a specific
+# controller name/namespace, so a kubeseal recipe that omits --controller-name
+# (or names a controller that is not deployed) yields a manifest the
+# in-cluster controller cannot unseal.
+SEALED_SECRETS_CONTROLLER_NAME = "sealed-secrets-apexalgo-iad"
+
+# Every file that documents the rotation flow must pin the deployed
+# controller; the canonical recipe lives in docs/GITOPS_DEPLOYMENT.md
+# § Secrets Management.
+SEALING_FLOW_DOCS = [
+    REPO_ROOT / "k8s/apexalgo-iad/scripts/create-sealedsecret.sh",
+    REPO_ROOT / "k8s/apexalgo-iad/SECRET_SETUP.md",
+    REPO_ROOT / "docs/GITOPS_DEPLOYMENT.md",
+    REPO_ROOT / "docs/SEALED_SECRETS_GUIDE.md",
+    REPO_ROOT / "README.md",
+    REPO_ROOT / "docs/incidents/ACTION-REQUIRED-hub-auth-fix.md",
+    REPO_ROOT / "docs/incidents/CLUSTER-ADMIN-ACTION-REQUIRED.md",
+    REPO_ROOT / "docs/hub-api-authentication-fix.md",
+]
+
+
+def test_sealing_flow_docs_pin_the_deployed_controller() -> None:
+    """Rotation recipes must seal against the controller that is deployed.
+
+    The 2026-02 401 incident docs and this helper drifted into carrying
+    kubeseal recipes without --controller-name (or naming a controller that
+    is not deployed); following them produces a SealedSecret that fails to
+    unseal. Guard the canonical flags so the drift cannot come back.
+    """
+    flag = f"--controller-name={SEALED_SECRETS_CONTROLLER_NAME}"
+    for path in SEALING_FLOW_DOCS:
+        text = path.read_text(encoding="utf-8")
+        assert flag in text, (
+            f"{path.relative_to(REPO_ROOT)} documents the rotation flow but "
+            f"never pins {flag}. A SealedSecret sealed without the deployed "
+            f"controller's name cannot be unsealed in-cluster. Copy the "
+            f"canonical recipe from docs/GITOPS_DEPLOYMENT.md "
+            f"§ Secrets Management."
+        )

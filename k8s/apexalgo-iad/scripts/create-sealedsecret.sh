@@ -20,9 +20,13 @@
 #   ./create-sealedsecret.sh
 #
 #   # Step 3: Add to git and push
-#   git add k8s/apexalgo-iad/botburrow-agents-sealedsecret.yml
+#   git add k8s/apexalgo-iad/botburrow-agents-sealedsecrets.yml
 #   git commit -m "feat: add SealedSecret for botburrow-agents"
 #   git push
+#
+# ArgoCD syncs the SealedSecret on push — never kubectl apply the manifest
+# by hand (a live mutation is drift that selfHeal reverts). See
+# docs/GITOPS_DEPLOYMENT.md § Secrets Management for the canonical flow.
 #
 # =============================================================================
 
@@ -32,7 +36,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 TEMPLATE_FILE="$PROJECT_ROOT/k8s/apexalgo-iad/botburrow-agents-secret.yml.template"
 TEMP_SECRET="/tmp/botburrow-agents-secret.yml"
-OUTPUT_FILE="$PROJECT_ROOT/k8s/apexalgo-iad/botburrow-agents-sealedsecret.yml"
+OUTPUT_FILE="$PROJECT_ROOT/k8s/apexalgo-iad/botburrow-agents-sealedsecrets.yml"
 
 # Colors for output
 RED='\033[0;31m'
@@ -96,23 +100,13 @@ check_prerequisites() {
 
 # Get SealedSecret controller info
 get_controller_info() {
-    log_info "Detecting SealedSecret controller..."
-
-    # Try to get controller info from local cluster config
-    local controller_namespace="sealed-secrets"
-    local controller_name="sealed-secrets"
-
-    # Check if we can access the cluster
-    if KUBECONFIG=/home/coder/.kube/apexalgo-iad.kubeconfig kubectl get sealedsecrets -n "$controller_namespace" &> /dev/null 2>&1; then
-        log_info "✓ SealedSecret controller found in namespace: $controller_namespace"
-        echo "--controller-namespace=$controller_namespace"
-        echo "--controller-name=$controller_name"
-    else
-        log_warn "Could not detect SealedSecret controller in cluster"
-        log_info "Will use default controller namespace: sealed-secrets"
-        echo "--controller-namespace=sealed-secrets"
-        echo "--controller-name=sealed-secrets"
-    fi
+    # The controller Service here is named for its Helm release, not the
+    # upstream default `sealed-secrets` — kubeseal needs the exact name or
+    # the sealed output cannot be unsealed. Literal flags, kept in sync with
+    # docs/GITOPS_DEPLOYMENT.md § Secrets Management.
+    log_info "Sealing against controller sealed-secrets-apexalgo-iad in namespace sealed-secrets"
+    echo "--controller-namespace=sealed-secrets"
+    echo "--controller-name=sealed-secrets-apexalgo-iad"
 }
 
 # Create SealedSecret
@@ -173,17 +167,19 @@ print_next_steps() {
     log_info "1. Review the SealedSecret:"
     log_info "   cat $OUTPUT_FILE"
     log_info ""
-    log_info "2. Add to kustomization.yaml if not already present:"
-    log_info "   echo '- botburrow-agents-sealedsecret.yml' >> $PROJECT_ROOT/k8s/apexalgo-iad/kustomization-full.yaml"
+    log_info "2. Add to kustomization-full.yaml if not already present:"
+    log_info "   echo '- botburrow-agents-sealedsecrets.yml' >> $PROJECT_ROOT/k8s/apexalgo-iad/kustomization-full.yaml"
     log_info ""
     log_info "3. Commit and push to Git:"
     log_info "   cd $PROJECT_ROOT"
-    log_info "   git add k8s/apexalgo-iad/botburrow-agents-sealedsecret.yml"
+    log_info "   git add k8s/apexalgo-iad/botburrow-agents-sealedsecrets.yml"
     log_info "   git commit -m 'feat: add SealedSecret for botburrow-agents'"
     log_info "   git push"
     log_info ""
-    log_info "4. Apply to cluster (if using ArgoCD, it will sync automatically):"
-    log_info "   kubectl apply -k $PROJECT_ROOT/k8s/apexalgo-iad/"
+    log_info "4. ArgoCD syncs the pushed manifest; the SealedSecrets controller"
+    log_info "   updates the Secret and the rollout follows the manifest change."
+    log_info "   Never kubectl apply the manifest by hand — a live mutation is"
+    log_info "   drift that selfHeal reverts and a GitOps-rule violation."
     log_info ""
 }
 

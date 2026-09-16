@@ -16,16 +16,19 @@ resources:
 # SECRETS: Add SealedSecret here after creating it
 # =============================================================================
 # To create SealedSecret from template:
-#   1. Use the automated script: ./scripts/create-sealedsecret.sh
-#   2. Or manually:
+#   1. Use the helper: k8s/apexalgo-iad/scripts/create-sealedsecret.sh
+#   2. Or manually (see docs/GITOPS_DEPLOYMENT.md § Secrets Management):
 #      - cp botburrow-agents-secret.yml.template /tmp/botburrow-agents-secret.yml
 #      - Fill in all REPLACE_* values with real credentials
-#      - kubeseal --format yaml < /tmp/botburrow-agents-secret.yml > botburrow-agents-sealedsecret.yml
+#      - kubeseal --format yaml \
+#          --controller-namespace=sealed-secrets \
+#          --controller-name=sealed-secrets-apexalgo-iad \
+#          < /tmp/botburrow-agents-secret.yml > botburrow-agents-sealedsecrets.yml
 #      - rm /tmp/botburrow-agents-secret.yml
-#   3. Uncomment the line below and commit
+#   3. Uncomment the line below and commit — ArgoCD syncs it; never kubectl apply by hand
 # See: SECRET_SETUP.md and SECRET_CREDENTIALS.md for full guide
 # =============================================================================
-#  - botburrow-agents-sealedsecret.yml  # <-- UNCOMMENT after creating SealedSecret
+#  - botburrow-agents-sealedsecrets.yml  # <-- UNCOMMENT after creating SealedSecret
 
   - valkey.yaml
   - coordinator.yaml

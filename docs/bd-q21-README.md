@@ -1,4 +1,20 @@
-# Hub API Authentication Fix - Quick Start
+# Hub API Authentication Fix - Quick Start — SUPERSEDED, DO NOT FOLLOW
+
+> **⛔ SUPERSEDED — historical record only.** The incident below was resolved
+> on the manifest side (commit `e52694d`, 2026-09-15); the "quick fix" of
+> running `scripts/fix-hub-auth.sh` is gone — the script was deleted on
+> 2026-09-16 because its `kubectl apply` of the Secret and `kubectl rollout
+> restart` of the coordinator deployments are live mutations of
+> ArgoCD-managed resources that `selfHeal` reverts, which the GitOps rule
+> forbids. See
+> [incidents/ACTION-REQUIRED-hub-auth-fix.md](incidents/ACTION-REQUIRED-hub-auth-fix.md).
+>
+> **The only secret rotation path is the manifest-side SealedSecret flow in
+> [GITOPS_DEPLOYMENT.md § Secrets Management](GITOPS_DEPLOYMENT.md#secrets-management)**
+> (helper: `k8s/apexalgo-iad/scripts/create-sealedsecret.sh`).
+>
+> Bead IDs (`bd-q21`, `bd-2jm`) are from the retired bead-forge backend,
+> kept for provenance only.
 
 **Bead**: bd-q21
 **Status**: ✅ Root cause identified, fix ready, **BLOCKED on cluster-admin**
@@ -11,29 +27,22 @@
 
 The coordinator has **401 errors** polling Hub API. **Root cause**: Secret uses `HUB_API_KEY` but code expects `BOTBURROW_HUB_API_KEY`.
 
-**Quick Fix (5 minutes):**
-```bash
-export KUBECONFIG=/path/to/apexalgo-iad.kubeconfig
-cd /home/coder/botburrow-agents
-./scripts/fix-hub-auth.sh
-```
+**~~Quick Fix (5 minutes)~~ — resolved on the manifest side; the script no longer exists.** Rotation now goes through the SealedSecret manifest (see banner above).
 
 ---
 
 ## 📋 What's Included
 
-### 1. Automated Fix Script ✅
-**File**: `scripts/fix-hub-auth.sh`
-**What it does**:
+### 1. Automated Fix Script — deleted 2026-09-16
+**File**: `scripts/fix-hub-auth.sh` (deleted — see banner)
+**What it did**:
 - Migrates secret keys from `HUB_API_KEY` → `BOTBURROW_HUB_API_KEY`
 - Prompts for Hub API key if missing
 - Restarts coordinator
 - Shows verification logs
 
-**Usage**:
-```bash
-./scripts/fix-hub-auth.sh
-```
+**Usage**: none — there is nothing to run. Rotation goes through the
+SealedSecret manifest per the banner above.
 
 ### 2. Comprehensive Documentation ✅
 **File**: `docs/hub-api-authentication-fix.md`
@@ -69,12 +78,7 @@ cd /home/coder/botburrow-agents
    - From botburrow-hub admin: https://botburrow.ardenone.com/admin
    - Or from existing botburrow-hub deployment
 
-2. **Run Fix Script**
-   ```bash
-   export KUBECONFIG=/path/to/apexalgo-iad.kubeconfig
-   cd /home/coder/botburrow-agents
-   ./scripts/fix-hub-auth.sh
-   ```
+2. **~~Run Fix Script~~** — superseded; rotate via the SealedSecret manifest instead (see banner)
 
 3. **Verify**
    ```bash
@@ -97,7 +101,7 @@ No action needed - fix is documented and ready for cluster-admin.
 
 | Document | Purpose | Audience |
 |----------|---------|----------|
-| [fix-hub-auth.sh](../scripts/fix-hub-auth.sh) | Automated fix script | Cluster admins |
+| ~~fix-hub-auth.sh~~ (deleted 2026-09-16) | Automated fix script — superseded by the GITOPS_DEPLOYMENT.md SealedSecret flow | Cluster admins |
 | [hub-api-authentication-fix.md](hub-api-authentication-fix.md) | Comprehensive guide | All |
 | [bd-q21-summary.md](bd-q21-summary.md) | Technical deep-dive | Developers |
 | [bd-q21-README.md](bd-q21-README.md) | Quick start (this file) | All |

@@ -142,4 +142,4 @@ kubectl get pods -n sealed-secrets
 
 **Current Human Bead:** bd-psf5 - "HUMAN: Apply botburrow-agents secrets for coordinator leader election verification"
 
-**After gathering credentials:** Respond to bd-psf5 with the values, or run `./scripts/create-sealedsecret.sh` directly.
+**After gathering credentials:** Respond to bd-psf5 with the values, or run `k8s/apexalgo-iad/scripts/create-sealedsecret.sh` directly (from the repo root; then commit and push the SealedSecret — see [docs/GITOPS_DEPLOYMENT.md § Secrets Management](../../docs/GITOPS_DEPLOYMENT.md#secrets-management)).

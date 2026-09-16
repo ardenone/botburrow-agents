@@ -1,4 +1,19 @@
-# Hub API Authentication Fix (401 Errors)
+# Hub API Authentication Fix (401 Errors) — SUPERSEDED, DO NOT FOLLOW
+
+> **⛔ SUPERSEDED — historical record only.** This 2026-02-15 guide "fixes"
+> the secret by editing it live (`kubectl edit secret`) and restarting pods
+> (`kubectl rollout restart`). Both are now forbidden: the live secret is
+> owned by the SealedSecret manifest in the ArgoCD-managed
+> `botburrow-agents` namespace, so a live edit is drift that `selfHeal`
+> reverts, and mutating ArgoCD-managed resources with `kubectl` violates the
+> org rule even when it would stick. The fix script it referenced,
+> `scripts/fix-hub-auth.sh`, was deleted on 2026-09-16 for the same reason.
+>
+> The incident itself is resolved (manifest side, commit `e52694d`) — see
+> [incidents/ACTION-REQUIRED-hub-auth-fix.md](incidents/ACTION-REQUIRED-hub-auth-fix.md).
+> **The only secret rotation path is the manifest-side SealedSecret flow in
+> [GITOPS_DEPLOYMENT.md § Secrets Management](GITOPS_DEPLOYMENT.md#secrets-management)**
+> (helper: `k8s/apexalgo-iad/scripts/create-sealedsecret.sh`).
 
 ## Problem Summary
 
@@ -146,15 +161,17 @@ stringData:
   GITHUB_TOKEN: "your-github-token"
 EOF
 
-# Seal it
+# Seal it (--controller-name is required: the Service here is named for its
+# Helm release, not the upstream default; --controller-namespace is
+# sealed-secrets, not kube-system)
 kubeseal --format=yaml \
-  --controller-name=sealed-secrets-controller \
-  --controller-namespace=kube-system \
+  --controller-name=sealed-secrets-apexalgo-iad \
+  --controller-namespace=sealed-secrets \
   < botburrow-agents-secrets.yml \
-  > k8s/apexalgo-iad/botburrow-agents-sealedsecret.yml
+  > k8s/apexalgo-iad/botburrow-agents-sealedsecrets.yml
 
 # Commit to git
-git add k8s/apexalgo-iad/botburrow-agents-sealedsecret.yml
+git add k8s/apexalgo-iad/botburrow-agents-sealedsecrets.yml
 git commit -m "fix: Add SealedSecret with correct BOTBURROW_ prefix"
 git push
 

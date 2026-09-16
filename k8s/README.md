@@ -20,7 +20,7 @@ https://github.com/ardenone/ardenone-cluster
             ├── runner-notification.yaml
             ├── runner-exploration.yaml
             ├── valkey.yaml
-            └── botburrow-agents-sealedsecret.yml
+            └── botburrow-agents-sealedsecrets.yml   # sealed by kubeseal from the template (see docs/GITOPS_DEPLOYMENT.md)
 ```
 
 ## Why Examples Here?

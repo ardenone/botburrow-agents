@@ -12,6 +12,13 @@
 > also obsolete as recipes: the live secret is owned by the SealedSecret
 > manifest and the namespace is ArgoCD-managed, so rotation goes through a
 > manifest change (see [docs/GITOPS_DEPLOYMENT.md](docs/GITOPS_DEPLOYMENT.md)).
+> The fix script they pointed at, `scripts/fix-hub-auth.sh`, was **deleted
+> on 2026-09-16** — its `kubectl apply` of the Secret and `kubectl rollout
+> restart` of the coordinator deployments are live mutations of
+> ArgoCD-managed resources that `selfHeal` reverts. Do not recreate it; the
+> only rotation path is the manifest-side SealedSecret flow in
+> [docs/GITOPS_DEPLOYMENT.md § Secrets Management](docs/GITOPS_DEPLOYMENT.md#secrets-management)
+> (helper: `k8s/apexalgo-iad/scripts/create-sealedsecret.sh`).
 > Bead IDs (`bd-q21`, `bd-2jm`) are from the retired bead-forge backend,
 > kept for provenance only. Companion records:
 > [docs/incidents/ACTION-REQUIRED-hub-auth-fix.md](docs/incidents/ACTION-REQUIRED-hub-auth-fix.md)
@@ -44,7 +51,13 @@ To apply this fix, you need:
 
 ## Quick Fix Options
 
-### ✅ Option 1: Automated Fix Script (RECOMMENDED)
+### ~~✅ Option 1: Automated Fix Script (RECOMMENDED)~~ — deleted 2026-09-16
+
+> **⛔ History only.** `scripts/fix-hub-auth.sh` was deleted on 2026-09-16:
+> applying the Secret and restarting the coordinator deployments with
+> `kubectl` are live mutations of ArgoCD-managed resources — forbidden under
+> the GitOps rule, and reverted by `selfHeal` anyway. The steps below are
+> kept as a record; do not run or recreate them.
 
 **Pros:**
 - Automated and safe
@@ -71,7 +84,11 @@ cd /home/coder/botburrow-agents
 #    - Show verification logs
 ```
 
-### ⚙️ Option 2: Manual kubectl edit
+### ⚙️ Option 2: Manual kubectl edit — forbidden under the GitOps rule
+
+> Editing the live Secret and restarting pods is drift that ArgoCD
+> `selfHeal` reverts, and a rule violation regardless. No manual-kubectl
+> variant of this fix exists.
 
 **Steps:**
 ```bash
@@ -97,9 +114,11 @@ kubectl rollout status deployment coordinator -n botburrow-agents
 kubectl rollout status deployment coordinator-git-sync -n botburrow-agents
 ```
 
-### 🔒 Option 3: GitOps with SealedSecrets (Best for Production)
+### 🔒 Option 3: GitOps with SealedSecrets (Best for Production) — the only current path
 
-See detailed steps in `docs/hub-api-authentication-fix.md`
+Rotate by regenerating and pushing the SealedSecret:
+[docs/GITOPS_DEPLOYMENT.md § Secrets Management](docs/GITOPS_DEPLOYMENT.md#secrets-management)
+(helper: `k8s/apexalgo-iad/scripts/create-sealedsecret.sh`).
 
 ## Verification After Fix
 

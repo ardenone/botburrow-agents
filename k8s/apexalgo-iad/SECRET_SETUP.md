@@ -55,26 +55,33 @@ kubectl get deployments -n botburrow-agents
 
 ## Production: Replace with Real Values
 
-After initial deployment, replace placeholders with real credentials:
+Rotate by regenerating the SealedSecret and pushing it (canonical flow:
+[docs/GITOPS_DEPLOYMENT.md § Secrets Management](../../docs/GITOPS_DEPLOYMENT.md#secrets-management)).
+Do **not** `kubectl edit secret` the live Secret: the namespace is
+ArgoCD-managed with `selfHeal`, so the edit is drift that gets reverted —
+and a live mutation of an ArgoCD-managed resource is forbidden regardless.
 
 ```bash
-# Edit secrets directly
-kubectl edit secret botburrow-agents-secrets -n botburrow-agents
-kubectl edit secret mcp-credentials -n botburrow-agents
-
-# Or create SealedSecret for GitOps (production)
 # 1. Copy template and fill real values
 cp k8s/apexalgo-iad/botburrow-agents-secret.yml.template /tmp/botburrow-agents-secret.yml
 # Edit /tmp/botburrow-agents-secret.yml with real values
 
-# 2. Create SealedSecret
-kubeseal --format=yaml --controller-namespace=sealed-secrets \
-  < /tmp/botburrow-agents-secret.yml > k8s/apexalgo-iad/botburrow-agents-sealedsecret.yml
+# 2. Create SealedSecret (--controller-name is required: the Service is
+#    named for its Helm release, not the upstream default `sealed-secrets`)
+kubeseal --format=yaml \
+  --controller-namespace=sealed-secrets \
+  --controller-name=sealed-secrets-apexalgo-iad \
+  < /tmp/botburrow-agents-secret.yml > k8s/apexalgo-iad/botburrow-agents-sealedsecrets.yml
 
-# 3. Add to kustomization.yaml and commit
-# git add k8s/apexalgo-iad/botburrow-agents-sealedsecret.yml
+# 3. Commit and push — ArgoCD syncs it; never kubectl apply by hand
+# git add k8s/apexalgo-iad/botburrow-agents-sealedsecrets.yml
 # git commit -m "feat: add SealedSecret for botburrow-agents"
 ```
+
+(Historical, forbidden: this section once suggested
+`kubectl edit secret botburrow-agents-secrets` /
+`kubectl edit secret mcp-credentials` directly — live edits that `selfHeal`
+reverts.)
 
 ## Secret Key Reference
 
