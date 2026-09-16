@@ -51,7 +51,8 @@ cd ~/botburrow-agents
 ```
 
 **Features:**
-- Detects all three violation types
+- Detects both violation types (see "What It Detects"; the bead-forge-era
+  claim success-rate check was retired with `br stats` in the bead-rs port)
 - Auto-fixes unclaimed beads and expired claims
 - Creates incident beads with full context
 - Colored output for readability
@@ -208,6 +209,28 @@ subcommand the scripts don't actually use, so script drift fails loudly.
 3. ✅ Healthy workspace exits 0 — including under `--auto-fix` (live claims must survive)
 4. ✅ CLI failures fail the check instead of reading as an empty, healthy store
 5. ✅ Exit codes 0/1 for both scripts; monitor skip paths (missing dir, no `.beads/`)
+
+**Mutation-verified** (2026-09-16): each detection's named test was confirmed
+to go red by breaking that detection in a scratch copy of the script —
+blinding the assignee filter (`select(.assignee == null)` → never matches)
+fails the three unclaimed-bead tests; neutralizing the threshold comparison
+(`stale_count -le THRESHOLD` → `true`) fails the four expired-claims tests.
+This verification is what forced the harness fix below: assertions in
+`tests/lib/bead_health_test_lib.sh` used to be non-fatal (only the *last*
+assertion in a test body decided its outcome), which let a blinded detection
+pass its own named test. A failing assertion now fails the test wherever it
+sits. The same run caught a script bug: the `bead list` failure message was
+printed inside a command substitution and swallowed, so a CLI failure exited
+1 with no reason shown — it now goes to stderr.
+
+**The third, retired detection:** the claim success rate check (alert below
+50%) survives only in the bead-forge era. Its sole data source was
+`br stats --json` (`.total_claims`/`.successful_claims`); bead-rs has no
+`stats` subcommand, `bead list` carries no attempt counters, and `bead
+query`'s whitelisted fields are issue fields only — so there is nothing to
+test and nothing to detect on the current CLI surface. If the metric is
+wanted again it must be re-derived (e.g. from `bead resolve` attempt
+outcomes) and land with its own named test.
 
 **Run them:**
 ```bash

@@ -115,7 +115,10 @@ list_in_progress() {
     local out rc=0
     out=$(bead list --status in_progress --json --limit 999999 2>/dev/null) || rc=$?
     if [ "$rc" -ne 0 ]; then
-        log_error "bead list failed in $WORKSPACE (exit $rc) — cannot check bead state"
+        # stderr, not stdout: the caller captures stdout in $( ), so a
+        # failure message printed there is swallowed with the empty capture
+        # and the check exits 1 with no reason shown to the operator.
+        log_error "bead list failed in $WORKSPACE (exit $rc) — cannot check bead state" >&2
         return 1
     fi
     printf '%s' "$out"

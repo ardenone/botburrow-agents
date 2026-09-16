@@ -119,13 +119,25 @@ last_rc() {
 }
 
 # ---------------------------------------------------------------------------
-# Assertions (record failure via RETURN 1 so run_test catches it)
+# Assertions
+#
+# A failing assertion echoes its reason, sets _TEST_FAILED, and returns 1 —
+# but does not abort the test function, so one run reports every failed
+# assertion. _invoke_test returns _TEST_FAILED afterwards, which is what
+# makes any failure fatal for the test. (Before the flag existed, only the
+# LAST assertion's return code decided the outcome: a mid-test failure
+# followed by a passing final assertion recorded a PASS. Mutation testing
+# caught that — blinding the unclaimed-bead detection left its named test
+# green.)
 # ---------------------------------------------------------------------------
+
+_TEST_FAILED=0
 
 assert_contains() {
     local needle="$1" haystack="$2" message="${3:-}"
     if ! grep -qF -- "$needle" <<< "$haystack"; then
         echo "    assertion failed: output missing '$needle' ${message:+($message)}"
+        _TEST_FAILED=1
         return 1
     fi
 }
@@ -134,6 +146,7 @@ assert_not_contains() {
     local needle="$1" haystack="$2" message="${3:-}"
     if grep -qF -- "$needle" <<< "$haystack"; then
         echo "    assertion failed: output should not contain '$needle' ${message:+($message)}"
+        _TEST_FAILED=1
         return 1
     fi
 }
@@ -142,6 +155,7 @@ assert_equals() {
     local actual="$1" expected="$2" message="${3:-}"
     if [ "$actual" != "$expected" ]; then
         echo "    assertion failed: expected '$expected', got '$actual' ${message:+($message)}"
+        _TEST_FAILED=1
         return 1
     fi
 }
@@ -150,6 +164,7 @@ assert_exit() {
     local expected="$1" actual="$2" message="${3:-}"
     if [ "$actual" != "$expected" ]; then
         echo "    assertion failed: expected exit $expected, got $actual ${message:+($message)}"
+        _TEST_FAILED=1
         return 1
     fi
 }
@@ -163,6 +178,17 @@ bead_health_test_cleanup() {
 }
 trap bead_health_test_cleanup EXIT
 
+# Run one test function in the same subshell that collects its output, then
+# report the assertion-failure flag as the exit status. The flag (not the
+# function's own return code) is the verdict, so every failing assertion
+# counts no matter where in the body it sits.
+_invoke_test() {
+    local test_fn="$1"
+    _TEST_FAILED=0
+    "$test_fn"
+    return "$_TEST_FAILED"
+}
+
 run_test() {
     local test_fn="$1"
     local name="${2:-$test_fn}"
@@ -172,7 +198,7 @@ run_test() {
     echo "[TEST] $name"
 
     local fn_output
-    fn_output=$("$test_fn" 2>&1)
+    fn_output=$(_invoke_test "$test_fn" 2>&1)
     local fn_rc=$?
 
     if [ $fn_rc -eq 0 ]; then

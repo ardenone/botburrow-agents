@@ -45,7 +45,9 @@ test_check_only_detects_unclaimed_in_progress() {
     out=$(run_health "$ws" --check-only)
 
     assert_exit 1 "$(last_rc)" "violations must exit 1"
-    assert_contains "unclaimed in_progress beads" "$out"
+    # Pin the violation line, not just a keyword: the healthy path prints
+    # "No unclaimed in_progress beads found", which would match that too.
+    assert_contains "Found 1 unclaimed in_progress beads" "$out"
     assert_contains "$bead_id" "$out" "output must name the stuck bead"
 
     # check-only must not repair or create incidents
@@ -130,7 +132,9 @@ test_detects_expired_claims_above_threshold() {
     out=$(run_health "$ws" --check-only)
 
     assert_exit 1 "$(last_rc)" "expired claims above threshold must exit 1"
-    assert_contains "expired claims" "$out"
+    # Pin the violation line: "within threshold" and "No expired claims
+    # found" both contain the bare phrase "expired claims".
+    assert_contains "Found 4 expired claims" "$out"
     assert_contains "bd-fixture4" "$out" "output must name an expired bead"
 }
 
