@@ -65,13 +65,14 @@ they live:
 2. **No auto-trigger.** No argo-events sensor exists for this repo, so builds
    run when submitted (next section), not on push. Adding a sensor is a
    `declarative-config` change.
-3. **Manifests reference `:latest`.** `k8s/apexalgo-iad/*.yaml` currently pin
-   `ghcr.io/ardenone/botburrow-agents:latest`, but the build only ever pushes
-   semver tags. Pin a real tag (step 3 of the flow) before the first sync,
-   or pods will ImagePullBackOff.
-4. **ArgoCD Application not yet created on the cluster** — the parent
+3. **ArgoCD Application not yet created on the cluster** — the parent
    `applications-apexalgo-iad` Application needs a one-time cluster-admin
    bootstrap (see "Current rollout status" at the bottom).
+
+(The former gap "manifests reference `:latest`" is closed: all
+`k8s/apexalgo-iad/` manifests are pinned to semver tags, enforced by
+`tests/test_image_pins.py` / `scripts/check_image_pins.py`. Re-pin after
+each build — step 3 of the flow below.)
 
 ## Build (CI) — Argo Workflows on iad-ci
 
@@ -162,6 +163,8 @@ git pull origin main && cat VERSION
 # 2. Pin that tag in the manifests that reference the image
 grep -rl "ghcr.io/ardenone/botburrow-agents" k8s/apexalgo-iad/
 #   edit each image: to ghcr.io/ardenone/botburrow-agents:<version>
+#   then verify every pin (exits non-zero on any unpinned ref):
+python3 scripts/check_image_pins.py
 
 # 3. Commit and push; ArgoCD takes it from there
 git add k8s/apexalgo-iad/

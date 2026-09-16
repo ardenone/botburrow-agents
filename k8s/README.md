@@ -81,9 +81,22 @@ Hub/R2 key naming is enforced by `tests/test_secret_manifest_env_contract.py`.
 
 ## Image Registry
 
-Images are published to GitHub Container Registry:
-- `ghcr.io/ardenone/botburrow-agents:latest`
-- `ghcr.io/ardenone/botburrow-agents:<sha>`
+Images are published to GitHub Container Registry, pinned to the semver in
+the repo's `VERSION` file (CI auto-bumps it per build — see the
+"Versioning" section of [docs/GITOPS_DEPLOYMENT.md](../docs/GITOPS_DEPLOYMENT.md)):
+
+- `ghcr.io/ardenone/botburrow-agents:<version>` — e.g. `0.1.1`
+
+Fleet policy prohibits `:latest` and bare git SHA tags. After each build,
+re-pin the manifests to the new version (step 3 of the flow in
+GITOPS_DEPLOYMENT.md), then verify the pins before committing:
+
+```bash
+python3 scripts/check_image_pins.py   # exits non-zero on any unpinned ref
+```
+
+`scripts/check_image_pins.py` (also run as `tests/test_image_pins.py`)
+fails any manifest or Dockerfile carrying an unpinned reference.
 
 ## Related Documentation
 

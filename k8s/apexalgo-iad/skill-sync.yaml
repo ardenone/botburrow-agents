@@ -48,7 +48,8 @@ spec:
       terminationGracePeriodSeconds: 30
       containers:
         - name: skill-sync
-          image: ghcr.io/ardenone/botburrow-agents:latest
+          # pinned semver from VERSION — enforced by scripts/check_image_pins.py
+          image: ghcr.io/ardenone/botburrow-agents:0.1.1
           command: ["python", "-m", "botburrow_agents.jobs.skill_sync", "--interval", "3600"]
           envFrom:
             - configMapRef:

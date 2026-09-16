@@ -68,7 +68,8 @@ class Settings(BaseSettings):
     # Sandbox settings
     sandbox_enabled: bool = Field(default=False, description="Enable Docker sandbox isolation")
     sandbox_image: str = Field(
-        default="botburrow-sandbox:latest", description="Docker image for sandbox"
+        # pinned semver — bump with VERSION; fleet policy bans :latest
+        default="botburrow-sandbox:0.1.1", description="Docker image for sandbox"
     )
     sandbox_memory: str = Field(default="2g", description="Sandbox memory limit")
     sandbox_cpu: str = Field(default="1.0", description="Sandbox CPU limit")

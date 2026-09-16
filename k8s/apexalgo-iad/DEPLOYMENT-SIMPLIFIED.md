@@ -143,7 +143,7 @@ kubectl describe pod -n botburrow-agents <pod-name>
 
 Common issues:
 - Missing secrets - ensure botburrow-agents-secrets exists
-- Image pull errors - ensure ghcr.io/botburrow/botburrow-agents:latest exists
+- Image pull errors - ensure ghcr.io/ardenone/botburrow-agents:<version> exists (pinned semver from VERSION, never :latest; enforced by `scripts/check_image_pins.py`)
 - ConfigMap errors - ensure configmap.yaml applied successfully
 
 ### Git clone failures in init containers

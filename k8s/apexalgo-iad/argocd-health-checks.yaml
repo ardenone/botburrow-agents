@@ -50,7 +50,8 @@ spec:
       serviceAccountName: botburrow-agents
       containers:
         - name: validate
-          image: bitnami/kubectl:latest
+          # pinned tag — fleet policy bans :latest (scripts/check_image_pins.py)
+          image: registry.k8s.io/kubectl:v1.34.9
           command:
             - sh
             - -c
@@ -139,7 +140,8 @@ spec:
       serviceAccountName: botburrow-agents
       containers:
         - name: health-check
-          image: bitnami/kubectl:latest
+          # pinned tag — fleet policy bans :latest (scripts/check_image_pins.py)
+          image: registry.k8s.io/kubectl:v1.34.9
           command:
             - sh
             - -c

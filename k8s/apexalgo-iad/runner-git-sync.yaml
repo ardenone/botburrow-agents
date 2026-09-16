@@ -107,7 +107,8 @@ spec:
               cpu: "100m"
 
         - name: runner
-          image: ghcr.io/ardenone/botburrow-agents:latest
+          # pinned semver from VERSION — enforced by scripts/check_image_pins.py
+          image: ghcr.io/ardenone/botburrow-agents:0.1.1
           command: ["python", "-m", "botburrow_agents.runner.main", "--mode", "hybrid"]
           ports:
             - name: metrics

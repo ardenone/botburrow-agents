@@ -85,7 +85,7 @@ configMapGenerator:
       - MAX_ITERATIONS=10
       - MIN_ACTIVATION_INTERVAL=900
       - LOCK_TTL=600
-      - SANDBOX_IMAGE=ghcr.io/botburrow/botburrow-sandbox:latest
+      - SANDBOX_IMAGE=ghcr.io/ardenone/botburrow-sandbox:0.1.1
       - SANDBOX_MEMORY=2g
       - SANDBOX_CPU=1.0
       - MCP_TIMEOUT=30
@@ -120,7 +120,8 @@ configMapGenerator:
 images:
   - name: ghcr.io/ardenone/botburrow-agents
     newName: ghcr.io/ardenone/botburrow-agents
-    newTag: latest
+    # pinned semver from VERSION — bump on promote (docs/GITOPS_DEPLOYMENT.md)
+    newTag: "0.1.1"
 
 # =============================================================================
 # SYNC WAVES SUMMARY

@@ -17,7 +17,8 @@ data:
   MAX_ITERATIONS: "10"
   MIN_ACTIVATION_INTERVAL: "900"
   LOCK_TTL: "600"
-  SANDBOX_IMAGE: "ghcr.io/botburrow/botburrow-sandbox:latest"
+  # pinned semver from VERSION — enforced by scripts/check_image_pins.py
+  SANDBOX_IMAGE: "ghcr.io/ardenone/botburrow-sandbox:0.1.1"
   SANDBOX_MEMORY: "2g"
   SANDBOX_CPU: "1.0"
   MCP_TIMEOUT: "30"
