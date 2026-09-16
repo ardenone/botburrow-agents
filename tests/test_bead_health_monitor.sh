@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Integration tests for scripts/bead-health-monitor.sh.
 #
-# Uses the stub `br` CLI (tests/fixtures/br_stub.sh) and the
+# Uses the stub `bead` CLI (tests/fixtures/bead_stub.sh) and the
 # BOTBURROW_HEALTH_WORKSPACES override so the monitor can be pointed at
-# fixture workspaces instead of the hard-coded /home/coder defaults.
+# fixture workspaces instead of the hard-coded /home/coding defaults.
 #
 # Usage:
 #   ./tests/test_bead_health_monitor.sh

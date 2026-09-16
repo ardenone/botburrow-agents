@@ -2,14 +2,21 @@
 # Bead Health Check - Detects and recovers from stuck beads
 #
 # Detects:
-# 1. Unclaimed in_progress beads (status=in_progress, claimed_by=null)
-# 2. Expired claims (claim_timestamp > 1 hour old)
-# 3. Low claim success rate (< 50%)
+# 1. Unclaimed in_progress beads (status=in_progress, assignee=null)
+# 2. Expired claims (in_progress beads untouched for more than
+#    CLAIM_EXPIRY_HOURS), recovered through `bead watchdog`
 #
 # Auto-recovery:
 # - Reset invalid beads to "open" status
 # - Create incident bead for monitoring
 # - Log violations with bead details
+#
+# Ported to the bead-rs CLI (2026-09-16): `list` is JSONL with an `assignee`
+# field (the old `claimed_by`/`claim_timestamp` fields no longer exist), an
+# assigned in_progress bead is fenced and cannot be reset casually, and the
+# retired `stats` subcommand took the claim-success-rate check with it (see
+# docs/BEAD_HEALTH_CHECK.md). CLI failures now fail the check instead of
+# reading as an empty, healthy store.
 #
 # Usage:
 #   ./bead-health-check.sh --workspace=/path/to/project [--auto-fix]
@@ -26,7 +33,6 @@ AUTO_FIX=false
 CHECK_ONLY=false
 CLAIM_EXPIRY_HOURS=1
 EXPIRED_CLAIM_THRESHOLD=3  # Alert if > 3 expired claims
-LOW_SUCCESS_RATE_THRESHOLD=50  # Alert if < 50% success rate
 
 # Colors for output
 RED='\033[0;31m'
@@ -71,7 +77,7 @@ fi
 
 if [ ! -d "$WORKSPACE/.beads" ]; then
     echo "Error: Workspace does not have beads initialized: $WORKSPACE"
-    echo "Run: cd $WORKSPACE && br init"
+    echo "Run: cd $WORKSPACE && bead init"
     exit 1
 fi
 
@@ -103,26 +109,39 @@ now_timestamp() {
     date -u +"%Y-%m-%dT%H:%M:%SZ"
 }
 
-# Calculate timestamp N hours ago
-hours_ago_timestamp() {
-    local hours=$1
-    date -u -d "$hours hours ago" +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || \
-    date -u -v-${hours}H +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || \
-    echo ""
+# List in_progress beads as bead-rs JSONL. Fails the caller on a CLI error —
+# a broken `bead` invocation must never read as an empty, healthy store.
+list_in_progress() {
+    local out rc=0
+    out=$(bead list --status in_progress --json --limit 999999 2>/dev/null) || rc=$?
+    if [ "$rc" -ne 0 ]; then
+        log_error "bead list failed in $WORKSPACE (exit $rc) — cannot check bead state"
+        return 1
+    fi
+    printf '%s' "$out"
 }
 
-# Create incident bead
+# Create incident bead, deduplicated per (workspace, violation, day) through
+# a --unique-ref binding: a recurring violation re-alerts once per day at
+# most instead of once per run.
 create_incident_bead() {
     local title="$1"
     local description="$2"
     local priority="${3:-1}"
+    local dedupe_key="$4"
 
     log_warning "Creating incident bead: $title"
 
-    br create --type human \
+    local unique_ref
+    unique_ref="bead-health:$(date -u +%Y-%m-%d)-$(basename "$WORKSPACE")-$dedupe_key"
+
+    # Fresh create prints the bare id; a same-day replay prints
+    # "EXISTING <id>". Either outcome is fine — print it for the log.
+    bead create --issue-type human \
         --priority "$priority" \
         --title "$title" \
-        --description "$description"
+        --description "$description" \
+        --unique-ref "$unique_ref"
 }
 
 # ============================================================================
@@ -133,19 +152,17 @@ create_incident_bead() {
 check_unclaimed_in_progress() {
     log_info "Checking for unclaimed in_progress beads..."
 
-    # Get all in_progress beads
     local in_progress_beads
-    in_progress_beads=$(br list --status in_progress --all --json 2>/dev/null || echo "[]")
+    in_progress_beads=$(list_in_progress) || return 1
 
-    # Filter for beads with claimed_by=null
+    # JSONL in, JSONL out: select applies per line.
     local unclaimed_beads
-    unclaimed_beads=$(echo "$in_progress_beads" | jq -r '.[] | select(.claimed_by == null) | .id' 2>/dev/null || echo "")
+    unclaimed_beads=$(printf '%s\n' "$in_progress_beads" \
+        | jq -r 'select(.assignee == null) | .id' 2>/dev/null) || unclaimed_beads=""
 
-    # grep -c already prints 0 when nothing matches; appending `|| echo "0"`
-    # produced a two-line "0\n0" that broke the integer comparisons below and
-    # made every clean workspace report a P0 violation.
     local unclaimed_count
-    unclaimed_count=$(echo "$unclaimed_beads" | grep -c "^bd-" || true)
+    unclaimed_count=$(printf '%s\n' "$in_progress_beads" \
+        | jq -s '[.[] | select(.assignee == null)] | length' 2>/dev/null) || unclaimed_count=0
 
     if [ "$unclaimed_count" -eq 0 ]; then
         log_success "No unclaimed in_progress beads found"
@@ -155,16 +172,22 @@ check_unclaimed_in_progress() {
     log_error "Found $unclaimed_count unclaimed in_progress beads (P0 severity)"
 
     # Log details
-    echo "$in_progress_beads" | jq -r '.[] | select(.claimed_by == null) | "  - \(.id): \(.title)"' 2>/dev/null
+    printf '%s\n' "$in_progress_beads" \
+        | jq -r 'select(.assignee == null) | "  - \(.id): \(.title)"' 2>/dev/null || true
 
     if [ "$AUTO_FIX" = true ] && [ "$CHECK_ONLY" = false ]; then
         log_warning "Auto-fixing unclaimed beads..."
 
         while IFS= read -r bead_id; do
-            if [ -n "$bead_id" ] && [[ "$bead_id" =~ ^bd- ]]; then
+            if [ -n "$bead_id" ]; then
                 log_info "Resetting $bead_id to open status"
-                br update "$bead_id" --status open
-                log_success "Reset $bead_id"
+                # bead-rs fences assigned in_progress beads (lease conflict),
+                # so this reset can only ever touch beads no worker holds.
+                if bead update "$bead_id" --status open; then
+                    log_success "Reset $bead_id"
+                else
+                    log_error "Could not reset $bead_id (fenced or gone)"
+                fi
             fi
         done <<< "$unclaimed_beads"
 
@@ -174,14 +197,13 @@ check_unclaimed_in_progress() {
             "## Problem
 Detected $unclaimed_count beads in invalid state:
 - status: in_progress
-- claimed_by: null (should have worker ID)
-- claim_timestamp: null (should have timestamp)
+- assignee: null (should have a worker)
 
 ## Auto-Recovery
 All beads were automatically reset to 'open' status.
 
 ## Affected Beads
-$(echo "$in_progress_beads" | jq -r '.[] | select(.claimed_by == null) | "- \(.id): \(.title)"' 2>/dev/null)
+$(printf '%s\n' "$in_progress_beads" | jq -r 'select(.assignee == null) | "- \(.id): \(.title)"' 2>/dev/null)
 
 ## Timestamp
 $(now_timestamp)
@@ -194,7 +216,8 @@ Consider:
 1. Adding atomic claim acquisition
 2. Adding state validation
 3. Adding periodic integrity checks" \
-            0
+            0 \
+            "unclaimed-in-progress"
 
         return 1
     fi
@@ -202,152 +225,79 @@ Consider:
     return 1
 }
 
-# Check #2: Expired claims
+# Check #2: Expired claims, detected and recovered via `bead watchdog`.
+# Watchdog is age-based on detection (stale_beads) but liveness-gated on
+# release: it only releases beads whose assignee process is gone, and
+# refuses (lease_valid_but_stale) when it cannot prove the worker is dead.
 check_expired_claims() {
-    log_info "Checking for expired claims (> $CLAIM_EXPIRY_HOURS hour)..."
+    log_info "Checking for expired claims (> $CLAIM_EXPIRY_HOURS hour, via bead watchdog)..."
 
-    # Calculate cutoff timestamp
-    local cutoff_timestamp
-    cutoff_timestamp=$(hours_ago_timestamp "$CLAIM_EXPIRY_HOURS")
-
-    if [ -z "$cutoff_timestamp" ]; then
-        log_warning "Could not calculate cutoff timestamp (date utility issue)"
-        return 0
+    local watchdog_args=(--json --threshold "${CLAIM_EXPIRY_HOURS}h")
+    if [ "$CHECK_ONLY" = true ]; then
+        watchdog_args+=(--dry-run)
     fi
 
-    # Get all in_progress beads
-    local in_progress_beads
-    in_progress_beads=$(br list --status in_progress --all --json 2>/dev/null || echo "[]")
+    local watchdog_json rc=0
+    watchdog_json=$(bead watchdog "${watchdog_args[@]}" 2>/dev/null) || rc=$?
+    if [ "$rc" -ne 0 ] || ! printf '%s' "$watchdog_json" | jq -e . >/dev/null 2>&1; then
+        log_error "bead watchdog failed in $WORKSPACE (exit $rc) — cannot check claim freshness"
+        return 1
+    fi
 
-    # Filter for beads with claim_timestamp older than cutoff
-    local expired_beads
-    expired_beads=$(echo "$in_progress_beads" | jq -r --arg cutoff "$cutoff_timestamp" \
-        '.[] | select(.claim_timestamp != null and .claim_timestamp < $cutoff) | .id' 2>/dev/null || echo "")
+    local stale_count released_count held_count
+    stale_count=$(printf '%s' "$watchdog_json" | jq '.stale_beads | length')
+    released_count=$(printf '%s' "$watchdog_json" | jq '.released_beads | length')
+    held_count=$(printf '%s' "$watchdog_json" | jq '.lease_valid_but_stale | length')
 
-    local expired_count
-    expired_count=$(echo "$expired_beads" | grep -c "^bd-" || true)
-
-    if [ "$expired_count" -eq 0 ]; then
+    if [ "$stale_count" -eq 0 ]; then
         log_success "No expired claims found"
         return 0
     fi
 
-    if [ "$expired_count" -le "$EXPIRED_CLAIM_THRESHOLD" ]; then
-        log_info "Found $expired_count expired claims (within threshold of $EXPIRED_CLAIM_THRESHOLD)"
+    if [ "$released_count" -gt 0 ]; then
+        log_info "bead watchdog released $released_count expired claim(s) (assignee process gone)"
+    fi
+    if [ "$held_count" -gt 0 ]; then
+        log_info "$held_count expired claim(s) held under a valid lease (watchdog could not prove the worker is dead; no release)"
+    fi
+
+    # Log details
+    printf '%s' "$watchdog_json" \
+        | jq -r '.stale_beads[] | "  - \(.id): \(.hours_since_update | floor)h idle (assignee \(.assignee))"' 2>/dev/null || true
+
+    if [ "$stale_count" -le "$EXPIRED_CLAIM_THRESHOLD" ]; then
+        log_info "Found $stale_count expired claims (within threshold of $EXPIRED_CLAIM_THRESHOLD)"
         return 0
     fi
 
-    log_error "Found $expired_count expired claims (> $EXPIRED_CLAIM_THRESHOLD threshold, P1 severity)"
-
-    # Log details
-    echo "$in_progress_beads" | jq -r --arg cutoff "$cutoff_timestamp" \
-        '.[] | select(.claim_timestamp != null and .claim_timestamp < $cutoff) | "  - \(.id): \(.title) (claimed by \(.claimed_by // "unknown"))"' 2>/dev/null
+    log_error "Found $stale_count expired claims (> $EXPIRED_CLAIM_THRESHOLD threshold, P1 severity)"
 
     if [ "$AUTO_FIX" = true ] && [ "$CHECK_ONLY" = false ]; then
-        log_warning "Auto-fixing expired claims..."
-
-        while IFS= read -r bead_id; do
-            if [ -n "$bead_id" ] && [[ "$bead_id" =~ ^bd- ]]; then
-                log_info "Resetting $bead_id to open status"
-                br update "$bead_id" --status open
-                log_success "Reset $bead_id"
-            fi
-        done <<< "$expired_beads"
-
-        # Create incident bead
+        # Create incident bead (the watchdog release above was the fix)
         create_incident_bead \
-            "ALERT: $expired_count expired claims detected" \
+            "ALERT: $stale_count expired claims detected" \
             "## Problem
-Detected $expired_count beads with claims older than $CLAIM_EXPIRY_HOURS hour(s).
+Detected $stale_count beads with no activity for more than $CLAIM_EXPIRY_HOURS hour(s).
 
 ## Auto-Recovery
-All expired claims were automatically reset to 'open' status.
+bead watchdog released $released_count claim(s) whose assignee process is gone;
+$held_count remained held under a valid lease (liveness could not be disproven).
 
 ## Affected Beads
-$(echo "$in_progress_beads" | jq -r --arg cutoff "$cutoff_timestamp" \
-    '.[] | select(.claim_timestamp != null and .claim_timestamp < $cutoff) | "- \(.id): \(.title) (claimed by \(.claimed_by // "unknown"))"' 2>/dev/null)
+$(printf '%s' "$watchdog_json" | jq -r '.stale_beads[] | "- \(.id): \(.hours_since_update | floor)h idle (assignee \(.assignee))"' 2>/dev/null)
 
 ## Timestamp
 $(now_timestamp)
 
 ## Workspace
 $WORKSPACE" \
-            1
+            1 \
+            "expired-claims"
 
         return 1
     fi
 
     return 1
-}
-
-# Check #3: Low claim success rate
-check_claim_success_rate() {
-    log_info "Checking claim success rate..."
-
-    # Get stats
-    local stats
-    stats=$(br stats --json 2>/dev/null || echo "{}")
-
-    # Extract metrics
-    local total_claims
-    local successful_claims
-    total_claims=$(echo "$stats" | jq -r '.total_claims // 0' 2>/dev/null || echo "0")
-    successful_claims=$(echo "$stats" | jq -r '.successful_claims // 0' 2>/dev/null || echo "0")
-
-    if [ "$total_claims" -eq 0 ]; then
-        log_info "No claim attempts yet"
-        return 0
-    fi
-
-    # Calculate success rate as an integer percentage. bash arithmetic on
-    # purpose: the previous bc pipeline silently disabled this whole check
-    # wherever bc is not installed (the failure fell back to a rate of 0,
-    # and the threshold comparison then also failed and read as healthy).
-    local success_rate
-    success_rate=$((successful_claims * 100 / total_claims))
-
-    log_info "Claim success rate: ${success_rate}% ($successful_claims/$total_claims)"
-
-    # Compare with threshold
-    if [ "$success_rate" -lt "$LOW_SUCCESS_RATE_THRESHOLD" ]; then
-        log_error "Claim success rate is below ${LOW_SUCCESS_RATE_THRESHOLD}% threshold (P1 severity)"
-
-        if [ "$CHECK_ONLY" = false ]; then
-            # Create incident bead (no auto-fix for this check)
-            create_incident_bead \
-                "ALERT: Low claim success rate (${success_rate}%)" \
-                "## Problem
-Claim success rate has dropped to ${success_rate}% (threshold: ${LOW_SUCCESS_RATE_THRESHOLD}%).
-
-## Metrics
-- Total claims: $total_claims
-- Successful claims: $successful_claims
-- Success rate: ${success_rate}%
-
-## Possible Causes
-1. Database corruption (unclaimed in_progress beads)
-2. Worker contention issues
-3. Race conditions in claim acquisition
-
-## Recommended Actions
-1. Run health check with --auto-fix to reset stuck beads
-2. Review worker logs for errors
-3. Check for unclaimed in_progress beads
-4. Investigate claim acquisition logic
-
-## Timestamp
-$(now_timestamp)
-
-## Workspace
-$WORKSPACE" \
-                1
-        fi
-
-        return 1
-    fi
-
-    log_success "Claim success rate is healthy (${success_rate}%)"
-    return 0
 }
 
 # ============================================================================
@@ -368,9 +318,6 @@ main() {
     echo ""
 
     check_expired_claims || exit_code=1
-    echo ""
-
-    check_claim_success_rate || exit_code=1
     echo ""
 
     if [ $exit_code -eq 0 ]; then

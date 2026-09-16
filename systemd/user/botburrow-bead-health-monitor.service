@@ -1,0 +1,21 @@
+[Unit]
+Description=Botburrow bead health monitor (oneshot pass over the botburrow workspaces)
+# Runs scripts/bead-health-monitor.sh --once: detects stuck beads across the
+# botburrow workspaces and auto-recovers them (see docs/BEAD_HEALTH_CHECK.md).
+# Scheduled by botburrow-bead-health-monitor.timer.
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/coding/botburrow-agents
+# The user manager's PATH does not include ~/.cargo/bin (where `bead` lives)
+# and the scripts also need jq/date from the NixOS profile — pin both rather
+# than relying on the login shell's .bashrc-augmented PATH, which user
+# services never see.
+Environment=PATH=/home/coding/.cargo/bin:/run/current-system/sw/bin:/usr/bin:/bin
+ExecStart=/home/coding/botburrow-agents/scripts/bead-health-monitor.sh --once
+# A pass runs bead-health-check per workspace plus `bead watchdog`, whose
+# liveness scan walks the process table once per stale bead; on a busy box
+# that can take minutes. The 90s oneshot default would kill a run mid-pass.
+TimeoutStartSec=45min
+# Output goes to the persistent user journal:
+#   journalctl --user -u botburrow-bead-health-monitor.service

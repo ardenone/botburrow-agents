@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Integration tests for scripts/bead-health-check.sh.
 #
-# Runs the script against fixture workspaces served by the stub `br` CLI
-# (tests/fixtures/br_stub.sh) so the tests are hermetic: no real bead store
-# is touched, and the corrupt states under test (in_progress with no
-# claimant) can be built exactly.
+# Runs the script against fixture workspaces served by the stub `bead` CLI
+# (tests/fixtures/bead_stub.sh) so the tests are hermetic: no real bead
+# store is touched, and the corrupt states under test (in_progress with no
+# assignee) can be built exactly.
 #
 # Usage:
 #   ./tests/test_bead_health_check.sh
@@ -33,7 +33,7 @@ count_incidents() {
 # Tests
 # ---------------------------------------------------------------------------
 
-# Check-only mode must flag an in_progress bead with no claimant, list its
+# Check-only mode must flag an in_progress bead with no assignee, list its
 # id, and not mutate anything.
 test_check_only_detects_unclaimed_in_progress() {
     new_workspace
@@ -55,7 +55,7 @@ test_check_only_detects_unclaimed_in_progress() {
 }
 
 # --auto-fix must reset an unclaimed in_progress bead to open, clearing the
-# claim metadata with it.
+# assignee with it.
 test_autofix_resets_unclaimed_in_progress() {
     new_workspace
     local ws="$WS"
@@ -68,8 +68,7 @@ test_autofix_resets_unclaimed_in_progress() {
     local bead
     bead=$(fixture_bead "$bead_id")
     assert_equals "open" "$(jq -r .status <<< "$bead")" "bead must be reset to open"
-    assert_equals "null" "$(jq -r .claimed_by <<< "$bead")" "claimant must be cleared"
-    assert_equals "null" "$(jq -r .claim_timestamp <<< "$bead")" "claim timestamp must be cleared"
+    assert_equals "null" "$(jq -r .assignee <<< "$bead")" "assignee must be cleared"
 }
 
 # --auto-fix must create a P0 incident bead describing the violation.
@@ -92,6 +91,30 @@ test_autofix_creates_incident_bead_for_unclaimed() {
         "incident must list the affected bead"
     assert_contains "$ws" "$(jq -r .description <<< "$incident")" \
         "incident must name the workspace"
+}
+
+# --auto-fix must dedupe incident beads through --unique-ref: while a
+# violation persists (here: stale claims held by live leases, so nothing is
+# ever repaired), a second run the same day must bind to the existing
+# incident, not raise a new one.
+test_autofix_incident_is_unique_ref_deduped() {
+    new_workspace
+    local ws="$WS"
+    add_bead "Expired 1" in_progress worker-a "$(hours_ago_json_quoted 6)"
+    add_bead "Expired 2" in_progress worker-b "$(hours_ago_json_quoted 6)"
+    add_bead "Expired 3" in_progress worker-c "$(hours_ago_json_quoted 6)"
+    add_bead "Expired 4" in_progress worker-d "$(hours_ago_json_quoted 6)"
+    export BEAD_STUB_HELD_IDS="bd-fixture1,bd-fixture2,bd-fixture3,bd-fixture4"
+
+    run_health "$ws" --auto-fix >/dev/null
+    run_health "$ws" --auto-fix >/dev/null
+    unset BEAD_STUB_HELD_IDS
+
+    assert_equals 1 "$(count_incidents)" \
+        "a same-day replay must reuse the existing incident bead"
+    local calls
+    calls=$(cat "$BEAD_STUB_LOG")
+    assert_contains "--unique-ref" "$calls" "incident creates must carry a unique-ref binding"
 }
 
 # More expired claims than EXPIRED_CLAIM_THRESHOLD must fail the check.
@@ -126,8 +149,9 @@ test_expired_claims_within_threshold_are_healthy() {
     assert_contains "within threshold" "$out"
 }
 
-# --auto-fix must reset every expired claim and raise a P1 incident.
-test_autofix_resets_expired_claims_and_creates_incident() {
+# --auto-fix releases expired claims through `bead watchdog` (age-based
+# detection, release delegated to the CLI) and raises a P1 incident.
+test_autofix_releases_expired_claims_via_watchdog() {
     new_workspace
     local ws="$WS"
     add_bead "Expired 1" in_progress worker-a "$(hours_ago_json_quoted 2)"
@@ -135,12 +159,14 @@ test_autofix_resets_expired_claims_and_creates_incident() {
     add_bead "Expired 3" in_progress worker-c "$(hours_ago_json_quoted 5)"
     add_bead "Expired 4" in_progress worker-d "$(hours_ago_json_quoted 6)"
 
-    run_health "$ws" --auto-fix >/dev/null
+    local out
+    out=$(run_health "$ws" --auto-fix)
 
     assert_exit 1 "$(last_rc)"
+    assert_contains "released" "$out" "output must credit the watchdog release"
     local status
     status=$(fixture_state | jq -r '[.[] | select(.id | startswith("bd-fixture")) | .status] | unique | join(",")')
-    assert_equals "open" "$status" "all expired claims must be reset to open"
+    assert_equals "open" "$status" "all expired claims must be released to open"
 
     assert_equals 1 "$(count_incidents)"
     local incident
@@ -149,38 +175,77 @@ test_autofix_resets_expired_claims_and_creates_incident() {
     assert_contains "ALERT: 4 expired claims detected" "$(jq -r .title <<< "$incident")"
 }
 
-# A success rate below LOW_SUCCESS_RATE_THRESHOLD must fail the check even
-# in check-only mode (where no incident is raised).
-test_detects_low_claim_success_rate() {
+# Watchdog liveness gating: stale beads whose assignee still holds a valid
+# lease are reported but never released — the guard must not drop work a
+# live worker is doing just because it has been quiet past the threshold.
+test_watchdog_held_claims_are_reported_but_not_released() {
     new_workspace
     local ws="$WS"
-    set_stats 10 2
+    add_bead "Expired 1" in_progress worker-a "$(hours_ago_json_quoted 2)"
+    add_bead "Expired 2" in_progress worker-b "$(hours_ago_json_quoted 3)"
+    add_bead "Expired 3" in_progress worker-c "$(hours_ago_json_quoted 5)"
+    add_bead "Live lease" in_progress worker-live "$(hours_ago_json_quoted 6)"
+    export BEAD_STUB_HELD_IDS="bd-fixture4"
+
+    local out
+    out=$(run_health "$ws" --auto-fix)
+    unset BEAD_STUB_HELD_IDS
+
+    assert_exit 1 "$(last_rc)"
+    assert_contains "valid lease" "$out" "output must report the held claim"
+    assert_equals "in_progress" "$(fixture_bead bd-fixture4 | jq -r .status)" \
+        "a liveness-gated claim must not be released"
+    assert_equals 1 "$(count_incidents)" "stale count above threshold still alerts"
+}
+
+# Check-only must not release anything: the watchdog runs with --dry-run,
+# so detection cannot mutate the store it is only observing.
+test_check_only_watchdog_is_dry_run() {
+    new_workspace
+    local ws="$WS"
+    add_bead "Expired 1" in_progress worker-a "$(hours_ago_json_quoted 6)"
+
+    run_health "$ws" --check-only >/dev/null
+
+    assert_equals "in_progress" "$(fixture_bead bd-fixture1 | jq -r .status)" \
+        "check-only must leave a stale claim in place"
+    local calls
+    calls=$(cat "$BEAD_STUB_LOG")
+    assert_contains "--dry-run" "$calls" "watchdog must run dry in check-only mode"
+}
+
+# A `bead list` failure must fail the check, not read as an empty healthy
+# store — the silent-healthy failure mode is the worst one a monitor can
+# have.
+test_bead_list_failure_fails_the_check() {
+    new_workspace
+    local ws="$WS"
+    add_bead "Queued task" open
+    export BEAD_STUB_FAIL_LIST=1
 
     local out
     out=$(run_health "$ws" --check-only)
+    unset BEAD_STUB_FAIL_LIST
 
-    assert_exit 1 "$(last_rc)" "low claim success rate must exit 1"
-    assert_contains "below 50" "$out"
-    assert_contains "20%" "$out" "output must report the computed rate"
-    assert_equals 0 "$(count_incidents)" "check-only must not create incidents"
+    assert_exit 1 "$(last_rc)" "a broken CLI must fail the check"
+    assert_contains "bead list failed" "$out"
+    assert_not_contains "All health checks passed" "$out" "CLI failure must not read as healthy"
 }
 
-# Outside check-only mode a low success rate raises a P1 incident bead
-# (this check has no auto-fix — it only alerts).
-test_low_claim_success_rate_creates_incident() {
+# A `bead watchdog` failure must fail the check too — claim freshness is
+# half the guard, and losing it silently halves the detection window.
+test_bead_watchdog_failure_fails_the_check() {
     new_workspace
     local ws="$WS"
-    set_stats 10 2
+    add_bead "Queued task" open
+    export BEAD_STUB_FAIL_WATCHDOG=1
 
-    run_health "$ws" >/dev/null
+    local out
+    out=$(run_health "$ws" --check-only)
+    unset BEAD_STUB_FAIL_WATCHDOG
 
-    assert_exit 1 "$(last_rc)"
-    assert_equals 1 "$(count_incidents)"
-    local incident
-    incident=$(fixture_incidents | jq '.[0]')
-    assert_equals "human" "$(jq -r .issue_type <<< "$incident")"
-    assert_equals 1 "$(jq -r .priority <<< "$incident")"
-    assert_contains "ALERT: Low claim success rate" "$(jq -r .title <<< "$incident")"
+    assert_exit 1 "$(last_rc)" "a broken watchdog must fail the check"
+    assert_contains "bead watchdog failed" "$out"
 }
 
 # A clean workspace must exit 0 — the guard's green path. This regressed
@@ -198,7 +263,7 @@ test_healthy_workspace_exits_zero() {
     assert_not_contains "[ERROR]" "$out" "no errors on a healthy workspace"
 }
 
-# An in_progress bead with a live claimant and fresh timestamp is healthy —
+# An in_progress bead with a live assignee and fresh activity is healthy —
 # regression guard for the bd-8q53 false-positive class.
 test_claimed_in_progress_bead_is_healthy() {
     new_workspace
@@ -248,11 +313,14 @@ bead_health_test_main \
     test_check_only_detects_unclaimed_in_progress \
     test_autofix_resets_unclaimed_in_progress \
     test_autofix_creates_incident_bead_for_unclaimed \
+    test_autofix_incident_is_unique_ref_deduped \
     test_detects_expired_claims_above_threshold \
     test_expired_claims_within_threshold_are_healthy \
-    test_autofix_resets_expired_claims_and_creates_incident \
-    test_detects_low_claim_success_rate \
-    test_low_claim_success_rate_creates_incident \
+    test_autofix_releases_expired_claims_via_watchdog \
+    test_watchdog_held_claims_are_reported_but_not_released \
+    test_check_only_watchdog_is_dry_run \
+    test_bead_list_failure_fails_the_check \
+    test_bead_watchdog_failure_fails_the_check \
     test_healthy_workspace_exits_zero \
     test_claimed_in_progress_bead_is_healthy \
     test_unknown_workspace_exits_one \

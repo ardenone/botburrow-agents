@@ -3,8 +3,8 @@
 # (tests/test_bead_health_check.sh, tests/test_bead_health_monitor.sh).
 #
 # Provides:
-#   - a stub `br` CLI (tests/fixtures/br_stub.sh) put at the front of PATH so
-#     the scripts under test never touch a real bead store
+#   - a stub `bead` CLI (tests/fixtures/bead_stub.sh) put at the front of
+#     PATH so the scripts under test never touch a real bead store
 #   - fixture workspace builders backed by a JSON state file
 #   - assertion helpers and a run_test runner with a summary
 #
@@ -17,7 +17,7 @@ _TEST_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$_TEST_LIB_DIR/../.." && pwd)"
 HEALTH_CHECK_SCRIPT="$REPO_ROOT/scripts/bead-health-check.sh"
 HEALTH_MONITOR_SCRIPT="$REPO_ROOT/scripts/bead-health-monitor.sh"
-BR_STUB="$REPO_ROOT/tests/fixtures/br_stub.sh"
+BEAD_STUB="$REPO_ROOT/tests/fixtures/bead_stub.sh"
 
 SUITE_ROOT="$(mktemp -d /tmp/bead-health-tests.XXXXXX)"
 STUB_BIN="$SUITE_ROOT/bin"
@@ -32,56 +32,52 @@ FAILED_TEST_NAMES=()
 # ---------------------------------------------------------------------------
 
 # Create a fresh fixture workspace with an empty bead store. Sets the global
-# WS to its path and exports BR_STUB_STATE / BR_STUB_STATS / BR_STUB_LOG for
-# it. (The path is returned via $WS rather than stdout on purpose: a test
-# function itself runs inside a $( ) subshell, and exports from a nested
-# command substitution would be lost.)
+# WS to its path and exports BEAD_STUB_STATE / BEAD_STUB_LOG for it. (The
+# path is returned via $WS rather than stdout on purpose: a test function
+# itself runs inside a $( ) subshell, and exports from a nested command
+# substitution would be lost.)
 new_workspace() {
     local ws="$SUITE_ROOT/ws-$TESTS_RUN-$RANDOM"
     mkdir -p "$ws/.beads" "$STUB_BIN"
     echo '[]' > "$ws/beads-state.json"
-    echo '{"total_claims": 0, "successful_claims": 0}' > "$ws/beads-stats.json"
-    : > "$ws/br-calls.log"
-    export BR_STUB_STATE="$ws/beads-state.json"
-    export BR_STUB_STATS="$ws/beads-stats.json"
-    export BR_STUB_LOG="$ws/br-calls.log"
-    ln -sf "$BR_STUB" "$STUB_BIN/br"
+    : > "$ws/bead-calls.log"
+    export BEAD_STUB_STATE="$ws/beads-state.json"
+    export BEAD_STUB_LOG="$ws/bead-calls.log"
+    ln -sf "$BEAD_STUB" "$STUB_BIN/bead"
     WS="$ws"
 }
 
 # Append a bead to the current fixture state.
-#   add_bead <title> <status> [claimed_by] [claim_timestamp]
+#   add_bead <title> <status> [assignee] [updated_at-as-JSON-string]
+# The assignee arg is a bare string ("null" or empty → unassigned). The
+# updated_at arg arrives pre-quoted (see hours_ago_json_quoted); omitted
+# means "just updated", i.e. a fresh bead the watchdog will not call stale.
 add_bead() {
     local title="$1" status="$2"
-    local claimed_by="${3:-null}" claim_ts="${4:-null}"
-    jq -c --arg t "$title" --arg s "$status" --arg cb "$claimed_by" --arg ct "$claim_ts" '
+    local assignee="${3:-null}" updated_at="${4:-null}"
+    jq -c --arg t "$title" --arg s "$status" --arg a "$assignee" --arg ts "$updated_at" '
         . + [{id: ("bd-fixture" + (length + 1 | tostring)), title: $t, status: $s,
               priority: 2, issue_type: "task",
-              claimed_by: (if $cb == "null" then null else $cb end),
-              claim_timestamp: (if $ct == "null" then null else $ct end)}]' \
-        "$BR_STUB_STATE" > "$BR_STUB_STATE.tmp"
-    mv "$BR_STUB_STATE.tmp" "$BR_STUB_STATE"
+              assignee: (if $a == "null" or $a == "" then null else $a end),
+              updated_at: (if $ts == "null" or $ts == "" then (now | todate)
+                           else ($ts | fromjson) end)}]' \
+        "$BEAD_STUB_STATE" > "$BEAD_STUB_STATE.tmp"
+    mv "$BEAD_STUB_STATE.tmp" "$BEAD_STUB_STATE"
 }
 
 # Echo the current fixture state as compact JSON (for assertions).
 fixture_state() {
-    jq -c '.' "$BR_STUB_STATE"
+    jq -c '.' "$BEAD_STUB_STATE"
 }
 
 # Fetch one bead from the current fixture state as an object.
 fixture_bead() {
-    jq -c --arg id "$1" '.[] | select(.id == $id)' "$BR_STUB_STATE"
+    jq -c --arg id "$1" '.[] | select(.id == $id)' "$BEAD_STUB_STATE"
 }
 
 # Echo the IDs of incident beads (type=human, title starts with ALERT).
 fixture_incidents() {
-    jq -c '[.[] | select(.issue_type == "human" and (.title | startswith("ALERT")))]' "$BR_STUB_STATE"
-}
-
-# Set claim-success stats for the current fixture.
-#   set_stats <total_claims> <successful_claims>
-set_stats() {
-    printf '{"total_claims": %s, "successful_claims": %s}' "$1" "$2" > "$BR_STUB_STATS"
+    jq -c '[.[] | select(.issue_type == "human" and (.title | startswith("ALERT")))]' "$BEAD_STUB_STATE"
 }
 
 now_ts() {
@@ -198,7 +194,7 @@ bead_health_test_main() {
     echo "  $SUITE_NAME"
     echo "========================================"
 
-    for artifact in "$HEALTH_CHECK_SCRIPT" "$HEALTH_MONITOR_SCRIPT" "$BR_STUB"; do
+    for artifact in "$HEALTH_CHECK_SCRIPT" "$HEALTH_MONITOR_SCRIPT" "$BEAD_STUB"; do
         if [ ! -f "$artifact" ]; then
             echo "[FAIL] required file missing: $artifact"
             exit 1

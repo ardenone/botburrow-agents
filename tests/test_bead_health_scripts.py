@@ -3,7 +3,7 @@
 The starvation guard lives in bash (scripts/bead-health-check.sh,
 scripts/bead-health-monitor.sh), so its tests are bash too
 (test_bead_health_check.sh, test_bead_health_monitor.sh, hermetic via the
-stub `br` CLI in tests/fixtures/). This wrapper runs them under pytest so
+stub `bead` CLI in tests/fixtures/). This wrapper runs them under pytest so
 `pytest tests/` — the repo's standard test invocation — covers the shell
 scripts as well and a regression fails the build instead of the fleet.
 """

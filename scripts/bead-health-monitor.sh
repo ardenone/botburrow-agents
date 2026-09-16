@@ -22,12 +22,14 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INTERVAL=300  # 5 minutes
 RUN_ONCE=false
 
-# Known workspaces (add more as needed)
+# Known workspaces (add more as needed). These are the botburrow worker
+# system's repos as checked out on codinghome: botburrow-hub is not currently
+# checked out there, but staying listed costs nothing — the monitor skips
+# missing directories gracefully and picks it up automatically if it appears.
 WORKSPACES=(
-    "/home/coder/botburrow-agents"
-    "/home/coder/botburrow-hub"
-    "/home/coder/AMAIL"
-    "/home/coder/ardenone-cluster"
+    "/home/coding/botburrow-agents"
+    "/home/coding/botburrow-hub"
+    "/home/coding/botburrow"
 )
 
 # Parse arguments

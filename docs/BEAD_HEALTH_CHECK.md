@@ -11,19 +11,17 @@ The bead health check system detects and automatically recovers from stuck beads
 ### What It Detects
 
 1. **Unclaimed in_progress beads** (P0 severity)
-   - Beads with `status=in_progress` but `claimed_by=null`
+   - Beads with `status=in_progress` but `assignee=null`
    - Violates state machine invariant
    - Causes worker starvation (workers cannot claim beads already in_progress)
 
 2. **Expired claims** (P1 severity)
-   - Beads with claims older than 1 hour
+   - Beads in_progress with no activity for more than 1 hour
    - Indicates crashed or hung workers
-   - Alert threshold: > 3 expired claims
-
-3. **Low claim success rate** (P1 severity)
-   - Overall claim success rate < 50%
-   - Indicates systemic issues
-   - Creates incident bead for investigation
+   - Detected and recovered through `bead watchdog`, which is liveness-gated:
+     it only releases a stale bead when it can prove the assignee process is
+     gone, and holds (`lease_valid_but_stale`) when it cannot
+   - Alert threshold: > 3 stale beads per pass
 
 ### Auto-Recovery
 
@@ -108,35 +106,41 @@ main() {
 **Features:**
 - Monitors multiple workspaces
 - Configurable interval
-- Suitable for cron or systemd timer
 - Logs all actions
 
-**Cron Setup:**
+**The startup check in `bead-worker.sh` only fires when a worker starts** —
+a stuck bead created two minutes after a worker boots sits undetected until
+the next restart. The periodic monitor closes that window. It is **deployed**
+as a systemd **user** timer on codinghome; the units live in this repo so the
+deployment is reproducible:
+
+| File | Role |
+|------|------|
+| `systemd/user/botburrow-bead-health-monitor.service` | oneshot running `scripts/bead-health-monitor.sh --once` from the repo checkout |
+| `systemd/user/botburrow-bead-health-monitor.timer` | `OnCalendar=*:0/5` (5-minute cadence), `Persistent=true` catches up a missed fire after downtime |
+| `scripts/install-bead-health-monitor.sh` | idempotent installer: copies units to `~/.config/systemd/user/`, daemon-reloads, `enable --now` the timer — re-run it after editing the units in-repo |
+
+Oneshot-per-fire was chosen over a long-running loop service deliberately: a
+crashed loop stays crashed silently, while a failed oneshot turns the unit red
+in `systemctl --user --failed` and shows in `list-timers`. (A CronJob-like
+`kind: CronJob` in-cluster is prohibited in this org; the equivalent in-cluster
+shape would be a Deployment with an internal scheduling loop.)
+
+**Workspaces scanned** — `WORKSPACES` in `scripts/bead-health-monitor.sh`,
+currently `/home/coding/botburrow-agents`, `/home/coding/botburrow-hub`,
+`/home/coding/botburrow`. Missing or `.beads`-less directories are skipped
+with a log line, not an error (botburrow-hub is not checked out on codinghome
+today; keeping it listed costs nothing). Override without editing the script
+via `BOTBURROW_HEALTH_WORKSPACES` (colon- or space-separated).
+
+**Logs** land in the persistent user journal:
+
 ```bash
-# Add to crontab: run every 5 minutes
-*/5 * * * * /home/coding/botburrow-agents/scripts/bead-health-monitor.sh --once
-```
+# Follow a pass
+journalctl --user -u botburrow-bead-health-monitor.service -f
 
-**Systemd Timer Setup:**
-```ini
-# /etc/systemd/system/bead-health-monitor.timer
-[Unit]
-Description=Bead Health Check Timer
-
-[Timer]
-OnBootSec=5min
-OnUnitActiveSec=5min
-
-[Install]
-WantedBy=timers.target
-
-# /etc/systemd/system/bead-health-monitor.service
-[Unit]
-Description=Bead Health Check
-
-[Service]
-Type=oneshot
-ExecStart=/home/coding/botburrow-agents/scripts/bead-health-monitor.sh --once
+# When did it last run / when is the next fire?
+systemctl --user list-timers botburrow-bead-health-monitor.timer
 ```
 
 ## Incident Bead Format
@@ -144,7 +148,7 @@ ExecStart=/home/coding/botburrow-agents/scripts/bead-health-monitor.sh --once
 When violations are detected, incident beads are created with:
 
 **Type:** `human` (requires human review)
-**Priority:** `0` (P0 for unclaimed beads) or `1` (P1 for expired claims/low success rate)
+**Priority:** `0` (P0 for unclaimed beads) or `1` (P1 for expired claims)
 
 **Example Title:**
 ```
@@ -156,8 +160,7 @@ ALERT: 3 unclaimed in_progress beads detected
 ## Problem
 Detected 3 beads in invalid state:
 - status: in_progress
-- claimed_by: null (should have worker ID)
-- claim_timestamp: null (should have timestamp)
+- assignee: null (should have a worker)
 
 ## Auto-Recovery
 All beads were automatically reset to 'open' status.
@@ -186,24 +189,24 @@ The guard is covered by two hermetic bash suites plus a pytest wrapper that
 wires them into the repo's standard `pytest tests/` invocation.
 
 **Files:**
-- `tests/test_bead_health_check.sh` — the health-check script (11 tests)
+- `tests/test_bead_health_check.sh` — the health-check script (15 tests)
 - `tests/test_bead_health_monitor.sh` — the periodic monitor (4 tests)
 - `tests/lib/bead_health_test_lib.sh` — shared harness (fixtures, assertions, runner)
-- `tests/fixtures/br_stub.sh` — test double for the `br` CLI
+- `tests/fixtures/bead_stub.sh` — test double for the `bead` CLI
 - `tests/test_bead_health_scripts.py` — pytest wrapper (runs both suites)
 
-**Why a stubbed `br`:** the scripts shell out to `br` (bead-rs). Running the
-real CLI against a fixture workspace would couple the tests to one backend's
-schema, and the corrupt states under test (in_progress with no claimant) are
-exactly the states the real CLI refuses to create. The stub serves bead state
-from a JSON file the test controls and exits 64 on any subcommand the scripts
-don't actually use, so script drift fails loudly.
+**Why a stubbed `bead`:** the scripts shell out to `bead` (bead-rs). Running
+the real CLI against a fixture workspace would couple the tests to one
+backend's schema, and the corrupt states under test (in_progress with no
+assignee) are exactly the states the real CLI refuses to create. The stub
+serves bead state from a JSON file the test controls and exits 64 on any
+subcommand the scripts don't actually use, so script drift fails loudly.
 
 **Coverage:**
 1. ✅ Detect unclaimed in_progress beads (check-only flags, auto-fix resets + P0 incident)
 2. ✅ Detect expired claims (above/below the >3 threshold; auto-fix resets + P1 incident)
-3. ✅ Detect low claim success rate (<50%; P1 incident outside check-only)
-4. ✅ Healthy workspace exits 0 — including under `--auto-fix` (live claims must survive)
+3. ✅ Healthy workspace exits 0 — including under `--auto-fix` (live claims must survive)
+4. ✅ CLI failures fail the check instead of reading as an empty, healthy store
 5. ✅ Exit codes 0/1 for both scripts; monitor skip paths (missing dir, no `.beads/`)
 
 **Run them:**
@@ -231,9 +234,9 @@ starvation guard fails the build instead of the fleet.
 > the guard: they serve bead state from a fixture via a stubbed CLI, so all
 > three violation types can be driven deterministically and safely.
 >
-> The scripts themselves still shell out to the deprecated `br` CLI; that
-> interface is pinned by `tests/fixtures/br_stub.sh` (unused subcommands
-> exit 64), so any drift between scripts and tests fails loudly.
+> The scripts themselves target the bead-rs CLI (`bead`); that interface is
+> pinned by `tests/fixtures/bead_stub.sh` (unused subcommands exit 64), so any
+> drift between scripts and tests fails loudly.
 
 ### Create Invalid State (bead-forge era — historical, do not run today)
 
@@ -313,13 +316,15 @@ We chose **Option A: Worker-based health check** for these reasons:
 
 ## Configuration
 
-### Environment Variables
+### Script Variables
+
+Set at the top of `scripts/bead-health-check.sh` (plain variables, not
+environment overrides — edit the script to change them):
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `CLAIM_EXPIRY_HOURS` | `1` | Hours before claim is considered expired |
+| `CLAIM_EXPIRY_HOURS` | `1` | Hours before a claim is considered expired (the `bead watchdog` threshold) |
 | `EXPIRED_CLAIM_THRESHOLD` | `3` | Alert if > N expired claims |
-| `LOW_SUCCESS_RATE_THRESHOLD` | `50` | Alert if claim success rate < N% |
 
 ### Customization
 
@@ -329,7 +334,6 @@ Edit `scripts/bead-health-check.sh`:
 # Change thresholds
 CLAIM_EXPIRY_HOURS=2  # 2 hours instead of 1
 EXPIRED_CLAIM_THRESHOLD=5  # Alert at 5 instead of 3
-LOW_SUCCESS_RATE_THRESHOLD=40  # Alert at 40% instead of 50%
 ```
 
 ## Metrics & Monitoring
@@ -372,19 +376,19 @@ cd /home/coding/botburrow-agents
 
 ```bash
 # Check actual bead state
-br list --status in_progress --all --json | jq .
+bead list --status in_progress --json | jq .
 
-# Verify claim timestamps
-br list --status in_progress --all --json | jq '.[] | {id, claimed_by, claim_timestamp}'
+# Verify assignees
+bead list --status in_progress --json | jq '{id, assignee}'
 
-# If timestamp format is wrong, update health check script
+# If the field names drift, update health check script
 ```
 
 ### Incident Beads Not Created
 
 ```bash
-# Check if br can create human beads
-br create --type human --title "Test incident" --priority 1
+# Check if bead can create human beads
+bead create --issue-type human --title "Test incident" --priority 1
 
 # Check health check output for errors
 ./scripts/bead-health-check.sh --workspace=$(pwd) --auto-fix 2>&1 | tee health-check.log

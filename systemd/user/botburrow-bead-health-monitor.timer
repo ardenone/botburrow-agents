@@ -1,0 +1,17 @@
+[Unit]
+Description=Run the botburrow bead health monitor every 5 minutes
+Requires=botburrow-bead-health-monitor.service
+
+[Timer]
+# Clock-aligned 5-minute cadence: the periodic detection window the
+# startup-only check in bead-worker.sh leaves uncovered (see
+# docs/BEAD_HEALTH_CHECK.md). Persistent=true catches up a missed fire after
+# downtime; the randomized delay keeps this timer from stacking on the
+# fleet's other clock-aligned timers.
+OnCalendar=*:0/5
+RandomizedDelaySec=30
+Persistent=true
+AccuracySec=60s
+
+[Install]
+WantedBy=timers.target
