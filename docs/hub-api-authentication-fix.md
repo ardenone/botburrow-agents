@@ -56,133 +56,25 @@ async def _get_client(self) -> httpx.AsyncClient:
 
 ## Solution
 
-### Option 1: Update Secret in Cluster (RECOMMENDED - Immediate Fix)
+The incident is resolved. The live Secret is owned by the SealedSecret
+manifest in the ArgoCD-managed namespace, so the only supported rotation path
+is the manifest-side flow in
+[docs/GITOPS_DEPLOYMENT.md § Secrets Management](GITOPS_DEPLOYMENT.md#secrets-management).
+That flow uses `kubeseal` to regenerate the encrypted manifest, commits and
+pushes it, and lets ArgoCD sync the change. The helper
+`k8s/apexalgo-iad/scripts/create-sealedsecret.sh` wraps the same flow.
+The sealing command must target the deployed controller with
+`--controller-name=sealed-secrets-apexalgo-iad` and
+`--controller-namespace=sealed-secrets`; the canonical command is in the
+linked guide.
 
-**For cluster administrators with kubectl access to botburrow-agents namespace:**
+Do not edit, create, apply, or restart the live Secret/workloads with
+`kubectl`; those mutations are GitOps drift and are reverted by ArgoCD
+`selfHeal`. The deleted `scripts/fix-hub-auth.sh` is retained only as
+historical context and must not be recreated.
 
-1. **Get the current Hub API key from botburrow-hub admin or generate one**
-
-   If you don't have the Hub API key, you'll need to:
-   - Access the Hub admin interface at https://botburrow.ardenone.com/admin
-   - Generate an API key for the botburrow-agents service
-   - Or retrieve the existing key from the botburrow-hub deployment
-
-2. **Update the secret with correct environment variable name:**
-
-```bash
-# Export kubeconfig for apexalgo-iad cluster
-export KUBECONFIG=/home/coder/.kube/apexalgo-iad.kubeconfig
-
-# Edit the secret (requires cluster-admin or secret edit permissions)
-kubectl edit secret botburrow-agents-secrets -n botburrow-agents
-
-# Change the key names:
-# OLD:
-#   HUB_API_KEY: <base64-value>
-#   R2_ENDPOINT: <base64-value>
-#   R2_ACCESS_KEY: <base64-value>
-#   R2_SECRET_KEY: <base64-value>
-#
-# NEW:
-#   BOTBURROW_HUB_API_KEY: <base64-value>
-#   BOTBURROW_R2_ENDPOINT: <base64-value>
-#   BOTBURROW_R2_ACCESS_KEY: <base64-value>
-#   BOTBURROW_R2_SECRET_KEY: <base64-value>
-```
-
-3. **Restart coordinator pods to pick up new environment variables:**
-
-```bash
-kubectl rollout restart deployment coordinator -n botburrow-agents
-kubectl rollout restart deployment coordinator-git-sync -n botburrow-agents
-
-# Wait for restart
-kubectl rollout status deployment coordinator -n botburrow-agents
-kubectl rollout status deployment coordinator-git-sync -n botburrow-agents
-```
-
-4. **Verify the fix:**
-
-```bash
-# Check coordinator logs - should see successful polling
-kubectl logs -f deployment/coordinator -n botburrow-agents --tail=50
-
-# Should no longer see 401 errors, should see:
-# [info] poll_success assignments_count=X
-```
-
-### Option 2: Create New Secret (Alternative)
-
-If you need to create the secret from scratch:
-
-```bash
-export KUBECONFIG=/home/coder/.kube/apexalgo-iad.kubeconfig
-
-# Get Hub API key (replace with actual value)
-HUB_API_KEY="your-actual-hub-api-key-here"
-
-# Create the secret with correct variable names
-kubectl create secret generic botburrow-agents-secrets \
-  --namespace=botburrow-agents \
-  --from-literal=BOTBURROW_HUB_API_KEY="$HUB_API_KEY" \
-  --from-literal=BOTBURROW_R2_ENDPOINT="https://your-r2-endpoint" \
-  --from-literal=BOTBURROW_R2_ACCESS_KEY="your-r2-access-key" \
-  --from-literal=BOTBURROW_R2_SECRET_KEY="your-r2-secret-key" \
-  --from-literal=FORGEJO_USER="botburrow-agents" \
-  --from-literal=FORGEJO_TOKEN="your-forgejo-token" \
-  --from-literal=GITHUB_USER="your-github-user" \
-  --from-literal=GITHUB_TOKEN="your-github-token" \
-  --dry-run=client -o yaml | kubectl apply -f -
-```
-
-### Option 3: GitOps with SealedSecrets (Production)
-
-For production GitOps deployment:
-
-1. **Create a SealedSecret:**
-
-```bash
-# Create secret YAML with correct names
-cat <<EOF > botburrow-agents-secrets.yml
-apiVersion: v1
-kind: Secret
-metadata:
-  name: botburrow-agents-secrets
-  namespace: botburrow-agents
-type: Opaque
-stringData:
-  BOTBURROW_HUB_API_KEY: "your-actual-key"
-  BOTBURROW_R2_ENDPOINT: "https://your-r2-endpoint"
-  BOTBURROW_R2_ACCESS_KEY: "your-access-key"
-  BOTBURROW_R2_SECRET_KEY: "your-secret-key"
-  FORGEJO_USER: "botburrow-agents"
-  FORGEJO_TOKEN: "your-forgejo-token"
-  GITHUB_USER: "your-github-user"
-  GITHUB_TOKEN: "your-github-token"
-EOF
-
-# Seal it (--controller-name is required: the Service here is named for its
-# Helm release, not the upstream default; --controller-namespace is
-# sealed-secrets, not kube-system)
-kubeseal --format=yaml \
-  --controller-name=sealed-secrets-apexalgo-iad \
-  --controller-namespace=sealed-secrets \
-  < botburrow-agents-secrets.yml \
-  > k8s/apexalgo-iad/botburrow-agents-sealedsecrets.yml
-
-# Commit to git
-git add k8s/apexalgo-iad/botburrow-agents-sealedsecrets.yml
-git commit -m "fix: Add SealedSecret with correct BOTBURROW_ prefix"
-git push
-
-# ArgoCD will sync automatically
-```
-
-2. **Remove temporary secret file:**
-
-```bash
-rm botburrow-agents-secrets.yml
-```
+After sealing, remove any temporary plaintext secret file from the working
+directory.
 
 ## Affected Environment Variables
 
